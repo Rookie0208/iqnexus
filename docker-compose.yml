@@ -6,8 +6,8 @@ services:
     image: mongo:7.0
     container_name: iqnexus-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
+    expose:
+      - "27017"
     volumes:
       - mongodb_data:/data/db
     environment:
@@ -22,8 +22,8 @@ services:
       dockerfile: Dockerfile
     container_name: iqnexus-backend
     restart: unless-stopped
-    ports:
-      - "5001:5001"
+    expose:
+      - "5001"
     environment:
       - NODE_ENV=production
       - PORT=5001
@@ -44,10 +44,10 @@ services:
       dockerfile: Dockerfile
     container_name: iqnexus-client
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
-      - REACT_APP_BASE_API_URL=http://localhost:5001
+      - REACT_APP_BASE_API_URL=https://iqnexus.jayantasonowal.com/api
     depends_on:
       - backend
     networks:
@@ -63,10 +63,10 @@ services:
       dockerfile: Dockerfile
     container_name: iqnexus-admin
     restart: unless-stopped
-    ports:
-      - "3001:3000"
+    expose:
+      - "3000"
     environment:
-      - VITE_API_BASE_URL=http://localhost:5001
+      - VITE_API_BASE_URL=https://iqnexus.jayantasonowal.com/api
     depends_on:
       - backend
     networks:
@@ -74,6 +74,26 @@ services:
     volumes:
       - ./iqnexus-admin-main:/app
       - /app/node_modules
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: iqnexus-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - backend
+      - client
+      - admin
+    networks:
+      - iqnexus-network
 
 networks:
   iqnexus-network:
