@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Certificate of Appreciation</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Arial", sans-serif;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .certificate-container {
+      width: 1000px;
+      height: 700px;
+      border: 10px solid #0071bc;
+      padding: 40px;
+      box-sizing: border-box;
+      position: relative;
+      background: url('https://via.placeholder.com/1000x700?text=Background') no-repeat center center;
+      background-size: cover;
+    }
+
+    .header {
+      text-align: center;
+    }
+
+    .logo {
+      width: 100px;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #0b3c87;
+      margin-top: 10px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #d42027;
+      margin-top: 4px;
+    }
+
+    .cert-text {
+      margin-top: 30px;
+      font-size: 18px;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .bold {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .fields {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .fields span {
+      font-weight: bold;
+      margin: 0 4px;
+    }
+
+    .ranks {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .ranks span {
+      font-weight: bold;
+      margin: 0 6px;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 50px;
+      left: 40px;
+      right: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .signatures {
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .signatures img {
+      height: 50px;
+    }
+
+    .qr {
+      text-align: center;
+    }
+
+    .qr img {
+      height: 60px;
+    }
+
+    .roll-no {
+      position: absolute;
+      bottom: 20px;
+      right: 40px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate-container">
+    <div class="header">
+      <img class="logo" src="{{logoSrc}}" alt="Logo" />
+      <div class="subtitle">Registered Organization By Govt. of India</div>
+      <div class="title">Certificate of Appreciation</div>
+    </div>
+
+    <div class="cert-text">
+      This is to certify that <span class="bold">{{name}}</span><br />
+      Son/Daughter of Mr <span class="bold">{{father}}</span> &amp; Mrs <span class="bold">{{mother}}</span><br />
+      studying in Class <span class="bold">{{class}}</span> Sec. <span class="bold">{{section}}</span> School <span class="bold">{{school}}</span><br />
+      city <span class="bold">{{city}}</span> has secured National Rank <span class="bold">{{nationalRank}}</span>,
+      City Rank <span class="bold">{{cityRank}}</span>, Class Rank <span class="bold">{{classRank}}</span> in the <span class="bold">Basic Level</span>
+      of Aptitude Olympiad/ Talent Search Test/Mathematics Olympiad/ G.K. Olympiad held on <span class="bold">{{date}}</span>.
+      <br /><br />
+      This certificate is awarded for his/her distinctive performance in the Olympiad.
+    </div>
+
+    <div class="footer">
+      <div class="signatures">
+        <div>Jyoti Gupta<br/>Founder</div>
+      </div>
+      <div class="signatures">
+        <div>Best Wishes From</div>
+        <div>
+          <img src="https://via.placeholder.com/50x50?text=Partner1" />
+          <img src="https://via.placeholder.com/50x50?text=Partner2" />
+          <img src="https://via.placeholder.com/50x50?text=Partner3" />
+        </div>
+      </div>
+      <div class="signatures">
+        <div>Alok Mandal<br/>Co-Founder</div>
+      </div>
+    </div>
+
+    <div class="qr">
+      <img src="https://via.placeholder.com/60x60?text=QR" />
+    </div>
+
+    <div class="roll-no">
+      Roll No.: <span class="bold">{{rollNo}}</span>
+    </div>
+  </div>
+</body>
+</html>

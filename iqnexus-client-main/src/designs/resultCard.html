@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Result Card</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+      }
+
+      .card {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+
+      .header p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+      }
+
+      .student-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .student-details h2 {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+      }
+
+      .student-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .meta-item {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+      }
+
+      .score-badge {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 20px;
+        border-radius: 15px;
+        min-width: 120px;
+      }
+
+      .score-badge .percentage {
+        font-size: 3rem;
+        font-weight: bold;
+        display: block;
+      }
+
+      .score-badge .label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .section {
+        margin-bottom: 30px;
+      }
+
+      .section-title {
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #333;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 5px;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+
+      .info-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        border-left: 4px solid #667eea;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      .info-row:last-child {
+        border-bottom: none;
+      }
+
+      .info-label {
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .info-value {
+        font-weight: bold;
+        color: #333;
+      }
+
+      .rank-card {
+        border-left-color: #ffc107;
+      }
+
+      .qualification-card {
+        border-left-color: #28a745;
+      }
+
+      .qualification-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 0.9rem;
+      }
+
+      .qualified {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .not-qualified {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .footer {
+        background: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        border-top: 1px solid #e9ecef;
+      }
+
+      .footer p {
+        color: #6c757d;
+        font-size: 0.9rem;
+      }
+
+      @media print {
+        body {
+          background: white;
+          padding: 0;
+        }
+        
+        .card {
+          box-shadow: none;
+          border: 1px solid #ddd;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <!-- Header -->
+      <div class="header">
+        <h1>Academic Result Card</h1>
+        <p>Session 2024-25</p>
+      </div>
+
+      <!-- Student Information -->
+      <div class="student-info">
+        <div class="student-details">
+          <h2>{{studentName}}</h2>
+          <div class="student-meta">
+            <span class="meta-item">Roll No: {{rollNo}}</span>
+            <span class="meta-item">Class: {{class}}</span>
+            <span class="meta-item">Section: {{section}}</span>
+          </div>
+        </div>
+        <div class="score-badge">
+          <span class="percentage">{{percentage}}%</span>
+          <span class="label">Overall Score</span>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <!-- Academic Performance -->
+        <div class="section">
+          <h3 class="section-title">Academic Performance</h3>
+          <div class="info-grid">
+            <div class="info-card">
+              <div class="info-row">
+                <span class="info-label">School:</span>
+                <span class="info-value">{{school}}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Marks Scored:</span>
+                <span class="info-value">{{marksObtained}}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Percentage:</span>
+                <span class="info-value">{{percentage}}%</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Percentile Score:</span>
+                <span class="info-value">{{percentileScore}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rankings -->
+        <div class="section">
+          <h3 class="section-title">Performance Rankings</h3>
+          <div class="info-grid">
+            <div class="info-card rank-card">
+              <div class="info-row">
+                <span class="info-label">School Rank:</span>
+                <span class="info-value">{{schoolRank}}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Zonal Rank:</span>
+                <span class="info-value">{{zonalRank}}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">National Rank:</span>
+                <span class="info-value">{{nationalRank}}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">International Rank:</span>
+                <span class="info-value">{{internationalRank}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Qualification Status -->
+        <div class="section">
+          <h3 class="section-title">Qualification Status</h3>
+          <div class="info-grid">
+            <div class="info-card qualification-card">
+              <div class="info-row">
+                <span class="info-label">Qualified for 2nd Level:</span>
+                <span class="qualification-badge {{qualificationClass}}">
+                  {{qualificationText}}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p>This is a computer-generated result card. No signature is required.</p>
+        <p>Generated on: {{generatedDate}}</p>
+      </div>
+    </div>
+  </body>
+</html>

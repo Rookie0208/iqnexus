@@ -1,0 +1,31 @@
+.admit-card-container {
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .admit-card {
+    width: 400px;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #f9f9f9;
+  }
+  
+  .admit-card p {
+    margin: 10px 0;
+  }
+  
+  .admit-card button {
+    padding: 10px 15px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .admit-card button:hover {
+    background: #34495e;
+  }
+  

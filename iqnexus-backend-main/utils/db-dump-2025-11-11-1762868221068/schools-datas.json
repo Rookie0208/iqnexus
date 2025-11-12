@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "690e2626346bd3b800261822",
+    "schoolCode": 1234,
+    "schoolName": "VNSD",
+    "schoolEmail": "gmail@gmail.com",
+    "fax": "",
+    "area": "",
+    "city": "Kanpur",
+    "country": "India",
+    "incharge": "",
+    "inchargeDob": "",
+    "schoolMobNo": "9987654321",
+    "principalName": "dev bandhu",
+    "principalDob": "",
+    "principalMobNo": "8987654321",
+    "remark": "",
+    "__v": 0
+  }
+]

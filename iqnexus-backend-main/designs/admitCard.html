@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Admit Card - Epoch Olympiad Foundation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+    }
+
+    .admit-card {
+      position: relative;
+      width: 800px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      margin: 0 auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    .header-text {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logo-img {
+      width: 200px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .title-section {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .title-section h3 {
+      font-size: 16px;
+      color: #db2777;
+      margin: 4px 0;
+    }
+
+    .student-details {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      row-gap: 12px;
+      column-gap: 32px;
+      margin-bottom: 32px;
+    }
+
+    .student-details .label {
+      font-weight: bold;
+    }
+
+    .exam-table {
+      margin-bottom: 32px;
+    }
+
+    .exam-table-title {
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .exam-grid {
+      display: grid;
+      grid-template-columns: 100px 80px 1fr;
+      row-gap: 12px;
+      align-items: center;
+    }
+
+    .exam-grid input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+    }
+
+    .exam-center {
+      margin-bottom: 32px;
+    }
+
+    .exam-center .label {
+      font-weight: bold;
+    }
+
+    .instructions {
+      border-top: 1px solid #ccc;
+      padding-top: 20px;
+    }
+
+    .instructions h4 {
+      text-align: center;
+      color: #db2777;
+      margin-bottom: 16px;
+    }
+
+    .instructions ul {
+      list-style: disc;
+      padding-left: 20px;
+      font-size: 14px;
+    }
+
+    .omr-dots {
+      display: flex;
+      gap: 12px;
+      margin: 12px 0;
+      padding-left: 20px;
+    }
+
+    .omr-dots div {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+    }
+
+    .omr-dots .filled {
+      background-color: black;
+    }
+
+    .omr-dots .outline {
+      border: 2px solid black;
+    }
+
+    .signature-box {
+      position: absolute;
+      top: 130px;
+      right: 32px;
+      width: 128px;
+      height: 160px;
+      border: 2px solid #ccc;
+    }
+
+    .signature-text {
+      position: absolute;
+      top: 300px;
+      right: 32px;
+      text-align: center;
+      font-size: 13px;
+      border-top: 1px solid #999;
+      padding-top: 4px;
+    }
+
+    .qr-code {
+      position: absolute;
+      bottom: 32px;
+      right: 32px;
+      width: 96px;
+      height: 96px;
+      background-color: #eee;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="admit-card">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-icon"></div>
+      <div class="header-text">
+        <img src="{{logoSrc}}" alt="Logo" class="logo-img" />
+      </div>
+    </div>
+
+    <!-- Title Section -->
+    <div class="title-section">
+      <h2>ADMIT CARD</h2>
+      <h3>INTERNATIONAL OLYMPIAD EXAMS</h3>
+      <div style="color: #db2777">
+        <!-- <p style="margin: 0">BASIC LEVEL</p> -->
+        <p style="margin: 0">{{level}}</p>
+        <p style="margin: 0">{{session}}</p>
+        <p style="margin: 0">Exam Date: {{examDate}}</p>
+      </div>
+    </div>
+
+    <!-- Student Details -->
+    <div class="student-details">
+      <div class="label">Roll No:</div>
+      <div>{{rollNo}}</div>
+      <div class="label">Class:</div>
+      <div>{{class}}</div>
+      <div class="label">Section:</div>
+      <div>{{section}}</div>
+      <div class="label">Student's name:</div>
+      <div>{{name}}</div>
+      <div class="label">Father's name:</div>
+      <div>{{father}}</div>
+      <div class="label">Mother's name:</div>
+      <div>{{mother}}</div>
+      <div class="label">School name:</div>
+      <div>{{school}}</div>
+      <div class="label">Class Teacher:</div>
+      <div>{{classTeacher}}</div>
+      <div class="label">Principal name:</div>
+      <div>{{principal}}</div>
+    </div>
+
+    <!-- Exams Table -->
+    <div class="exam-table">
+      <div class="exam-table-title">Exams to write:</div>
+
+      <div class="exam-grid">
+        <div>IQROL</div>
+        <div>
+          <input type="checkbox" {{#if IAOL}}checked{{/if}} disabled />
+        </div>
+        <div>{{#if IAOL}}Participating{{else}}Not participated{{/if}}</div>
+
+        <div>IQSOL</div>
+        <div>
+          <input type="checkbox" {{#if ITSTL}}checked{{/if}} disabled />
+        </div>
+        <div>{{#if ITSTL}}Participating{{else}}Not participated{{/if}}</div>
+
+        <div>IQMOL</div>
+        <div>
+          <input type="checkbox" {{#if IMOL}}checked{{/if}} disabled />
+        </div>
+        <div>{{#if IMOL}}Participating{{else}}Not participated{{/if}}</div>
+
+        <div>IQGKOL</div>
+        <div>
+          <input type="checkbox" {{#if IGKOL}}checked{{/if}} disabled />
+        </div>
+        <div>{{#if IGKOL}}Participating{{else}}Not participated{{/if}}</div>
+
+        <div>IQEOL</div>
+        <div>
+          <input type="checkbox" {{#if IENGOL}}checked{{/if}} disabled />
+        </div>
+        <div>{{#if IENGOL}}Participating{{else}}Not participated{{/if}}</div>
+      </div>
+    </div>
+
+    <!-- Exam Center -->
+    <div class="exam-center">
+      <div class="label">Exam center:</div>
+      <div>YOUR OWN SCHOOL</div>
+    </div>
+
+    <!-- General Instructions -->
+    <div class="instructions">
+      <h4>GENERAL INSTRUCTIONS</h4>
+      <ul>
+        <li>
+          Please carry this admit card & its xerox copy and submit one to the
+          invigilator on the exam day.
+        </li>
+        <li>
+          Use HB pencil or Black Ball Point pen only to mark your answer.
+        </li>
+        <li>Correct way to mark your answers in OMR sheet:</li>
+      </ul>
+      <div class="omr-dots">
+        <div class="outline"></div>
+        <div class="filled"></div>
+        <div class="outline"></div>
+      </div>
+      <ul>
+        <li>
+          Take question paper with you after submitting the answer sheet.
+        </li>
+        <li>
+          For any doubt/query, whatsapp us by scanning this QR code through
+          your whatsapp scanner.
+        </li>
+      </ul>
+    </div>
+
+    <!-- Photo & Signature Box -->
+    <div class="signature-box"></div>
+    <div class="signature-text">
+      <p>Principal/Head</p>
+      <p>Sign with Seal</p>
+    </div>
+
+    <!-- QR Code -->
+    <div class="qr-code">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?data=https://wa.me/919999999999&size=100x100" alt="QR"
+        width="96" height="96" />
+    </div>
+  </div>
+</body>
+
+</html>
