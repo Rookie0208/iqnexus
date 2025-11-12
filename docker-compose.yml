@@ -63,6 +63,8 @@ services:
       dockerfile: Dockerfile
     container_name: iqnexus-admin
     restart: unless-stopped
+    ports:
+      - "3001:3000"
     expose:
       - "3000"
     environment:
