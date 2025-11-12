@@ -15,5 +15,8 @@ COPY . .
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Set environment variable for Vite
+ENV HOST=0.0.0.0
+
+# Start the application with proper host binding
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
