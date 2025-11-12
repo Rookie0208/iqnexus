@@ -6,11 +6,7 @@ import readline from "readline";
 
 dotenv.config();
 
-/**
- * Database Restore Script
- * Restores data from a dump directory
- * WARNING: This will overwrite existing data!
- */
+// this action will overwrite existing data in the database!
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -24,20 +20,19 @@ function askQuestion(query) {
 async function restoreDatabase(dumpDirPath) {
   try {
     if (!process.env.MONGO_URI) {
-      console.error("❌ Error: MONGO_URI is not defined in .env file");
+      console.error(" Error: MONGO_URI is not defined in .env file");
       process.exit(1);
     }
 
     // Verify dump directory exists
     if (!fs.existsSync(dumpDirPath)) {
-      console.error(`❌ Dump directory not found: ${dumpDirPath}`);
+      console.error(` Dump directory not found: ${dumpDirPath}`);
       process.exit(1);
     }
 
-    // Read summary file
     const summaryPath = path.join(dumpDirPath, '_DUMP_SUMMARY.json');
     if (!fs.existsSync(summaryPath)) {
-      console.error(`❌ Summary file not found in dump directory`);
+      console.error(` Summary file not found in dump directory`);
       process.exit(1);
     }
 
@@ -52,8 +47,8 @@ async function restoreDatabase(dumpDirPath) {
     console.log("=".repeat(70) + "\n");
 
     // Warning prompt
-    console.log("⚠️  WARNING: This will OVERWRITE existing data in the database!");
-    console.log("⚠️  Make sure you have a backup before proceeding!\n");
+    console.log("  WARNING: This will OVERWRITE existing data in the database!");
+    console.log("  Make sure you have a backup before proceeding!\n");
     
     const confirm1 = await askQuestion("Type 'YES' to continue: ");
     if (confirm1 !== 'YES') {
@@ -62,7 +57,7 @@ async function restoreDatabase(dumpDirPath) {
       process.exit(0);
     }
 
-    const confirm2 = await askQuestion("\n⚠️  Are you absolutely sure? Type 'RESTORE' to proceed: ");
+    const confirm2 = await askQuestion("\n  Are you absolutely sure? Type 'RESTORE' to proceed: ");
     if (confirm2 !== 'RESTORE') {
       console.log("\n❌ Restore cancelled");
       rl.close();
@@ -76,10 +71,10 @@ async function restoreDatabase(dumpDirPath) {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log("✅ MongoDB connected successfully\n");
+    console.log(" MongoDB connected successfully\n");
 
     const db = mongoose.connection.db;
-    console.log("⏳ Starting restore process...\n");
+    console.log(" Starting restore process...\n");
 
     let restoredCount = 0;
     let errorCount = 0;
@@ -87,7 +82,7 @@ async function restoreDatabase(dumpDirPath) {
     // Restore each collection
     for (const collectionInfo of summary.collections) {
       if (collectionInfo.error) {
-        console.log(`   ⏭️  Skipping ${collectionInfo.name} (had error in dump)`);
+        console.log(`     Skipping ${collectionInfo.name} (had error in dump)`);
         continue;
       }
 
@@ -105,10 +100,10 @@ async function restoreDatabase(dumpDirPath) {
           // Insert dumped data
           await collection.insertMany(documents);
           
-          console.log(`   ✅ ${collectionInfo.name.padEnd(40)} - ${documents.length} documents restored`);
+          console.log(`    ${collectionInfo.name.padEnd(40)} - ${documents.length} documents restored`);
           restoredCount++;
         } else {
-          console.log(`   ⏭️  ${collectionInfo.name.padEnd(40)} - Empty collection, skipped`);
+          console.log(`     ${collectionInfo.name.padEnd(40)} - Empty collection, skipped`);
         }
       } catch (error) {
         console.log(`   ❌ ${collectionInfo.name.padEnd(40)} - Error: ${error.message}`);
@@ -117,9 +112,9 @@ async function restoreDatabase(dumpDirPath) {
     }
 
     console.log("\n" + "=".repeat(70));
-    console.log("✅ DATABASE RESTORE COMPLETED!");
+    console.log(" DATABASE RESTORE COMPLETED!");
     console.log("=".repeat(70));
-    console.log(`✅ Successfully restored: ${restoredCount} collections`);
+    console.log(` Successfully restored: ${restoredCount} collections`);
     console.log(`❌ Errors: ${errorCount} collections`);
     console.log("=".repeat(70) + "\n");
 
@@ -139,11 +134,10 @@ async function restoreDatabase(dumpDirPath) {
 
 // Main execution
 console.log("╔════════════════════════════════════════════════════════════════════╗");
-console.log("║          MongoDB Database Restore - Recovery Utility              ║");
-console.log("║                    ⚠️  DANGER ZONE ⚠️                              ║");
+console.log("║          MongoDB Database Restore - Recovery Utility               ║");
+console.log("║                                                                    ║");
 console.log("╚════════════════════════════════════════════════════════════════════╝\n");
 
-// Get dump directory from command line argument
 const dumpDir = process.argv[2];
 
 if (!dumpDir) {

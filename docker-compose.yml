@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: iqnexus-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=Epoch-olympiad-foundation_New
+    networks:
+      - iqnexus-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./iqnexus-backend-main
+      dockerfile: Dockerfile
+    container_name: iqnexus-backend
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - NODE_ENV=production
+      - PORT=5001
+      - MONGO_URI=mongodb://mongodb:27017/Epoch-olympiad-foundation_New
+      - DATABASE_NAME=Epoch-olympiad-foundation_New
+    depends_on:
+      - mongodb
+    networks:
+      - iqnexus-network
+    volumes:
+      - ./iqnexus-backend-main:/app
+      - /app/node_modules
+
+  # Client Application
+  client:
+    build:
+      context: ./iqnexus-client-main
+      dockerfile: Dockerfile
+    container_name: iqnexus-client
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BASE_API_URL=http://localhost:5001
+    depends_on:
+      - backend
+    networks:
+      - iqnexus-network
+    volumes:
+      - ./iqnexus-client-main:/app
+      - /app/node_modules
+
+  # Admin Application
+  admin:
+    build:
+      context: ./iqnexus-admin-main
+      dockerfile: Dockerfile
+    container_name: iqnexus-admin
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5001
+    depends_on:
+      - backend
+    networks:
+      - iqnexus-network
+    volumes:
+      - ./iqnexus-admin-main:/app
+      - /app/node_modules
+
+networks:
+  iqnexus-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

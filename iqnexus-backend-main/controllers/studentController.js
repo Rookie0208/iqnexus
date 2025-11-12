@@ -26,18 +26,22 @@ export const getStudentByMobile = async (req, res) => {
 
   try {
     let studentData = await fetchDataByMobile(mobNo);
-    if (!studentData || !studentData[0]["Mob No"]) {
+    
+    // If no regular student found, try kindergarten students
+    if (!studentData || studentData.length === 0 || !studentData[0] || !studentData[0]["Mob No"]) {
       studentData = await fetchKgDataByMobile(mobNo);
     }
 
-    if (studentData && studentData[0]["Mob No"]) {
+    // Check if we have valid student data
+    if (studentData && studentData.length > 0 && studentData[0] && studentData[0]["Mob No"]) {
       // studentCache[mobNo] = studentData;
       return res.status(200).json({ studentData, mobile: studentData[0]["Mob No"] });
     }
 
     return res.status(404).json({ error: "No student found with this mobile number" });
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch student data", details: error });
+    console.error("Error in getStudentByMobile:", error);
+    res.status(500).json({ error: "Failed to fetch student data", details: error.message || error });
   }
 };
 

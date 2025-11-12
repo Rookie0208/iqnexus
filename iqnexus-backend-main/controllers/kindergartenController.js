@@ -7,7 +7,7 @@ export const getKindergartenStudents = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
-  const query = { class: "KG" };
+  const query = { class: "KD" };
   if (schoolCode) query.schoolCode = Number(schoolCode);
   if (rollNo) query.rollNo = { $regex: rollNo.trim(), $options: "i" };
   if (section?.length > 0) query.section = { $in: section };

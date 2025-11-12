@@ -18,22 +18,22 @@ async function dumpDatabase() {
       process.exit(1);
     }
 
-    console.log("🔌 Connecting to MongoDB Atlas...");
+    console.log(" Connecting to MongoDB Atlas...");
     await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log("✅ MongoDB connected successfully\n");
+    console.log("MongoDB connected successfully\n");
 
     // Get database name from connection string
     const dbName = process.env.DATABASE_NAME || "Epoch-olympiad-foundation_New";
-    console.log(`📊 Database: ${dbName}\n`);
+    console.log(`Database: ${dbName}\n`);
 
     // Get all collection names
     const db = mongoose.connection.db;
     const collections = await db.listCollections().toArray();
     
-    console.log(`📂 Found ${collections.length} collections:\n`);
+    console.log(`Found ${collections.length} collections:\n`);
     collections.forEach((col, idx) => {
       console.log(`   ${idx + 1}. ${col.name}`);
     });
@@ -47,8 +47,8 @@ async function dumpDatabase() {
       fs.mkdirSync(dumpDir, { recursive: true });
     }
 
-    console.log(`💾 Dumping data to: ${dumpDir}\n`);
-    console.log("⏳ Starting dump process...\n");
+    console.log(` Dumping data to: ${dumpDir}\n`);
+    console.log(" Starting dump process...\n");
 
     const dumpSummary = {
       timestamp: new Date().toISOString(),
@@ -70,7 +70,7 @@ async function dumpDatabase() {
         const filename = path.join(dumpDir, `${collectionName}.json`);
         fs.writeFileSync(filename, JSON.stringify(documents, null, 2));
 
-        console.log(`   ✅ ${collectionName.padEnd(40)} - ${count} documents`);
+        console.log(`    ${collectionName.padEnd(40)} - ${count} documents`);
         
         dumpSummary.collections.push({
           name: collectionName,
@@ -102,23 +102,23 @@ async function dumpDatabase() {
     const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
 
     console.log("\n" + "=".repeat(70));
-    console.log("✅ DATABASE DUMP COMPLETED SUCCESSFULLY!");
+    console.log(" DATABASE DUMP COMPLETED SUCCESSFULLY!");
     console.log("=".repeat(70));
-    console.log(`📁 Location: ${dumpDir}`);
-    console.log(`📊 Total Collections: ${collections.length}`);
-    console.log(`📄 Total Documents: ${dumpSummary.collections.reduce((sum, col) => sum + (col.documentCount || 0), 0)}`);
-    console.log(`💾 Total Size: ${totalSizeMB} MB`);
-    console.log(`📋 Summary File: _DUMP_SUMMARY.json`);
+    console.log(` Location: ${dumpDir}`);
+    console.log(` Total Collections: ${collections.length}`);
+    console.log(` Total Documents: ${dumpSummary.collections.reduce((sum, col) => sum + (col.documentCount || 0), 0)}`);
+    console.log(` Total Size: ${totalSizeMB} MB`);
+    console.log(` Summary File: _DUMP_SUMMARY.json`);
     console.log("=".repeat(70));
-    console.log("\n💡 To restore this dump, use the restore script");
-    console.log("⚠️  Keep this backup safe before making any database changes!\n");
+    console.log("\n To restore this dump, use the restore script");
+    console.log("  Keep this backup safe before making any database changes!\n");
 
     await mongoose.disconnect();
-    console.log("🔌 Disconnected from MongoDB\n");
+    console.log(" Disconnected from MongoDB\n");
     
     process.exit(0);
   } catch (error) {
-    console.error("\n❌ DUMP FAILED:", error);
+    console.error("\n DUMP FAILED:", error);
     console.error("\nError details:", error.message);
     
     await mongoose.disconnect().catch(() => {});

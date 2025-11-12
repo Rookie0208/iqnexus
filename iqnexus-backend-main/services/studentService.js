@@ -112,12 +112,12 @@ export async function fetchKgDataByMobile(mobNo) {
       return { error: "Invalid mobile number: must be a non-empty string" };
     }
 
-    // Query the student_data_latests collection using Mongoose
+    // Query the kindergarten_student_datas collection using Mongoose
     const data = await KINDERGARTEN_STUDENT.find({ mobNo: mobileNumber });
 
-    if (!data) {
-      console.warn("⚠ No student found for Mobile No:", mobileNumber);
-      return { error: "No student found with this mobile number" };
+    if (!data || data.length === 0) {
+      console.warn("⚠ No KG student found for Mobile No:", mobileNumber);
+      return null;
     }
 
     // Fetch school data using the schoolCode (assumed to be a Number)
