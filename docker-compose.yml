@@ -29,6 +29,11 @@ services:
       - PORT=5001
       - MONGO_URI=mongodb://mongodb:27017/Epoch-olympiad-foundation_New
       - DATABASE_NAME=Epoch-olympiad-foundation_New
+      - AWS_KEY=
+      - AWS_SECRET=
+      - AWS_REGION=ap-south-1
+      - AWS_BUCKET_NAME=epocho-1
+
     depends_on:
       - mongodb
     networks:
