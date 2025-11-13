@@ -5,6 +5,7 @@ const StudyMaterial = () => {
     const [formData, setFormData] = React.useState({
         name: '',
         class: '',
+        kgSection: '',
         subject: '',
         fee: '',
         pdf: null,
@@ -16,6 +17,10 @@ const StudyMaterial = () => {
             setFormData({ ...formData, pdf: files[0] });
         } else {
             setFormData({ ...formData, [name]: value });
+            // Reset KG section if class is changed from kindergarten
+            if (name === 'class' && value !== 'kindergarten') {
+                setFormData(prev => ({ ...prev, kgSection: '' }));
+            }
         }
     };
 
@@ -56,6 +61,9 @@ const StudyMaterial = () => {
                     data.append('subject', formData.subject);
                     data.append('fee', formData.fee);
                     data.append('materialType', materialType);
+                    if (formData.class === 'kindergarten' && formData.kgSection) {
+                        data.append('kgSection', formData.kgSection);
+                    }
                     if (materialType === 'file' && formData.pdf) {
                         data.append('file', formData.pdf);
                     }
@@ -63,13 +71,30 @@ const StudyMaterial = () => {
                         data.append('link', link);
                     }
                     try {
-                        await fetch(`${BASE_URL}/addStudentStudyMaterial`, {
+                        const response = await fetch(`${BASE_URL}/addStudentStudyMaterial`, {
                             method: 'POST',
                             body: data,
                         });
+                        const result = await response.json();
+                        
+                        if (!response.ok || result.error) {
+                            throw new Error(result.error || 'Upload failed');
+                        }
+                        
                         alert('Study material uploaded successfully!');
+                        // Reset form
+                        setFormData({
+                            name: '',
+                            class: '',
+                            kgSection: '',
+                            subject: '',
+                            fee: '',
+                            pdf: null,
+                        });
+                        setLink('');
                     } catch (error) {
-                        alert('Failed to upload study material.');
+                        console.error('Upload error:', error);
+                        alert(`Failed to upload study material: ${error.message}`);
                     }
                 }}
                 className="space-y-5"
@@ -105,6 +130,24 @@ const StudyMaterial = () => {
                         ))}
                     </select>
                 </div>
+                {formData.class === 'kindergarten' && (
+                    <div>
+                        <label htmlFor="kgSection" className="block mb-1 font-medium">Kindergarten Section:</label>
+                        <select
+                            id="kgSection"
+                            name="kgSection"
+                            value={formData.kgSection}
+                            onChange={handleChange}
+                            required
+                            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="">Select Section</option>
+                            <option value="PG">Pre-Primary (PG)</option>
+                            <option value="LKG">Lower Kindergarten (LKG)</option>
+                            <option value="UKG">Upper Kindergarten (UKG)</option>
+                        </select>
+                    </div>
+                )}
                 <div>
                     <label htmlFor="subject" className="block mb-1 font-medium">Subject:</label>
                     <select
@@ -116,18 +159,24 @@ const StudyMaterial = () => {
                         className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         <option value="">Select Subject</option>
-                        <option value="IAOL1">IQROL1</option>
-                        <option value="ITSTL1">IQSOL1</option>
-                        <option value="IMOL1">IQMOL1</option>
-                        <option value="IGKOL1">IQGKOL1</option>
-                        <option value="IENGOL1">IQEOL1</option>
-                        <option value="IAOL2">IQROL2</option>
-                        <option value="ITSTL2">IQSOL2</option>
-                        <option value="IMOL2">IQMOL2</option>
+                        {formData.class === 'kindergarten' ? (
+                            <>
+                                <option value="IQKD1">IQKD1</option>
+                                <option value="IQKD2">IQKD2</option>
+                            </>
+                        ) : (
+                            <>
+                                <option value="IAOL1">IQROL1</option>
+                                <option value="ITSTL1">IQSOL1</option>
+                                <option value="IMOL1">IQMOL1</option>
+                                <option value="IGKOL1">IQGKOL1</option>
+                                <option value="IENGOL1">IQEOL1</option>
+                                <option value="IAOL2">IQROL2</option>
+                                <option value="ITSTL2">IQSOL2</option>
+                                <option value="IMOL2">IQMOL2</option>
                                 <option value="IENGOL2">IQEOL2</option>
-
-
-                     
+                            </>
+                        )}
                     </select>
                 </div>
                 <div>

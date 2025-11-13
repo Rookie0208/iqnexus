@@ -23,7 +23,7 @@ const KindergartenStudentSchema = new Schema(
             type: String,
             required: true,
             trim: true,
-            enum: ["LK", "UK", "PG"],
+            enum: ["LKG", "UKG", "PG"],
         },
         studentName: {
             type: String,
@@ -114,6 +114,26 @@ const KindergartenStudentSchema = new Schema(
             type: String,
             trim: true,
             default: "",
+        },
+        IQKG: {
+            type: String,
+            trim: true,
+            default: "0",
+        },
+        Duplicates: {
+            type: Boolean,
+            default: false,
+        },
+        // KG Exam participation fields
+        IQKD1: {
+            type: String,
+            trim: true,
+            default: "0",
+        },
+        IQKD2: {
+            type: String,
+            trim: true,
+            default: "0",
         },
     },
     { timestamps: true }

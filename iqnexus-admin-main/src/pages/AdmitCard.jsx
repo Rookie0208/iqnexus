@@ -63,6 +63,7 @@ const AdmitCard = () => {
   // ✅ useEffect to call fetchSchoolsByLevel on examLevel change
   useEffect(() => {
     fetchSchoolsByLevel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchData.examLevel]);
 
   const fetchStudents = async (page, filters = {}) => {

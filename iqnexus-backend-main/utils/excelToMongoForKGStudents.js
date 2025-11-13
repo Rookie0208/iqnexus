@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { promises as fsPromises } from "fs";
 
 export async function excelToMongoDbForKindergarten(filePath) {
+    let invalidRecords = []; // Declare at function scope
     try {
         const renameFields = {
 
@@ -87,8 +88,8 @@ export async function excelToMongoDbForKindergarten(filePath) {
         });
 
         // Validate and transform student data
-        const validSections = ["LK", "UK", "PG"];
-        const invalidRecords = [];
+        const validSections = ["LKG", "UKG", "PG"];
+        // invalidRecords now declared at function scope
         const processedStudents = students.map((student, index) => {
             const rowNum = index + 2;
             const errors = [];
@@ -115,7 +116,7 @@ export async function excelToMongoDbForKindergarten(filePath) {
             }
 
             if (!student.section || !validSections.includes(student.section)) {
-                errors.push(`Row ${rowNum}: section must be LK, UK, or PG`);
+                errors.push(`Row ${rowNum}: section must be LKG, UKG, or PG`);
             }
 
             if (student.class && student.class !== "KD") {
@@ -226,6 +227,6 @@ export async function excelToMongoDbForKindergarten(filePath) {
             console.error("Error deleting file:", unlinkError);
         }
         console.error("Error processing kindergarten student CSV file:", error);
-        throw new Error("Invalid data in CSV file", { cause: { invalidRecords } });
+        throw { message: error.message || "Invalid data in CSV file", errors: invalidRecords };
     }
 }

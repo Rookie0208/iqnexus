@@ -1,8 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { BASE_URL } from "../Api";
 import * as XLSX from 'xlsx';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import logo from "../assets/main_logo.png";
+
+// Map KG exam codes to full names
+const kgExamFullNames = {
+    IQKD1: {
+        fullName: "IQNEXUS KINDERGARTEN OLYMPIAD",
+        code: "IQKD",
+        level: "Level 1",
+    },
+    IQKD2: {
+        fullName: "IQNEXUS KINDERGARTEN OLYMPIAD",
+        code: "IQKD",
+        level: "Level 2",
+    },
+};
 
 const AllKindergartenStudents = () => {
     const [students, setStudents] = useState([]);
@@ -24,6 +41,24 @@ const AllKindergartenStudents = () => {
         IQKG: "",
     });
 
+    // Attendance modal states
+    const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+    const [selectedExamLevel, setSelectedExamLevel] = useState("");
+    const [selectedExam, setSelectedExam] = useState("");
+    const [selectedSchoolCode, setSelectedSchoolCode] = useState("");
+    const [selectedSections, setSelectedSections] = useState([]);
+    const [studentsData, setStudentsData] = useState([]);
+    const [school, setSchool] = useState({});
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
+    const [isFetched, setIsFetched] = useState(false);
+    const attendanceRef = useRef(null);
+
+    const kgExams = [
+        { name: "IQKD1", level: "L1" },
+        { name: "IQKD2", level: "L2" },
+    ];
+
     // Predefined section options for kindergarten
     const sectionOptions = [
         { value: "LKG", label: "LKG" },
@@ -36,7 +71,6 @@ const AllKindergartenStudents = () => {
         { value: "1", label: "Yes" },
         { value: "0", label: "No" },
     ];
-
 
 
     // Fetch kindergarten students
@@ -306,6 +340,9 @@ const AllKindergartenStudents = () => {
     const handleUpdateSubmit = async (e) => {
         e.preventDefault();
         try {
+            // Auto-enroll in IQKD1 and IQKD2 if IQKG is Yes
+            const enrollmentValue = updatedData.IQKG === "1" ? "1" : "0";
+            
             const payload = {
                 _id: selectedStudent._id,
                 rollNo: updatedData.rollNo,
@@ -318,6 +355,8 @@ const AllKindergartenStudents = () => {
                 mobNo: updatedData.mobNo || "",
                 city: updatedData.city || "",
                 IQKG: updatedData.IQKG || "0",
+                IQKD1: enrollmentValue,
+                IQKD2: enrollmentValue,
                 Duplicates: updatedData.Duplicates,
             };
             const res = await axios.put(`${BASE_URL}/kindergarten-student`, payload);
@@ -336,6 +375,211 @@ const AllKindergartenStudents = () => {
     const handlePageChange = (page) => {
         if (page >= 1 && page <= totalPages) {
             setCurrentPage(page);
+        }
+    };
+
+    // Fetch KG student data for attendance based on filters
+    const handleFetchStudents = async () => {
+        if (!selectedExamLevel || !selectedExam || !selectedSchoolCode) {
+            alert("Please select exam level, exam, and school code!");
+            return;
+        }
+
+        const filters = {
+            exam: selectedExam,
+            schoolCode: Number(selectedSchoolCode),
+            section:
+                selectedSections.length > 0
+                    ? selectedSections.map((opt) => opt.value)
+                    : undefined,
+        };
+
+        console.log("Sending filters:", filters);
+
+        try {
+            setIsFetching(true);
+            const res = await axios.post(`${BASE_URL}/kindergarten-students`, filters);
+            console.log("Student Response:", res.data);
+            
+            if (res.data.success && res.data.data) {
+                setStudentsData(res.data.data || []);
+                console.log("Students found:", res.data.data.length);
+                
+                // Fetch school info
+                try {
+                    const schoolRes = await axios.get(`${BASE_URL}/get-school/${selectedSchoolCode}`);
+                    console.log("School Response:", schoolRes.data);
+                    setSchool(schoolRes.data.school || {});
+                } catch (schoolError) {
+                    console.error("School fetch error:", schoolError);
+                    setSchool({});
+                }
+                
+                setIsFetched(true);
+            } else {
+                console.log("No students found or error");
+                setStudentsData([]);
+                setIsFetched(true);
+                alert("No students found for the selected filters.");
+            }
+        } catch (error) {
+            console.error("Error fetching student data:", error);
+            console.error("Error details:", error.response?.data);
+            setStudentsData([]);
+            setIsFetched(true);
+            alert("Error fetching student data: " + (error.response?.data?.message || error.message));
+        } finally {
+            setIsFetching(false);
+        }
+    };
+
+    // Download attendance PDF
+    const handleDownloadPDF = async () => {
+        const element = attendanceRef.current;
+
+        if (!element) {
+            alert("Nothing to export!");
+            return;
+        }
+
+        try {
+            setIsDownloading(true);
+            
+            // Store original styles and apply PDF-friendly styles
+            const originalStyles = new Map();
+            const applyPDFStyles = (node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    const style = window.getComputedStyle(node);
+                    originalStyles.set(node, {
+                        color: node.style.color,
+                        backgroundColor: node.style.backgroundColor,
+                        borderColor: node.style.borderColor,
+                        fontSize: node.style.fontSize,
+                        padding: node.style.padding,
+                        margin: node.style.margin,
+                        lineHeight: node.style.lineHeight,
+                    });
+
+                    // Force standard color values
+                    node.style.color = style.color.includes('oklch') ? '#000000' : style.color;
+                    node.style.backgroundColor = style.backgroundColor.includes('oklch') ? '#ffffff' : style.backgroundColor;
+                    node.style.borderColor = style.borderColor.includes('oklch') ? '#000000' : style.borderColor;
+
+                    // Apply professional PDF styling
+                    if (node.id === 'download') {
+                        node.style.padding = '30px';
+                        node.style.backgroundColor = '#ffffff';
+                        node.style.width = '210mm';
+                        node.style.minHeight = '297mm';
+                        node.style.boxSizing = 'border-box';
+                        node.style.border = '1px solid #000000';
+                    }
+
+                    if (node.tagName === 'TABLE') {
+                        node.style.borderCollapse = 'collapse';
+                        node.style.width = '100%';
+                        node.style.marginBottom = '20px';
+                        node.style.fontSize = '11px';
+                        node.style.border = '1px solid #000000';
+                    }
+
+                    if (node.tagName === 'THEAD') {
+                        node.style.border = '1px solid #000000';
+                    }
+
+                    if (node.tagName === 'TBODY') {
+                        node.style.border = '1px solid #000000';
+                    }
+
+                    if (node.tagName === 'TH' || node.tagName === 'TD') {
+                        node.style.border = '1px solid #000000';
+                        node.style.borderRight = '1px solid #000000';
+                        node.style.borderBottom = '1px solid #000000';
+                        node.style.padding = '6px 4px';
+                        node.style.textAlign = 'center';
+                        node.style.fontSize = '10px';
+                        node.style.lineHeight = '1.3';
+                        node.style.boxSizing = 'border-box';
+                    }
+
+                    if (node.tagName === 'TH') {
+                        node.style.backgroundColor = '#e5e7eb';
+                        node.style.fontWeight = 'bold';
+                    }
+
+                    if (node.className.includes('border-t')) {
+                        node.style.borderTop = '1px solid #000000';
+                        node.style.paddingTop = '15px';
+                        node.style.marginTop = '15px';
+                        node.style.fontSize = '9px';
+                        node.style.lineHeight = '1.4';
+                    }
+
+                    node.childNodes.forEach(applyPDFStyles);
+                }
+            };
+
+            // Apply PDF styles
+            applyPDFStyles(element);
+
+            // Capture with html2canvas
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                width: element.scrollWidth + 10,
+                height: element.scrollHeight + 10,
+                windowWidth: element.scrollWidth + 10,
+                windowHeight: element.scrollHeight + 10,
+            });
+
+            // Restore original styles
+            originalStyles.forEach((styles, node) => {
+                node.style.color = styles.color;
+                node.style.backgroundColor = styles.backgroundColor;
+                node.style.borderColor = styles.borderColor;
+                node.style.fontSize = styles.fontSize;
+                node.style.padding = styles.padding;
+                node.style.margin = styles.margin;
+                node.style.lineHeight = styles.lineHeight;
+            });
+
+            // Create PDF with proper sizing and borders
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            // Add margin and ensure borders are visible
+            const margin = 5; // 5mm margin
+            const imgWidth = pdfWidth - (margin * 2);
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            let heightLeft = imgHeight;
+            let position = margin;
+
+            // Add first page
+            pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+            heightLeft -= (pdfHeight - (margin * 2));
+
+            // Add additional pages if content is too long
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight + margin;
+                pdf.addPage();
+                pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+                heightLeft -= (pdfHeight - (margin * 2));
+            }
+
+            pdf.save(`KG_Attendance_${selectedExam}_${selectedSchoolCode}.pdf`);
+            
+            alert("PDF downloaded successfully!");
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            console.error("Error stack:", error.stack);
+            alert("Failed to download PDF. Error: " + error.message);
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -406,6 +650,12 @@ const AllKindergartenStudents = () => {
                                 />
                             </svg>
                             {isFilterOpen ? "Hide Filters" : "Show Filters"}
+                        </button>
+                        <button
+                            onClick={() => setIsAttendanceModalOpen(true)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
+                        >
+                            Get Attendance
                         </button>
                         <button
                             onClick={handleDownloadExcel}
@@ -696,7 +946,7 @@ const AllKindergartenStudents = () => {
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out">
                         <div
-                            className="absolute inset-0 bg-gray-700 bg-opacity-50 backdrop-blur-sm"
+                            className="absolute inset-0 backdrop-blur-sm"
                             onClick={() => setIsModalOpen(false)}
                         />
                         <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto z-10 p-8">
@@ -812,6 +1062,260 @@ const AllKindergartenStudents = () => {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Attendance Modal */}
+                {isAttendanceModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                        <div
+                            className="absolute inset-0 backdrop-blur-sm"
+                            onClick={() => setIsAttendanceModalOpen(false)}
+                        />
+                        <div className="relative z-10 bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <h2 className="text-xl font-bold mb-4">Get Attendance - KG Students</h2>
+
+                            {/* Filters Form */}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium">
+                                        Exam Level
+                                    </label>
+                                    <select
+                                        className="mt-1 w-full border rounded px-3 py-2"
+                                        value={selectedExamLevel}
+                                        onChange={(e) => setSelectedExamLevel(e.target.value)}
+                                    >
+                                        <option value="">Select Level</option>
+                                        <option value="L1">Basic</option>
+                                        <option value="L2">Advance</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium">
+                                        Select Exam
+                                    </label>
+                                    <select
+                                        className="mt-1 w-full border rounded px-3 py-2"
+                                        value={selectedExam}
+                                        onChange={(e) => setSelectedExam(e.target.value)}
+                                    >
+                                        <option value="">Select Exam</option>
+                                        {kgExams
+                                            .filter((exam) => exam.level === selectedExamLevel)
+                                            .map((exam) => (
+                                                <option key={exam.name} value={exam.name}>
+                                                    {exam.name}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium">
+                                        School Code
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="mt-1 w-full border rounded px-3 py-2"
+                                        value={selectedSchoolCode}
+                                        onChange={(e) => setSelectedSchoolCode(e.target.value)}
+                                        placeholder="Enter School Code"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium">
+                                        Select Sections
+                                    </label>
+                                    <Select
+                                        isMulti
+                                        options={sectionOptions}
+                                        value={selectedSections}
+                                        onChange={setSelectedSections}
+                                        className="basic-multi-select"
+                                        classNamePrefix="select"
+                                        placeholder="Select sections..."
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                padding: "0.1rem",
+                                                fontSize: "0.875rem",
+                                                borderColor: "black",
+                                            }),
+                                            menu: (base) => ({
+                                                ...base,
+                                                zIndex: 50,
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Fetch Data Button */}
+                            <div className="flex justify-end mb-4">
+                                <button
+                                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={handleFetchStudents}
+                                    disabled={isFetching}
+                                >
+                                    {isFetching ? (
+                                        <>
+                                            <span className="w-5 h-5 border-2 border-t-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                                            Fetching...
+                                        </>
+                                    ) : (
+                                        "Fetch Students"
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Preview Student Data */}
+                            <div
+                                id="download"
+                                style={{ color: "#000000", backgroundColor: "#ffffff" }}
+                                className="bg-white p-7 rounded-lg shadow-md border text-sm w-full"
+                                ref={attendanceRef}
+                            >
+                                <div className="text-center mb-6">
+                                    <img
+                                        src={logo}
+                                        alt="IQ Nexus"
+                                        className="mx-auto h-12 mb-2"
+                                    />
+                                    <h1 className="text-lg font-semibold uppercase">
+                                        {selectedExam && kgExamFullNames[selectedExam]
+                                            ? `${kgExamFullNames[selectedExam].fullName} ${kgExamFullNames[selectedExam].level}`
+                                            : "Exam Not Selected"}
+                                    </h1>
+                                    <h2 className="font-bold uppercase underline mt-2">
+                                        Attendance List - Kindergarten
+                                    </h2>
+                                </div>
+                                <div className="grid grid-cols-2 text-xs mb-6 gap-y-2">
+                                    <div id="top-left">
+                                        <p>
+                                            <strong>School Name:</strong> {school.schoolName || "N/A"}
+                                        </p>
+                                        <p>
+                                            <strong>School Code:</strong> {school.schoolCode || "N/A"}
+                                        </p>
+                                        <p>
+                                            <strong>City:</strong> {school.city || "N/A"}
+                                        </p>
+                                        <p>
+                                            <strong>Area:</strong> {school.area || "N/A"}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p>
+                                            <strong>Exam Incharge:</strong> {school.examInchargeName || "N/A"}
+                                        </p>
+                                        <p>
+                                            <strong>Print Date:</strong>{" "}
+                                            {new Date().toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <table className="table-auto w-full border text-center text-xs mb-4">
+                                    <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="border px-2 py-1">S.No</th>
+                                            <th className="border px-2 py-1">Roll No</th>
+                                            <th className="border px-2 py-1">Name</th>
+                                            <th className="border px-2 py-1">Father</th>
+                                            <th className="border px-2 py-1">Mother</th>
+                                            <th className="border px-2 py-1">Section</th>
+                                            <th className="border px-2 py-1">Attendance (P/A)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {studentsData.length > 0 ? (
+                                            studentsData.map((student, index) => (
+                                                <tr key={student._id || index}>
+                                                    <td className="border px-2 py-1">{index + 1}</td>
+                                                    <td className="border px-2 py-1">{student.rollNo}</td>
+                                                    <td className="border px-2 py-1">
+                                                        {student.studentName}
+                                                    </td>
+                                                    <td className="border px-2 py-1">
+                                                        {student.fatherName || ""}
+                                                    </td>
+                                                    <td className="border px-2 py-1">
+                                                        {student.motherName || ""}
+                                                    </td>
+                                                    <td className="border px-2 py-1">
+                                                        {student.section}
+                                                    </td>
+                                                    <td className="border px-2 py-1">
+                                                        {/* Attendance checkbox */}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={7} className="text-center border py-3">
+                                                    No student data available
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                                <div className="grid grid-cols-2 text-xs mb-2">
+                                    <div>
+                                        <p>
+                                            <strong>Total Students:</strong> {studentsData.length}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p>
+                                            <strong>Information Filled By:</strong>{" "}
+                                            ______________________
+                                        </p>
+                                        <p>
+                                            <strong>Mobile No:</strong> ____________________
+                                        </p>
+                                        <p>
+                                            <strong>Sign:</strong> ____________________
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-xs border-t pt-2 mt-2">
+                                    <strong>IMPORTANT NOTE:</strong> Please note that we shall
+                                    print certificates as per the above details. So this is very
+                                    important to check the spelling and correct if found wrong. So
+                                    ask every participant to cross check their details and then
+                                    sign on it. We will not re-print the certificate(s) after
+                                    that.
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-between mt-2">
+                                <button
+                                    onClick={() => setIsAttendanceModalOpen(false)}
+                                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isDownloading || isFetching}
+                                >
+                                    Close
+                                </button>
+
+                                {isFetched && (
+                                    <button
+                                        className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={handleDownloadPDF}
+                                        disabled={isDownloading}
+                                    >
+                                        {isDownloading ? (
+                                            <>
+                                                <span className="w-5 h-5 border-2 border-t-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                                                Downloading...
+                                            </>
+                                        ) : (
+                                            "Download PDF"
+                                        )}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

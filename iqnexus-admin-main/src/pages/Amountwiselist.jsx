@@ -120,6 +120,8 @@ const Amountwiselist = () => {
   const attendanceRef = useRef(null);
   console.log("selected exam", selectedExam);
   const exams = [
+    { name: "IQKD1", level: "L1" },
+    { name: "IQKD2", level: "L2" },
     { name: "IQEOL1", level: "L1" },
     { name: "IQEOL2", level: "L2" },
     { name: "IQROL1", level: "L1" },
@@ -580,6 +582,7 @@ const Amountwiselist = () => {
 
   // Predefined class options
   const classOptions = [
+    { value: "KD", label: "Kindergarten (KD)" },
     { value: "1", label: "Class 1" },
     { value: "2", label: "Class 2" },
     { value: "3", label: "Class 3" },
@@ -596,6 +599,9 @@ const Amountwiselist = () => {
 
   // Predefined section options
   const sectionOptions = [
+    { value: "LKG", label: "LKG (Lower Kindergarten)" },
+    { value: "UKG", label: "UKG (Upper Kindergarten)" },
+    { value: "PG", label: "PG (Pre-Primary/Play Group)" },
     { value: "A", label: "Section A" },
     { value: "B", label: "Section B" },
     { value: "C", label: "Section C" },
@@ -884,14 +890,14 @@ const Amountwiselist = () => {
 
                     {(
                       selectedExamLevel === "L1"
-                      ? ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"]
+                      ? ["IQKD1", "IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"]
                       : selectedExamLevel === "L2"
-                      ? ["IQEOL2", "IQROL2", "IQSOL2", "IQMOL2"]
-                      : ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"]
+                      ? ["IQKD2", "IQEOL2", "IQROL2", "IQSOL2", "IQMOL2"]
+                      : ["IQKD1", "IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"]
                     ).map((examCode) => (
                      ( selectedExam.length===0 || ( selectedExam.length>0  && examListPlainArray.includes(examCode))) &&
                       <th className="border px-2 py-1" key={examCode}>
-                        {examCode.replace("L1", "").replace("L2", "")}
+                        {examCode.replace("L1", "").replace("L2", "").replace("1", "").replace("2", "")}
                       </th>
                     ))}
                     <th className="border px-2 py-1">Amount</th>
@@ -915,6 +921,25 @@ const Amountwiselist = () => {
                         <td className="border px-2 py-1">{student.class}</td>
                         <td className="border px-2 py-1">{student.section}</td>
 
+
+                        {
+                        selectedExamLevel === "" ||
+                        selectedExamLevel === "L1" ? (
+                ( selectedExam.length===0 || ( selectedExam.length>0  && examListPlainArray.includes('IQKD1'))) &&
+                          <td className="border px-2 py-1">
+                            {student.IQKD1 === "1" ? "YES" : "NO"}
+                          </td>
+                        ) : (
+
+                       ( selectedExam.length===0 || ( selectedExam.length>0  && examListPlainArray.includes('IQKD2'))) &&
+                          <td className="border px-2 py-1">
+                            {
+                            student.IQKD2 === "1" ? "YES" : "NO"
+                            }
+                          </td>
+
+                        )
+                        }
 
                         {
                         selectedExamLevel === "" ||

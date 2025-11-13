@@ -20,7 +20,6 @@ const Studymatview = () => {
       if (response.status === 200 && response.data) {
 
         const fetchedMaterials = response.data
-        console.log("Student object:", fetchedMaterials);
         setStudyMaterials(fetchedMaterials)
       } else {
         console.error("Failed to fetch study materials.")
@@ -46,6 +45,30 @@ const Studymatview = () => {
     }
   }
 
+  const handleDelete = async (id, materialName) => {
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${materialName}"?\n\nThis action cannot be undone.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      const response = await axios.delete(`${BASE_URL}/deleteStudyMaterial/${id}`)
+      
+      if (response.status === 200) {
+        // Remove from local state
+        setStudyMaterials((prev) => prev.filter((item) => item._id !== id))
+        alert("Study material deleted successfully")
+      }
+    } catch (error) {
+      console.error("Failed to delete study material:", error)
+      alert("Failed to delete study material. Please try again.")
+    }
+  }
+
   const filteredMaterials = selectedLevel
     ? studyMaterials.filter((item) => {
         return item.class?.toString() === selectedLevel
@@ -63,6 +86,15 @@ const Studymatview = () => {
           <FileText />
         </div>
         <h2 className="text-2xl font-bold text-gray-800">Study Material</h2>
+        <button
+          onClick={() => {
+            setStudyMaterials([]);
+            fetchAdminStudyMaterial();
+          }}
+          className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Refresh Data
+        </button>
       </div>
       <div className="bg-white shadow-lg rounded-xl overflow-hidden flex-grow">
         <table className="min-w-full text-sm text-gray-700">
@@ -74,22 +106,21 @@ const Studymatview = () => {
               <th className="px-6 py-3 text-left">Fees(INR)</th>
               <th className="px-6 py-3 text-left">Link</th>
               <th className="px-6 py-3 text-left">Status</th>
+              <th className="px-6 py-3 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                   Loading...
                 </td>
               </tr>
             ) : filteredMaterials.length > 0 ? (
               filteredMaterials.map((item, index) => {
-                // Default status to active if undefined (since your schema doesn't have isActive)
-                const isActive = item.isActive === undefined ? true : !!item.isActive
                 return (
                   <tr
-                    key={item.id || index}
+                    key={item._id || index}
                     className="border-b last:border-b-0 hover:bg-gray-50 transition duration-200"
                   >
                     <td className="px-6 py-4">
@@ -99,9 +130,16 @@ const Studymatview = () => {
                       <span className="text-gray-600">{item.category || "N/A"}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {item.class || "N/A"}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {item.class || "N/A"}
+                        </span>
+                        {item.kgSection && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                            {item.kgSection}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -133,12 +171,20 @@ const Studymatview = () => {
                         {item.isAvailableForFree === "true" ? "Free" : "ACTIVE"}
                       </span>
                     </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleDelete(item._id, item.category || item.examId)}
+                        className="inline-flex items-center px-3 py-1 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 transition duration-150"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 )
               })
             ) : (
               <tr>
-                <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
                   No study materials found
                 </td>
               </tr>

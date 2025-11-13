@@ -3,7 +3,7 @@ import { excelToMongoDbForKindergarten } from "../utils/excelToMongoForKGStudent
 import fs from "fs/promises";
 
 export const getKindergartenStudents = async (req, res) => {
-  const { schoolCode, rollNo, section, studentName, IQKG } = req.body;
+  const { schoolCode, rollNo, section, studentName, IQKG, exam } = req.body;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
@@ -13,13 +13,23 @@ export const getKindergartenStudents = async (req, res) => {
   if (section?.length > 0) query.section = { $in: section };
   if (studentName) query.studentName = { $regex: studentName.trim(), $options: "i" };
   if (IQKG) query.IQKG = IQKG;
+  
+  // Filter by exam participation (for attendance) - TEMPORARILY DISABLED FOR TESTING
+  // TODO: Re-enable this after updating student records with IQKD1/IQKD2 values
+  // if (exam) {
+  //   query[exam] = "1"; // Only get students registered for this exam
+  // }
+
+  console.log("KG Students Query:", JSON.stringify(query));
 
   try {
     const students = await KINDERGARTEN_STUDENT.find(query).skip((page - 1) * limit).limit(limit).lean();
     const totalStudents = await KINDERGARTEN_STUDENT.countDocuments(query);
     const totalPages = Math.ceil(totalStudents / limit);
+    console.log(`Found ${students.length} students out of ${totalStudents} total`);
     res.status(200).json({ success: true, data: students, totalPages, totalStudents });
   } catch (err) {
+    console.error("Error in getKindergartenStudents:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
@@ -74,7 +84,7 @@ export const deleteKindergartenStudent = async (req, res) => {
 export const updateKindergartenStudent = async (req, res) => {
   const {
     _id, rollNo, schoolCode, section, studentName,
-    motherName, fatherName, dob, mobNo, city, IQKG, Duplicates,
+    motherName, fatherName, dob, mobNo, city, IQKG, IQKD1, IQKD2, Duplicates,
   } = req.body;
 
   if (!_id || !rollNo || !schoolCode || !section || !studentName) {
@@ -84,7 +94,7 @@ export const updateKindergartenStudent = async (req, res) => {
   const updateData = {
     rollNo: rollNo.trim(),
     schoolCode: Number(schoolCode),
-    class: "KG",
+    class: "KD",
     section: section.trim(),
     studentName: studentName.trim(),
     motherName: motherName?.trim() || "",
@@ -93,6 +103,8 @@ export const updateKindergartenStudent = async (req, res) => {
     mobNo: mobNo?.trim() || "",
     city: city?.trim() || "",
     IQKG: IQKG || "0",
+    IQKD1: IQKD1 || "0",
+    IQKD2: IQKD2 || "0",
     Duplicates: Duplicates !== undefined ? Duplicates : false,
   };
 

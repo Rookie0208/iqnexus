@@ -30,40 +30,48 @@ const Classwiselist = () => {
   const [students, setStudents] = useState([]);
   const [searched, setSearched] = useState(false);
   const [countData, setCountData] = useState({
+   IQKD1:{
+    "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+   },
+
+   IQKD2:{
+    "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+   },
+
    IENGOL1:{
-    "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+    "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
    },
 
    IAOL1:{
-    "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+    "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
    },
 
     ITSTL1:{
-    "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+    "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
   },
     IMOL1:{
-    "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+    "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
   },
     IGKOL1: {
-     "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+     "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
     },
 
     IENGOL2:{
-     "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+     "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
     },
     IAOL2:{
-      "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+      "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
     
 },
 
     ITSTL2:{
-      "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+      "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
     }
 
 
     ,
     IMOL2:{
-     "Total":{1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
+     "Total":{KD:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0, 10:0},
     }
 
   }
@@ -98,6 +106,8 @@ const Classwiselist = () => {
   const sectionRef = useRef(null);
   console.log("selected exam", selectedExam);
   const exams = [
+    { name: "IQKDL1", level: "L1" },
+    { name: "IQKDL2", level: "L2" },
     { name: "IQEOL1", level: "L1" },
     { name: "IQEOL2", level: "L2" },
     { name: "IQROL1", level: "L1" },
@@ -136,6 +146,8 @@ const Classwiselist = () => {
 
       if (selectedExamLevel === "L1") {
       studentsData.forEach((student) => {
+        if (student["IQKD1"] === "1")
+        temp["IQKD1"].Total[student.class] = (temp["IQKD1"].Total[student.class] || 0) + 1;
         if (student["IENGOL1"] === "1")
         temp["IENGOL1"].Total[student.class] = (temp["IENGOL1"].Total[student.class] || 0) + 1;
         if (student["IAOL1"] === "1")
@@ -150,6 +162,8 @@ const Classwiselist = () => {
       }
       if (selectedExamLevel === "L2") {
       studentsData.forEach((student) => {
+        if (student["IQKD2"] === "1")
+        temp["IQKD2"].Total[student.class] = (temp["IQKD2"].Total[student.class] || 0) + 1;
         if (student["IENGOL2"] === "1")
         temp["IENGOL2"].Total[student.class] = (temp["IENGOL2"].Total[student.class] || 0) + 1;
         if (student["IAOL2"] === "1")
@@ -592,6 +606,7 @@ const Classwiselist = () => {
 
   // Predefined class options
   const classOptions = [
+    { value: "KD", label: "Kindergarten (KD)" },
     { value: "1", label: "Class 1" },
     { value: "2", label: "Class 2" },
     { value: "3", label: "Class 3" },
@@ -608,6 +623,9 @@ const Classwiselist = () => {
 
   // Predefined section options
   const sectionOptions = [
+    { value: "LKG", label: "LKG (Lower Kindergarten)" },
+    { value: "UKG", label: "UKG (Upper Kindergarten)" },
+    { value: "PG", label: "PG (Pre-Primary/Play Group)" },
     { value: "A", label: "Section A" },
     { value: "B", label: "Section B" },
     { value: "C", label: "Section C" },
@@ -634,7 +652,9 @@ const Classwiselist = () => {
     { value: "I" },
   ];
     const nameMappings = {
-        IQROL1: "IAOL1",
+    IQKDL1: "IQKD1",
+    IQKDL2: "IQKD2",
+    IQROL1: "IAOL1",
     IQROL2: "IAOL2",
     IQSOL1: "ITSTL1",
     IQSOL2: "ITSTL2",

@@ -30,6 +30,12 @@ const SectionPartList = () => {
   const [students, setStudents] = useState([]);
   const [searched, setSearched] = useState(false);
   const [countData, setCountData] = useState({
+   IQKD1:{
+    "KD": { LKG: 0, UKG: 0, PG: 0 },
+   },
+   IQKD2:{
+    "KD": { LKG: 0, UKG: 0, PG: 0 },
+   },
    IENGOL1:{
     "1": { A: 0, B: 0, C: 0, D: 0, E: 0,F: 0, G: 0, H: 0, I: 0 },
     "2": { A: 0, B: 0, C: 0, D: 0, E: 0,F: 0, G: 0, H: 0, I: 0 },
@@ -181,6 +187,8 @@ const SectionPartList = () => {
   const sectionRef = useRef(null);
   console.log("selected exam", selectedExam);
   const exams = [
+    { name: "IQKD1", level: "L1" },
+    { name: "IQKD2", level: "L2" },
     { name: "IQEOL1", level: "L1" },
     { name: "IQEOL2", level: "L2" },
     { name: "IQROL1", level: "L1" },
@@ -221,6 +229,8 @@ const SectionPartList = () => {
         if(selectedExamLevel==="L1"){
      studentsData.map((student) => {
 
+            student["IQKD1"] ==="1" &&   
+             (temp["IQKD1"][student.class][student.section] = (temp["IQKD1"][student.class][student.section] || 0 )+ 1)
             student["IENGOL1"] ==="1" &&   
              (temp["IENGOL1"][student.class][student.section] = (temp["IENGOL1"][student.class][student.section] || 0 )+ 1)
             student["IAOL1"] ==="1" &&
@@ -238,6 +248,8 @@ const SectionPartList = () => {
         }
         if(selectedExamLevel==="L2"){
             studentsData.map((student) => {
+            student["IQKD2"] ==="1" &&   
+             (temp["IQKD2"][student.class][student.section] = (temp["IQKD2"][student.class][student.section] || 0 )+ 1)
             student["IENGOL2"] ==="1" &&   
              (temp["IENGOL2"][student.class][student.section] = (temp["IENGOL2"][student.class][student.section] || 0 )+ 1)
 
@@ -686,6 +698,7 @@ const SectionPartList = () => {
 
   // Predefined class options
   const classOptions = [
+    { value: "KD", label: "Kindergarten (KD)" },
     { value: "1", label: "Class 1" },
     { value: "2", label: "Class 2" },
     { value: "3", label: "Class 3" },
@@ -702,6 +715,9 @@ const SectionPartList = () => {
 
   // Predefined section options
   const sectionOptions = [
+    { value: "LKG", label: "LKG (Lower Kindergarten)" },
+    { value: "UKG", label: "UKG (Upper Kindergarten)" },
+    { value: "PG", label: "PG (Pre-Primary/Play Group)" },
     { value: "A", label: "Section A" },
     { value: "B", label: "Section B" },
     { value: "C", label: "Section C" },
@@ -728,6 +744,8 @@ const SectionPartList = () => {
     { value: "I" },
   ];
     const nameMappings = {
+        IQKDL1: "IQKD1",
+    IQKDL2: "IQKD2",
         IQROL1: "IAOL1",
     IQROL2: "IAOL2",
     IQSOL1: "ITSTL1",
@@ -1025,7 +1043,7 @@ const SectionPartList = () => {
                         <tbody>
                           {studentsData.length > 0 ?
                             classOptions.map(
-                              (classOption, index) =>
+                              (classOption) =>
                                 classOption.value !== "11" &&
                                 classOption.value !== "12" && (
                                   <tr key={classOption.value}>
@@ -1035,9 +1053,15 @@ const SectionPartList = () => {
 
                                     </td>
                               {
-                                       Object.values( countData[nameMappings[exam.name]][index+1]).map((count) => (
-                                              <td className="border px-2 py-1">
+                                       countData[nameMappings[exam.name]] && countData[nameMappings[exam.name]][classOption.value] ?
+                                       Object.values( countData[nameMappings[exam.name]][classOption.value]).map((count, secIndex) => (
+                                              <td className="border px-2 py-1" key={secIndex}>
                                                 {count}
+                                              </td>
+                                       )) :
+                                       allSections.map((section, secIndex) => (
+                                              <td className="border px-2 py-1" key={secIndex}>
+                                                0
                                               </td>
                                        ))
                                         }
