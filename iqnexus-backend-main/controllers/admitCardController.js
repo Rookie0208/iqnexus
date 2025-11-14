@@ -1,4 +1,5 @@
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
+import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
 import { dbConnection, uploadAdmitCard, generateAdmitCard, fetchAdmitCardFromDB } from "../services/admitCardService.js";
 import { ObjectId } from "mongodb";
@@ -10,11 +11,20 @@ export const getAdmitCardStudents = async (req, res) => {
     const { schoolCode, examLevel } = req.body;
     const { page = 1, limit = 10 } = req.query;
 
-    if (schoolCode && isNaN(parseInt(schoolCode))) {
+    // Validate required fields
+    if (!schoolCode) {
+      return res.status(400).json({ error: "School code is required" });
+    }
+
+    if (!examLevel) {
+      return res.status(400).json({ error: "Exam level is required" });
+    }
+
+    if (isNaN(parseInt(schoolCode))) {
       return res.status(400).json({ error: "Invalid school code: must be a number" });
     }
 
-    if (examLevel && !["L1", "L2"].includes(examLevel)) {
+    if (!["L1", "L2"].includes(examLevel)) {
       return res.status(400).json({ error: "Invalid exam level: must be L1 or L2" });
     }
 
@@ -31,11 +41,41 @@ export const getAdmitCardStudents = async (req, res) => {
       ];
     }
 
-    const totalStudents = await STUDENT_LATEST.countDocuments(query);
-    const students = await STUDENT_LATEST.find(query)
+    console.log("🔍 Query for admit card students:", JSON.stringify(query, null, 2));
+
+    // Query regular students
+    const regularStudents = await STUDENT_LATEST.find(query)
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("rollNo schoolCode class section dob mobNo studentName IAOL1 ITSTL1 IMOL1 IGKOL1 IENGOL1 IAOL2 ITSTL2 IMOL2 IENGOL2");
+      .select("rollNo schoolCode class section dob mobNo studentName IAOL1 ITSTL1 IMOL1 IGKOL1 IENGOL1 IAOL2 ITSTL2 IMOL2 IENGOL2")
+      .lean();
+
+    // Query kindergarten students
+    const kgQuery = { schoolCode: parseInt(schoolCode) };
+    if (examLevel === "L1") {
+      kgQuery.IQKD1 = "1";
+    } else if (examLevel === "L2") {
+      kgQuery.IQKD2 = "1";
+    }
+
+    console.log("🔍 KG Query:", JSON.stringify(kgQuery, null, 2));
+
+    const kgStudents = await KINDERGARTEN_STUDENT.find(kgQuery)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select("rollNo schoolCode class section dob mobNo studentName IQKD1 IQKD2")
+      .lean();
+
+    console.log("📊 Regular students found:", regularStudents.length);
+    console.log("📊 KG students found:", kgStudents.length);
+
+    // Combine both results
+    const students = [...regularStudents, ...kgStudents];
+    
+    // Get total count from both collections
+    const totalRegular = await STUDENT_LATEST.countDocuments(query);
+    const totalKG = await KINDERGARTEN_STUDENT.countDocuments(kgQuery);
+    const totalStudents = totalRegular + totalKG;
 
     const totalPages = Math.ceil(totalStudents / limit);
 
@@ -66,6 +106,7 @@ export const generateAdmitCards = async (req, res) => {
     }
     const db = dbResponse.conn.db;
 
+    // Query for regular students
     const query = {
       schoolCode: Number(schoolCode),
       ...(level === "L1" && {
@@ -76,11 +117,30 @@ export const generateAdmitCards = async (req, res) => {
       })
     };
 
-    const students = await STUDENT_LATEST.find(query).lean();
+    const regularStudents = await STUDENT_LATEST.find(query).lean();
+
+    // Query for kindergarten students
+    const kgQuery = { schoolCode: Number(schoolCode) };
+    if (level === "L1") {
+      kgQuery.IQKD1 = "1";
+    } else if (level === "L2") {
+      kgQuery.IQKD2 = "1";
+    }
+
+    const kgStudents = await KINDERGARTEN_STUDENT.find(kgQuery).lean();
+
+    console.log(`📊 Generating admit cards - Regular: ${regularStudents.length}, KG: ${kgStudents.length}`);
+
+    // Combine both student types
+    const allStudents = [...regularStudents, ...kgStudents];
+
+    if (allStudents.length === 0) {
+      return res.status(404).json({ error: "No students found for the selected criteria" });
+    }
 
     const uniqueStudents = [];
     const seenMobNos = new Set();
-    for (const student of students) {
+    for (const student of allStudents) {
       if (!seenMobNos.has(student.mobNo)) {
         uniqueStudents.push(student);
         seenMobNos.add(student.mobNo);
@@ -151,8 +211,17 @@ export const fetchAdmitCardForStudent = async (req, res) => {
       return res.status(400).json({ error: "Mobile number and valid level (basic/L1 or L2) are required" });
     }
 
-    const studentData = await STUDENT_LATEST.findOne({ mobNo }).lean();
-    if (!studentData) return res.status(404).json({ error: "Student not found" });
+    // Try to find student in regular students collection
+    let studentData = await STUDENT_LATEST.findOne({ mobNo }).lean();
+    
+    // If not found, try kindergarten collection
+    if (!studentData) {
+      studentData = await KINDERGARTEN_STUDENT.findOne({ mobNo }).lean();
+    }
+    
+    if (!studentData) {
+      return res.status(404).json({ error: "Student not found" });
+    }
 
     const objectId = new ObjectId(studentData._id);
     await fetchAdmitCardFromDB(objectId, studentData.studentName, Level, res);

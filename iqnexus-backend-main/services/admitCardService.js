@@ -59,12 +59,12 @@ async function generateAdmitCard(students, level, /* session, */ examDate, schoo
       });
     }
 
-    const templatePath = path.join(__dirname, "designs", "admitCard.html");
+    const templatePath = path.join(__dirname, "..", "designs", "admitCard.html");
     if (!fs.existsSync(templatePath)) {
       throw new Error(`Template file not found: ${templatePath}`);
     }
 
-    const logoPath = path.join(__dirname, "assets", "logo.png");
+    const logoPath = path.join(__dirname, "..", "assets", "logo.png");
     const logoBase64 = fs.readFileSync(logoPath, { encoding: "base64" });
     const logoSrc = `data:image/png;base64,${logoBase64}`;
 
@@ -98,11 +98,29 @@ async function generateAdmitCard(students, level, /* session, */ examDate, schoo
       }
 
       const levelSuffix = level === "L1" ? "1" : "2";
-      const IAOL = student[`IAOL${levelSuffix}`] === "1";
-      const ITSTL = student[`ITSTL${levelSuffix}`] === "1";
-      const IMOL = student[`IMOL${levelSuffix}`] === "1";
-      const IGKOL = student[`IGKOL${levelSuffix}`] === "1";
-      const IENGOL = student[`IENGOL${levelSuffix}`] === "1";
+      
+      // Check if this is a kindergarten student
+      const isKindergartenStudent = student.class === "KD" || student.IQKD1 !== undefined || student.IQKD2 !== undefined;
+      
+      let IAOL, ITSTL, IMOL, IGKOL, IENGOL;
+      
+      if (isKindergartenStudent) {
+        // For kindergarten students, check IQKD field
+        const isEnrolled = student[`IQKD${levelSuffix}`] === "1";
+        // Set all subjects to enrolled if IQKD is enrolled
+        IAOL = isEnrolled;
+        ITSTL = isEnrolled;
+        IMOL = isEnrolled;
+        IGKOL = isEnrolled;
+        IENGOL = isEnrolled;
+      } else {
+        // For regular students, check individual subject enrollments
+        IAOL = student[`IAOL${levelSuffix}`] === "1";
+        ITSTL = student[`ITSTL${levelSuffix}`] === "1";
+        IMOL = student[`IMOL${levelSuffix}`] === "1";
+        IGKOL = student[`IGKOL${levelSuffix}`] === "1";
+        IENGOL = student[`IENGOL${levelSuffix}`] === "1";
+      }
 
       await nodeHtmlToImage({
         output: outputPath,

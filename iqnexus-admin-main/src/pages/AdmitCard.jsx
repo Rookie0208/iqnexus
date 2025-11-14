@@ -35,35 +35,12 @@ const AdmitCard = () => {
   //   { value: "2025-26", label: "2025-26" },
   //   { value: "2026-27", label: "2026-27" },
   // ];
-  const fetchSchoolsByLevel = async () => {
-    if (!searchData.examLevel) {
-      setSchools([]);
-      setSearchData((prev) => ({ ...prev, schoolCode: "" }));
-      return;
-    }
 
-    try {
-      const res = await axios.post(`${BASE_URL}/all-schools`, {
-        examLevel: searchData.examLevel,
-      });
-      if (res.data && res.data.schools) {
-        setSchools(res.data.schools);
-        setSearchData((prev) => ({ ...prev, schoolCode: "" }));
-      } else {
-        setSchools([]);
-        setSearchData((prev) => ({ ...prev, schoolCode: "" }));
-      }
-    } catch (error) {
-      console.error("Error fetching schools:", error);
-      setSchools([]);
-      setSearchData((prev) => ({ ...prev, schoolCode: "" }));
-    }
-  };
-
-  // ✅ useEffect to call fetchSchoolsByLevel on examLevel change
+  // Reset school selection when exam level changes
   useEffect(() => {
-    fetchSchoolsByLevel();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (searchData.examLevel) {
+      setSearchData((prev) => ({ ...prev, schoolCode: "" }));
+    }
   }, [searchData.examLevel]);
 
   const fetchStudents = async (page, filters = {}) => {
