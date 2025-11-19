@@ -187,8 +187,8 @@ const SectionPartList = () => {
   const sectionRef = useRef(null);
   console.log("selected exam", selectedExam);
   const exams = [
-    { name: "IQKD1", level: "L1" },
-    { name: "IQKD2", level: "L2" },
+    { name: "IQKDL1", level: "L1" },
+    { name: "IQKDL2", level: "L2" },
     { name: "IQEOL1", level: "L1" },
     { name: "IQEOL2", level: "L2" },
     { name: "IQROL1", level: "L1" },
@@ -202,9 +202,12 @@ const SectionPartList = () => {
 
   useEffect(() => {
     console.log("Selected Exam Level:", selectedExam);
-    // Flatten the exam list to a plain array
+    // Flatten the exam list to a plain array and map to database field names
     if (selectedExam != "") {
       const flatExams = selectedExam.map((exam) => {
+        // Map display names to database field names
+        if (exam.value === "IQKDL1") return "IQKD1";
+        if (exam.value === "IQKDL2") return "IQKD2";
         return exam.value;
       });
 
@@ -281,9 +284,19 @@ const SectionPartList = () => {
       selectedSections.length > 0
     ) {
 
+      // Map display names to database field names for kindergarten exams
+      const mappedExams = selectedExam.map(exam => {
+        if (exam.value === "IQKDL1") {
+          return { ...exam, value: "IQKD1" };
+        } else if (exam.value === "IQKDL2") {
+          return { ...exam, value: "IQKD2" };
+        }
+        return exam;
+      });
+
       const filters = {
         examLevel: selectedExamLevel,
-        exam: selectedExam || undefined,
+        exam: mappedExams || undefined,
         schoolCode: selectedSchoolCode || undefined,
         classes:
           selectedClasses.length > 0
@@ -733,6 +746,9 @@ const SectionPartList = () => {
 
   // Predefined school sectons
   const allSections = [
+    { value: "LKG" },
+    { value: "UKG" },
+    { value: "PG" },
     { value: "A" },
     { value: "B" },
     { value: "C" },
@@ -744,17 +760,19 @@ const SectionPartList = () => {
     { value: "I" },
   ];
     const nameMappings = {
-        IQKDL1: "IQKD1",
-    IQKDL2: "IQKD2",
-        IQROL1: "IAOL1",
-    IQROL2: "IAOL2",
-    IQSOL1: "ITSTL1",
-    IQSOL2: "ITSTL2",
-    IQMOL1: "IMOL1",
-    IQMOL2: "IMOL2",
-    IQGKOL1: "IGKOL1",
-    IQEOL1: "IENGOL1",
-    IQEOL2: "IENGOL2",
+        IQKD1: "IQKD1",     // Kindergarten Level 1 (db field → db field)
+        IQKD2: "IQKD2",     // Kindergarten Level 2
+        IQKDL1: "IQKD1",     // Kindergarten Level 1 (display → db field)
+        IQKDL2: "IQKD2",     // Kindergarten Level 2
+        IQEOL1: "IENGOL1",  // English Olympiad Level 1
+        IQEOL2: "IENGOL2",  // English Olympiad Level 2
+        IQROL1: "IAOL1",    // Reasoning Olympiad Level 1
+        IQROL2: "IAOL2",    // Reasoning Olympiad Level 2
+        IQSOL1: "ITSTL1",   // Science Olympiad Level 1
+        IQSOL2: "ITSTL2",   // Science Olympiad Level 2
+        IQMOL1: "IMOL1",    // Math Olympiad Level 1
+        IQMOL2: "IMOL2",    // Math Olympiad Level 2
+        IQGKOL1: "IGKOL1",  // General Knowledge Olympiad Level 1
   };
 
 
@@ -1019,10 +1037,40 @@ const SectionPartList = () => {
                 </div>
               </div>
               {exams.map(
-                (exam) =>
-                         exam.level === selectedExamLevel   && 
-                (examListPlainArray.length>0 ? examListPlainArray.includes(exam.name) :true)&&
-                 (
+                (exam) => {
+                  // Check if exam matches selected level
+                  const levelMatches = exam.level === selectedExamLevel;
+                  
+                  // Check if exam is in selected exams list (if any selected)
+                  const examSelected = examListPlainArray.length > 0 
+                    ? (examListPlainArray.includes(exam.name) || examListPlainArray.includes(nameMappings[exam.name]))
+                    : true;
+                  
+                  // Check if exam is KD exam
+                  const isKDExam = exam.name === "IQKDL1" || exam.name === "IQKDL2";
+                  
+                  // Check if only KD class is selected
+                  const onlyKDSelected = selectedClasses.length === 1 && selectedClasses[0].value === "KD";
+                  const hasKDSelected = selectedClasses.some(cls => cls.value === "KD");
+                  const hasNonKDSelected = selectedClasses.some(cls => cls.value !== "KD");
+                  
+                  // Determine if this exam should be shown
+                  let shouldShow = false;
+                  if (selectedClasses.length === 0) {
+                    // No class filter: show all matching level
+                    shouldShow = levelMatches && examSelected;
+                  } else if (onlyKDSelected) {
+                    // Only KD selected: show only KD exams
+                    shouldShow = levelMatches && examSelected && isKDExam;
+                  } else if (hasKDSelected && hasNonKDSelected) {
+                    // Both KD and regular classes: show all matching exams
+                    shouldShow = levelMatches && examSelected;
+                  } else {
+                    // Only regular classes: show only non-KD exams
+                    shouldShow = levelMatches && examSelected && !isKDExam;
+                  }
+                  
+                  return shouldShow && (
                     <div className="gap-3 flex flex-col mb-3 " key={exam.name}>
                         
                       <h2>{exam.name}</h2>
@@ -1032,7 +1080,7 @@ const SectionPartList = () => {
                           <tr>
                             <th className="border px-2 py-1">class</th>
                             {allSections.map((section) => (
-                              <th className="border px-2 py-1">
+                              <th className="border px-2 py-1" key={section.value}>
                                 {section.value}
                               </th>
                             ))}
@@ -1054,9 +1102,9 @@ const SectionPartList = () => {
                                     </td>
                               {
                                        countData[nameMappings[exam.name]] && countData[nameMappings[exam.name]][classOption.value] ?
-                                       Object.values( countData[nameMappings[exam.name]][classOption.value]).map((count, secIndex) => (
+                                       allSections.map((section, secIndex) => (
                                               <td className="border px-2 py-1" key={secIndex}>
-                                                {count}
+                                                {countData[nameMappings[exam.name]][classOption.value][section.value] || 0}
                                               </td>
                                        )) :
                                        allSections.map((section, secIndex) => (
@@ -1083,6 +1131,7 @@ const SectionPartList = () => {
                       </table>
                     </div>
                   )
+                }
               )}
 
               <div className="grid grid-cols-2 text-xs mb-2">

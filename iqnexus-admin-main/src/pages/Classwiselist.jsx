@@ -124,6 +124,9 @@ const Classwiselist = () => {
     // Flatten the exam list to a plain array
     if (selectedExam != "") {
       const flatExams = selectedExam.map((exam) => {
+        // Map display names to database field names
+        if (exam.value === "IQKDL1") return "IQKD1";
+        if (exam.value === "IQKDL2") return "IQKD2";
         return exam.value;
       });
 
@@ -189,9 +192,16 @@ const Classwiselist = () => {
       selectedSections.length > 0
     ) {
 
+      // Map display names to database field names
+      const mappedExams = selectedExam.map(exam => {
+        if (exam.value === "IQKDL1") return { ...exam, value: "IQKD1" };
+        else if (exam.value === "IQKDL2") return { ...exam, value: "IQKD2" };
+        return exam;
+      });
+
       const filters = {
         examLevel: selectedExamLevel,
-        exam: selectedExam || undefined,
+        exam: mappedExams || undefined,
         schoolCode: selectedSchoolCode || undefined,
         classes:
           selectedClasses.length > 0
@@ -652,6 +662,8 @@ const Classwiselist = () => {
     { value: "I" },
   ];
     const nameMappings = {
+    IQKD1: "IQKD1",
+    IQKD2: "IQKD2",
     IQKDL1: "IQKD1",
     IQKDL2: "IQKD2",
     IQROL1: "IAOL1",

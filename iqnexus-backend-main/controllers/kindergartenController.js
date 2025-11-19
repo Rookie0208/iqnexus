@@ -1,4 +1,6 @@
 import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
+import { School } from "../models/schoolModel.js";
+import { TeacherIncharge } from "../models/TeacherInchanrgeModel.js";
 import { excelToMongoDbForKindergarten } from "../utils/excelToMongoForKGStudents.js";
 import fs from "fs/promises";
 
@@ -158,5 +160,71 @@ export const uploadKindergartenStudentsCSV = async (req, res) => {
     });
   } finally {
     await fs.unlink(req.file.path).catch(err => console.error("Error deleting file:", err));
+  }
+};
+
+export const getKindergartenAttendance = async (req, res) => {
+  const { schoolCode, exam, section } = req.body;
+
+  if (!schoolCode || !exam) {
+    return res.status(400).json({ message: "School code and exam are required" });
+  }
+
+  const query = { 
+    class: "KD",
+    schoolCode: Number(schoolCode)
+  };
+
+  // Filter by exam enrollment
+  if (exam === "IQKD1") {
+    query.IQKD1 = "1";
+  } else if (exam === "IQKD2") {
+    query.IQKD2 = "1";
+  }
+
+  // Filter by sections if provided
+  if (section && Array.isArray(section) && section.length > 0) {
+    query.section = { $in: section };
+  }
+
+  console.log("Attendance Query:", JSON.stringify(query));
+
+  try {
+    // Fetch all students without pagination
+    const students = await KINDERGARTEN_STUDENT.find(query).lean();
+    
+    // Fetch school information
+    const school = await School.findOne({ schoolCode: Number(schoolCode) }).lean();
+    
+    // Fetch exam incharge information
+    const examIncharge = await TeacherIncharge.findOne({ 
+      schoolCode: Number(schoolCode) 
+    }).lean();
+
+    console.log(`Found ${students.length} students for attendance`);
+    console.log("School:", school?.schoolName);
+    console.log("School Incharge:", school?.incharge);
+    console.log("Exam Incharge:", examIncharge?.examInchargeName);
+
+    // Use exam incharge if available, otherwise fall back to school incharge
+    const inchargeName = examIncharge?.examInchargeName || school?.incharge || "N/A";
+    const inchargeMobNo = examIncharge?.examInchargeMobNo || school?.schoolMobNo || "N/A";
+    const inchargeEmail = examIncharge?.examInchargeEmail || school?.schoolEmail || "N/A";
+
+    console.log("Final Incharge Name:", inchargeName);
+
+    res.status(200).json({ 
+      success: true, 
+      data: students,
+      school: school || {},
+      examIncharge: {
+        examInchargeName: inchargeName,
+        examInchargeMobNo: inchargeMobNo,
+        examInchargeEmail: inchargeEmail
+      }
+    });
+  } catch (err) {
+    console.error("Error in getKindergartenAttendance:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };

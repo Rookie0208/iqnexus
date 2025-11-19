@@ -19,6 +19,8 @@ export async function excelToMongoDbForKindergarten(filePath) {
             DOB: "dob",
             "Mob No": "mobNo",
             "IQKD Book": "iqkdBook",
+            IQKD1: "IQKD1",
+            IQKD2: "IQKD2",
             "Total Basic Level Participated Exams": "totalBasicLevelParticipatedExams",
             "Basic Level Full Amount": "basicLevelFullAmount",
             "Basic Level Paid Amount": "basicLevelAmountPaid",
@@ -42,8 +44,26 @@ export async function excelToMongoDbForKindergarten(filePath) {
             "city",
             "IQKD Book",
             "class",
+            "IQKD1",
+            "IQKD2",
         ];
         const allColumns = [...requiredColumns, ...optionalColumns];
+
+        // Helper function to normalize YES/NO/1/0 values
+        const normalizeBoolean = (value) => {
+            if (!value || value === "" || value === null || value === undefined) {
+                return "0";
+            }
+            const strValue = String(value).trim().toUpperCase();
+            if (strValue === "YES" || strValue === "Y" || strValue === "1") {
+                return "1";
+            }
+            if (strValue === "NO" || strValue === "N" || strValue === "0") {
+                return "0";
+            }
+            // Default to "0" for any other value
+            return "0";
+        };
 
         const students = [];
         let headers = [];
@@ -142,6 +162,14 @@ export async function excelToMongoDbForKindergarten(filePath) {
                 dob: student.dob?.trim() || "",
                 mobNo: student.mobNo?.trim() || "",
                 iqkdBook: student.iqkdBook?.trim() || "",
+                IQKD1: (() => {
+                    console.log(`Processing IQKD1 for ${student.rollNo}: raw value = "${student.IQKD1}", normalized = "${normalizeBoolean(student.IQKD1)}"`);
+                    return normalizeBoolean(student.IQKD1);
+                })(),
+                IQKD2: (() => {
+                    console.log(`Processing IQKD2 for ${student.rollNo}: raw value = "${student.IQKD2}", normalized = "${normalizeBoolean(student.IQKD2)}"`);
+                    return normalizeBoolean(student.IQKD2);
+                })(),
                 totalBasicLevelParticipatedExams: student.totalBasicLevelParticipatedExams?.trim() || "",
                 basicLevelFullAmount: student.basicLevelFullAmount?.trim() || "",
                 basicLevelAmountPaid: student.basicLevelAmountPaid?.trim() || "",

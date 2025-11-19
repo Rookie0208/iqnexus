@@ -6,7 +6,8 @@ import {
   deleteKindergartenStudent,
   updateKindergartenStudent,
   addKindergartenStudent,
-  uploadKindergartenStudentsCSV
+  uploadKindergartenStudentsCSV,
+  getKindergartenAttendance
 } from "../controllers/kindergartenController.js";
 
 const router = express.Router();
@@ -18,5 +19,6 @@ router.delete("/kindergarten-student", deleteKindergartenStudent);
 router.put("/kindergarten-student", updateKindergartenStudent);
 router.post("/add-kindergarten-student", addKindergartenStudent);
 router.post("/upload-kindergarten-students", uploadKindergartenStudentsCSV);
+router.post("/kindergarten-attendance", getKindergartenAttendance);
 
 export default router;

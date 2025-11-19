@@ -1,21 +1,21 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { BASE_URL } from "../Api";
 import * as XLSX from 'xlsx';
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import logo from "../assets/main_logo.png";
 
 // Map KG exam codes to full names
-const kgExamFullNames = {
-    IQKD1: {
-        fullName: "IQNEXUS KINDERGARTEN OLYMPIAD",
+const examFullNames = {
+    IQKDL1: {
+        fullName: "IQNEXUS KINDERGARTEN DEVELOPMENT",
         code: "IQKD",
         level: "Level 1",
     },
-    IQKD2: {
-        fullName: "IQNEXUS KINDERGARTEN OLYMPIAD",
+    IQKDL2: {
+        fullName: "IQNEXUS KINDERGARTEN DEVELOPMENT",
         code: "IQKD",
         level: "Level 2",
     },
@@ -54,11 +54,13 @@ const AllKindergartenStudents = () => {
     const [isFetched, setIsFetched] = useState(false);
     const attendanceRef = useRef(null);
 
-    const kgExams = [
-        { name: "IQKD1", level: "L1" },
-        { name: "IQKD2", level: "L2" },
+    const exams = [
+        { name: "IQKDL1", level: "L1" },
+        { name: "IQKDL2", level: "L2" },
     ];
-
+    const kgExams = exams; // Alias for compatibility
+    const kgExamFullNames = examFullNames; // Alias for compatibility
+    
     // Predefined section options for kindergarten
     const sectionOptions = [
         { value: "LKG", label: "LKG" },
@@ -74,7 +76,7 @@ const AllKindergartenStudents = () => {
 
 
     // Fetch kindergarten students
-    const fetchStudents = async (page, filters = {}) => {
+    const fetchStudents = useCallback(async (page, filters = {}) => {
         try {
             let res;
             const hasFilters = Object.values(filters).some(
@@ -122,7 +124,7 @@ const AllKindergartenStudents = () => {
         } finally {
             setSearched(true);
         }
-    };
+    }, [limit]);
 
     // Fetch all students for Excel download without pagination
     const fetchAllStudentsForExcel = async (filters) => {
@@ -312,9 +314,8 @@ const AllKindergartenStudents = () => {
             dob: student.dob || "",
             mobNo: student.mobNo || "",
             city: student.city || "",
-            IQKG: student.IQKG || "0",
-            IQKG1: student.IQKG1 || "",
-            IQKG2: student.IQKG2 || "",
+            IQKDL1: student.IQKD1 || "0",
+            IQKDL2: student.IQKD2 || "0",
             Duplicates: student.Duplicates === true,
             totalBasicLevelParticipatedExams: student.totalBasicLevelParticipatedExams || "",
             advanceLevelAmountPaid: student.advanceLevelAmountPaid || "",
@@ -340,9 +341,6 @@ const AllKindergartenStudents = () => {
     const handleUpdateSubmit = async (e) => {
         e.preventDefault();
         try {
-            // Auto-enroll in IQKD1 and IQKD2 if IQKG is Yes
-            const enrollmentValue = updatedData.IQKG === "1" ? "1" : "0";
-            
             const payload = {
                 _id: selectedStudent._id,
                 rollNo: updatedData.rollNo,
@@ -354,9 +352,8 @@ const AllKindergartenStudents = () => {
                 dob: updatedData.dob || "",
                 mobNo: updatedData.mobNo || "",
                 city: updatedData.city || "",
-                IQKG: updatedData.IQKG || "0",
-                IQKD1: enrollmentValue,
-                IQKD2: enrollmentValue,
+                IQKD1: updatedData.IQKDL1 || "0",
+                IQKD2: updatedData.IQKDL2 || "0",
                 Duplicates: updatedData.Duplicates,
             };
             const res = await axios.put(`${BASE_URL}/kindergarten-student`, payload);
@@ -385,8 +382,14 @@ const AllKindergartenStudents = () => {
             return;
         }
 
+        // Map display names to database field names
+        const examMapping = {
+            "IQKDL1": "IQKD1",
+            "IQKDL2": "IQKD2"
+        };
+
         const filters = {
-            exam: selectedExam,
+            exam: examMapping[selectedExam] || selectedExam,
             schoolCode: Number(selectedSchoolCode),
             section:
                 selectedSections.length > 0
@@ -398,20 +401,25 @@ const AllKindergartenStudents = () => {
 
         try {
             setIsFetching(true);
-            const res = await axios.post(`${BASE_URL}/kindergarten-students`, filters);
-            console.log("Student Response:", res.data);
+            const res = await axios.post(`${BASE_URL}/kindergarten-attendance`, filters);
+            console.log("Attendance Response:", res.data);
+            console.log("Exam Incharge from response:", res.data.examIncharge);
             
             if (res.data.success && res.data.data) {
                 setStudentsData(res.data.data || []);
                 console.log("Students found:", res.data.data.length);
                 
-                // Fetch school info
-                try {
-                    const schoolRes = await axios.get(`${BASE_URL}/get-school/${selectedSchoolCode}`);
-                    console.log("School Response:", schoolRes.data);
-                    setSchool(schoolRes.data.school || {});
-                } catch (schoolError) {
-                    console.error("School fetch error:", schoolError);
+                // Set school info from response and merge exam incharge data
+                if (res.data.school) {
+                    const schoolData = {
+                        ...res.data.school,
+                        examInchargeName: res.data.examIncharge?.examInchargeName || "N/A",
+                        examInchargeMobNo: res.data.examIncharge?.examInchargeMobNo || "N/A",
+                        examInchargeEmail: res.data.examIncharge?.examInchargeEmail || "N/A"
+                    };
+                    console.log("School data with incharge:", schoolData);
+                    setSchool(schoolData);
+                } else {
                     setSchool({});
                 }
                 
@@ -434,149 +442,144 @@ const AllKindergartenStudents = () => {
     };
 
     // Download attendance PDF
-    const handleDownloadPDF = async () => {
-        const element = attendanceRef.current;
-
-        if (!element) {
-            alert("Nothing to export!");
-            return;
-        }
-
+    const handleDownloadPDF = () => {
         try {
             setIsDownloading(true);
-            
-            // Store original styles and apply PDF-friendly styles
-            const originalStyles = new Map();
-            const applyPDFStyles = (node) => {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    const style = window.getComputedStyle(node);
-                    originalStyles.set(node, {
-                        color: node.style.color,
-                        backgroundColor: node.style.backgroundColor,
-                        borderColor: node.style.borderColor,
-                        fontSize: node.style.fontSize,
-                        padding: node.style.padding,
-                        margin: node.style.margin,
-                        lineHeight: node.style.lineHeight,
-                    });
 
-                    // Force standard color values
-                    node.style.color = style.color.includes('oklch') ? '#000000' : style.color;
-                    node.style.backgroundColor = style.backgroundColor.includes('oklch') ? '#ffffff' : style.backgroundColor;
-                    node.style.borderColor = style.borderColor.includes('oklch') ? '#000000' : style.borderColor;
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const sideMargin = 18;
+            const usableWidth = pageWidth - sideMargin * 2;
+            const topMargin = 82;
+            const bottomMargin = 28;
+            const generationDate = new Date();
+            const formattedGeneratedOn = generationDate.toLocaleString();
+            const academicYear = generationDate.getMonth() >= 3
+                ? `${generationDate.getFullYear()}-${generationDate.getFullYear() + 1}`
+                : `${generationDate.getFullYear() - 1}-${generationDate.getFullYear()}`;
 
-                    // Apply professional PDF styling
-                    if (node.id === 'download') {
-                        node.style.padding = '30px';
-                        node.style.backgroundColor = '#ffffff';
-                        node.style.width = '210mm';
-                        node.style.minHeight = '297mm';
-                        node.style.boxSizing = 'border-box';
-                        node.style.border = '1px solid #000000';
-                    }
-
-                    if (node.tagName === 'TABLE') {
-                        node.style.borderCollapse = 'collapse';
-                        node.style.width = '100%';
-                        node.style.marginBottom = '20px';
-                        node.style.fontSize = '11px';
-                        node.style.border = '1px solid #000000';
-                    }
-
-                    if (node.tagName === 'THEAD') {
-                        node.style.border = '1px solid #000000';
-                    }
-
-                    if (node.tagName === 'TBODY') {
-                        node.style.border = '1px solid #000000';
-                    }
-
-                    if (node.tagName === 'TH' || node.tagName === 'TD') {
-                        node.style.border = '1px solid #000000';
-                        node.style.borderRight = '1px solid #000000';
-                        node.style.borderBottom = '1px solid #000000';
-                        node.style.padding = '6px 4px';
-                        node.style.textAlign = 'center';
-                        node.style.fontSize = '10px';
-                        node.style.lineHeight = '1.3';
-                        node.style.boxSizing = 'border-box';
-                    }
-
-                    if (node.tagName === 'TH') {
-                        node.style.backgroundColor = '#e5e7eb';
-                        node.style.fontWeight = 'bold';
-                    }
-
-                    if (node.className.includes('border-t')) {
-                        node.style.borderTop = '1px solid #000000';
-                        node.style.paddingTop = '15px';
-                        node.style.marginTop = '15px';
-                        node.style.fontSize = '9px';
-                        node.style.lineHeight = '1.4';
-                    }
-
-                    node.childNodes.forEach(applyPDFStyles);
-                }
+            const getExamName = (examCode) => {
+                const exam = kgExamFullNames[examCode];
+                return exam ? `${exam.fullName} ${exam.level}` : examCode;
             };
 
-            // Apply PDF styles
-            applyPDFStyles(element);
+            const drawHeader = () => {
+                const logoSize = 24;
+                const centerX = pageWidth / 2;
+                const infoStartY = 46;
 
-            // Capture with html2canvas
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: "#ffffff",
-                width: element.scrollWidth + 10,
-                height: element.scrollHeight + 10,
-                windowWidth: element.scrollWidth + 10,
-                windowHeight: element.scrollHeight + 10,
+                pdf.addImage(logo, "PNG", centerX - logoSize / 2, 14, logoSize, logoSize);
+                pdf.setFont("helvetica", "bold");
+                pdf.setFontSize(16);
+                pdf.setTextColor(22, 27, 35);
+                pdf.text("IQ Nexus", centerX, 42, { align: "center" });
+
+                pdf.setFontSize(11);
+                pdf.setFont("helvetica", "normal");
+                pdf.setTextColor(80, 80, 80);
+                pdf.text("KG Students Attendance Sheet", centerX, 50, { align: "center" });
+
+                pdf.setFontSize(9.5);
+                pdf.setTextColor(60, 60, 60);
+                pdf.text(`School Code: ${selectedSchoolCode || "N/A"}`, sideMargin, infoStartY);
+                pdf.text(`School Name: ${school?.schoolName || "N/A"}`, sideMargin, infoStartY + 6);
+                pdf.text(`Exam: ${getExamName(selectedExam)}`, sideMargin, infoStartY + 12);
+                pdf.text(`Exam Incharge: ${school?.examInchargeName || school?.incharge || "N/A"}`, sideMargin, infoStartY + 18);
+
+                pdf.text(`Generated: ${formattedGeneratedOn}`, pageWidth - sideMargin, infoStartY, { align: "right" });
+                pdf.text(`Academic Year: ${academicYear}`, pageWidth - sideMargin, infoStartY + 6, { align: "right" });
+
+                pdf.setDrawColor(180, 180, 180);
+                pdf.line(sideMargin, infoStartY + 24, pageWidth - sideMargin, infoStartY + 24);
+            };
+
+            const drawFooter = (pageNumber, totalPages) => {
+                pdf.setFontSize(8);
+                pdf.setFont("helvetica", "normal");
+                pdf.setTextColor(100, 100, 100);
+                pdf.text("Confidential - For internal use only", pageWidth / 2, pageHeight - 14, { align: "center" });
+                pdf.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 7, { align: "center" });
+            };
+
+            drawHeader();
+
+            const tableData = studentsData.map((student, index) => [
+                index + 1,
+                student.rollNo || "",
+                student.studentName || "",
+                student.fatherName || "",
+                student.motherName || "",
+                student.section || "",
+                ""
+            ]);
+
+            autoTable(pdf, {
+                startY: topMargin,
+                margin: { top: topMargin, bottom: bottomMargin, left: sideMargin, right: sideMargin },
+                head: [["S.No", "Roll No", "Student Name", "Father", "Mother", "Section", "Attendance (P/A)"]],
+                body: tableData,
+                tableWidth: usableWidth,
+                styles: {
+                    fontSize: 9,
+                    font: "helvetica",
+                    textColor: [30, 30, 30],
+                    cellPadding: { top: 3, right: 3, bottom: 3, left: 3 },
+                    valign: "middle",
+                    halign: "left",
+                    fillColor: [255, 255, 255],
+                    lineWidth: 0.4,
+                    lineColor: [160, 160, 160],
+                    minCellHeight: 13,
+                },
+                headStyles: {
+                    fillColor: [240, 240, 240],
+                    textColor: [30, 30, 30],
+                    fontStyle: "bold",
+                    fontSize: 10,
+                    halign: "center",
+                    valign: "middle",
+                },
+                alternateRowStyles: {
+                    fillColor: [250, 250, 250],
+                },
+                columnStyles: {
+                    0: { halign: "center", cellWidth: 12 },
+                    1: { halign: "center", cellWidth: 20 },
+                    2: { halign: "left", cellWidth: 40 },
+                    3: { halign: "left", cellWidth: 30 },
+                    4: { halign: "left", cellWidth: 30 },
+                    5: { halign: "center", cellWidth: 18 },
+                    6: { halign: "center", cellWidth: 24 },
+                },
+                bodyStyles: {
+                    fontSize: 9,
+                },
+                didDrawPage: (data) => {
+                    drawHeader();
+                    drawFooter(data.pageNumber, pdf.internal.getNumberOfPages());
+                },
             });
 
-            // Restore original styles
-            originalStyles.forEach((styles, node) => {
-                node.style.color = styles.color;
-                node.style.backgroundColor = styles.backgroundColor;
-                node.style.borderColor = styles.borderColor;
-                node.style.fontSize = styles.fontSize;
-                node.style.padding = styles.padding;
-                node.style.margin = styles.margin;
-                node.style.lineHeight = styles.lineHeight;
-            });
+            const finalY = pdf.lastAutoTable.finalY || topMargin;
+            pdf.setFontSize(9);
+            pdf.setFont("helvetica", "normal");
+            pdf.setTextColor(70, 70, 70);
+            pdf.text("Teacher / Invigilator Signature:", sideMargin, finalY + 12);
+            pdf.line(sideMargin, finalY + 14, sideMargin + 60, finalY + 14);
+            pdf.text("Principal / Coordinator Signature:", pageWidth - sideMargin, finalY + 12, { align: "right" });
+            pdf.line(pageWidth - sideMargin - 60, finalY + 14, pageWidth - sideMargin, finalY + 14);
 
-            // Create PDF with proper sizing and borders
-            const imgData = canvas.toDataURL("image/png");
-            const pdf = new jsPDF("p", "mm", "a4");
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            
-            // Add margin and ensure borders are visible
-            const margin = 5; // 5mm margin
-            const imgWidth = pdfWidth - (margin * 2);
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            
-            let heightLeft = imgHeight;
-            let position = margin;
-
-            // Add first page
-            pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-            heightLeft -= (pdfHeight - (margin * 2));
-
-            // Add additional pages if content is too long
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight + margin;
-                pdf.addPage();
-                pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-                heightLeft -= (pdfHeight - (margin * 2));
-            }
+            pdf.setFontSize(8);
+            pdf.setFont("helvetica", "italic");
+            pdf.setTextColor(110, 110, 110);
+            pdf.text("Note: Attendance must be marked in ink immediately after roll call.", sideMargin, finalY + 22);
 
             pdf.save(`KG_Attendance_${selectedExam}_${selectedSchoolCode}.pdf`);
-            
+
             alert("PDF downloaded successfully!");
         } catch (error) {
             console.error("Error generating PDF:", error);
-            console.error("Error stack:", error.stack);
             alert("Failed to download PDF. Error: " + error.message);
         } finally {
             setIsDownloading(false);
@@ -623,7 +626,7 @@ const AllKindergartenStudents = () => {
     // Fetch students on page change
     useEffect(() => {
         fetchStudents(currentPage);
-    }, [currentPage]);
+    }, [currentPage, fetchStudents]);
 
     return (
         <div className="min-h-screen p-6 bg-gray-50">
@@ -965,7 +968,8 @@ const AllKindergartenStudents = () => {
                                         "dob",
                                         "mobNo",
                                         "city",
-                                        "IQKG",
+                                        "IQKDL1",
+                                        "IQKDL2",
                                         "Duplicates",
                                     ].map((field, idx) => (
                                         <div key={idx}>
@@ -1017,7 +1021,7 @@ const AllKindergartenStudents = () => {
                                                     <option value="UKG">UKG</option>
                                                     <option value="PG">PG</option>
                                                 </select>
-                                            ) : field === "IQKG" ? (
+                                            ) : field === "IQKDL1" || field === "IQKDL2" ? (
                                                 <select
                                                     name={field}
                                                     value={updatedData[field]}
@@ -1216,44 +1220,44 @@ const AllKindergartenStudents = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <table className="table-auto w-full border text-center text-xs mb-4">
+                                <table className="table-auto w-full border text-xs mb-4" style={{ borderCollapse: 'collapse' }}>
                                     <thead className="bg-gray-100">
-                                        <tr>
-                                            <th className="border px-2 py-1">S.No</th>
-                                            <th className="border px-2 py-1">Roll No</th>
-                                            <th className="border px-2 py-1">Name</th>
-                                            <th className="border px-2 py-1">Father</th>
-                                            <th className="border px-2 py-1">Mother</th>
-                                            <th className="border px-2 py-1">Section</th>
-                                            <th className="border px-2 py-1">Attendance (P/A)</th>
+                                        <tr className="text-center">
+                                            <th className="border px-2 py-1" style={{ verticalAlign: "middle", height: "40px" }}>S.No</th>
+                                            <th className="border px-2 py-1" style={{ verticalAlign: "middle", height: "40px" }}>Roll No</th>
+                                            <th className="border px-2 py-1" style={{ verticalAlign: "middle", height: "40px" }}>Name</th>
+                                            <th className="border px-2 py-1" style={{ verticalAlign: "middle", height: "40px" }}>Father</th>
+                                            <th className="border px-2 py-1" style={{ verticalAlign: "middle", height: "40px" }}>Mother</th>
+                                            <th className="border px-2 py-1" style={{ verticalAlign: "middle", height: "40px" }}>Section</th>
+                                            <th className="border px-2 py-1" style={{ verticalAlign: "middle", height: "40px" }}>Attendance (P/A)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {studentsData.length > 0 ? (
                                             studentsData.map((student, index) => (
-                                                <tr key={student._id || index}>
-                                                    <td className="border px-2 py-1">{index + 1}</td>
-                                                    <td className="border px-2 py-1">{student.rollNo}</td>
-                                                    <td className="border px-2 py-1">
+                                                <tr key={student._id || index} style={{ height: "40px" }}>
+                                                    <td className="border px-2 py-1 text-center" style={{ verticalAlign: "middle", height: "40px" }}>{index + 1}</td>
+                                                    <td className="border px-2 py-1 text-left" style={{ verticalAlign: "middle", height: "40px" }}>{student.rollNo}</td>
+                                                    <td className="border px-2 py-1 text-left" style={{ verticalAlign: "middle", height: "40px" }}>
                                                         {student.studentName}
                                                     </td>
-                                                    <td className="border px-2 py-1">
+                                                    <td className="border px-2 py-1 text-left" style={{ verticalAlign: "middle", height: "40px" }}>
                                                         {student.fatherName || ""}
                                                     </td>
-                                                    <td className="border px-2 py-1">
+                                                    <td className="border px-2 py-1 text-left" style={{ verticalAlign: "middle", height: "40px" }}>
                                                         {student.motherName || ""}
                                                     </td>
-                                                    <td className="border px-2 py-1">
+                                                    <td className="border px-2 py-1 text-left" style={{ verticalAlign: "middle", height: "40px" }}>
                                                         {student.section}
                                                     </td>
-                                                    <td className="border px-2 py-1">
+                                                    <td className="border px-2 py-1 text-center" style={{ verticalAlign: "middle", height: "40px" }}>
                                                         {/* Attendance checkbox */}
                                                     </td>
                                                 </tr>
                                             ))
                                         ) : (
-                                            <tr>
-                                                <td colSpan={7} className="text-center border py-3">
+                                            <tr style={{ height: "40px" }}>
+                                                <td colSpan={7} className="text-center border py-3" style={{ verticalAlign: "middle", height: "40px" }}>
                                                     No student data available
                                                 </td>
                                             </tr>

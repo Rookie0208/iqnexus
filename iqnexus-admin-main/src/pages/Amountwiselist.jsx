@@ -120,8 +120,8 @@ const Amountwiselist = () => {
   const attendanceRef = useRef(null);
   console.log("selected exam", selectedExam);
   const exams = [
-    { name: "IQKD1", level: "L1" },
-    { name: "IQKD2", level: "L2" },
+    { name: "IQKDL1", level: "L1" },
+    { name: "IQKDL2", level: "L2" },
     { name: "IQEOL1", level: "L1" },
     { name: "IQEOL2", level: "L2" },
     { name: "IQROL1", level: "L1" },
@@ -136,10 +136,13 @@ const Amountwiselist = () => {
 
   useEffect(() => {
     console.log("Selected Exam Level:", selectedExam);
-    // Flatten the exam list to a plain array
+    // Flatten the exam list to a plain array and map to database field names
     if(selectedExam!=''){
     const flatExams = selectedExam.map((exam) => {
-      return exam.value
+      // Map display names to database field names
+      if (exam.value === "IQKDL1") return "IQKD1";
+      if (exam.value === "IQKDL2") return "IQKD2";
+      return exam.value;
     });
 
     setExamListPlainArray(flatExams);
@@ -151,19 +154,16 @@ const Amountwiselist = () => {
   const handleFetchStudents = async () => {
     if (selectedExamLevel || selectedExam.length>0 || selectedSchoolCode || selectedClasses.length > 0 || selectedSections.length > 0) {
 
-    let selectedExamNew = [];
-    if (selectedExamLevel === "L1" && !selectedExam) {
-      selectedExamNew = [
-        { value: "IQEOL1", level: "L1" },
-        { value: "IQROL1", level: "L1" },
-        { value: "IQSOL1", level: "L1" },
-        { value: "IQMOL1", level: "L1" },
-        { value: "IQGKOL1", level: "L1" },
-      ];
-    }
+    // Map display names to database field names
+    const mappedExams = selectedExam.map(exam => {
+      if (exam.value === "IQKDL1") return { ...exam, value: "IQKD1" };
+      else if (exam.value === "IQKDL2") return { ...exam, value: "IQKD2" };
+      return exam;
+    });
+
     const filters = {
       examLevel: selectedExamLevel,
-      exam: selectedExam || undefined,
+      exam: mappedExams || undefined,
       schoolCode: selectedSchoolCode || undefined,
       classes:
         selectedClasses.length > 0
@@ -897,7 +897,7 @@ const Amountwiselist = () => {
                     ).map((examCode) => (
                      ( selectedExam.length===0 || ( selectedExam.length>0  && examListPlainArray.includes(examCode))) &&
                       <th className="border px-2 py-1" key={examCode}>
-                        {examCode.replace("L1", "").replace("L2", "").replace("1", "").replace("2", "")}
+                        {examCode === "IQKD1" || examCode === "IQKD2" ? "IQKD" : examCode.replace("L1", "").replace("L2", "").replace("1", "").replace("2", "")}
                       </th>
                     ))}
                     <th className="border px-2 py-1">Amount</th>

@@ -27,6 +27,7 @@ export const getParticipationFilteredList = async (req, res) => {
     // Check if KD class is requested OR if IQKD exams are selected OR if L1 exam level is selected
     const hasKDClass = classes && classes.includes("KD");
     const hasKDExam = exam && exam.some(examObj => examObj?.value === 'IQKD1' || examObj?.value === 'IQKD2');
+    const hasOnlyKDExam = exam && exam.length > 0 && exam.every(examObj => examObj?.value === 'IQKD1' || examObj?.value === 'IQKD2');
     const isL1LevelOnly = examLevel === "L1" && (!exam || exam.length === 0);
     const regularClasses = classes ? classes.filter(cls => cls !== "KD") : [];
     
@@ -69,7 +70,8 @@ export const getParticipationFilteredList = async (req, res) => {
     }
     
     // Fetch regular students if regular classes are selected OR if exam level is selected without classes
-    if (regularClasses.length > 0 || (!hasKDClass && (!classes || classes.length === 0)) || examLevel) {
+    // BUT skip if only kindergarten exams are selected
+    if (!hasOnlyKDExam && (regularClasses.length > 0 || (!hasKDClass && (!classes || classes.length === 0)) || examLevel)) {
       const query = {};
       
       if (schoolCode) {
