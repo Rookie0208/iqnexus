@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import React, { useState, useEffect, useCallback } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
 import { BASE_API_URL } from "../Api";
+import { login } from "../redux/authSlice";
 
 function InfoField({ label, value, delay = 0 }) {
   return (
@@ -33,13 +34,55 @@ const AccordionSection = ({ title, children }) => {
 };
 
 const Dashboard = () => {
-  const student = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch();
+  const reduxStudent = useSelector((state) => state.auth.user);
+  const [student, setStudent] = useState(reduxStudent);
   const [admitCard, setAdmitCard] = useState({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const phone = student["Mob No"];
 
-  console.log(student);
+  // Update local state when Redux state changes
+  useEffect(() => {
+    setStudent(reduxStudent);
+  }, [reduxStudent]);
 
+  const refreshStudentData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await axios.get(`${BASE_API_URL}/get-student`, {
+        headers: {
+          authorization: `Bearer ${phone}`,
+        },
+      });
+      if (response.status === 200 && response.data) {
+        let studentData = response.data.studentData;
+        if (!Array.isArray(studentData)) {
+          studentData = studentData !== undefined && studentData !== null ? [studentData] : [];
+        }
+        if (Array.isArray(studentData) && studentData.length > 0) {
+          // Update Redux state with fresh data
+          const updatedStudent = studentData.find(s => s["Mob No"] === phone) || studentData[0];
+          
+          // Force new object reference
+          const freshStudent = { ...updatedStudent };
+          
+          dispatch(login({ user: freshStudent, token: phone }));
+          // Update localStorage
+          localStorage.setItem("student_data", JSON.stringify(freshStudent));
+          // Force immediate local state update with new reference
+          setStudent(freshStudent);
+          // Increment refresh key to force re-render
+          setRefreshKey(prev => prev + 1);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing student data:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [phone, dispatch]);
 
   useEffect(() => {
     const fetchAdmitCard = async () => {
@@ -51,9 +94,14 @@ const Dashboard = () => {
       }
     };
     fetchAdmitCard();
-  }, [phone]);
+    // Fetch fresh data on mount
+    refreshStudentData();
+  }, [phone, refreshStudentData]);
 
-  const hasParticipated = (key) => student?.[key] === "1";
+  const hasParticipated = (key) => {
+    const value = student?.[key];
+    return value === "1";
+  };
 
   const subjectNameMap = {
   IMOL: "IQMO",
@@ -76,7 +124,7 @@ const subjects = Array.from(
 }));
 
   return (
-    <div className="flex-1 w-full min-h-screen lg:p-2 p-4">
+    <div key={refreshKey} className="flex-1 w-full min-h-screen lg:p-2 p-4">
       {/* Admit Card Notification */}
       {Object.keys(admitCard).length > 0 && (
         <div className="mb-6 p-4 bg-green-100 text-green-800 rounded-lg shadow-md animate-fade-in">
@@ -109,6 +157,27 @@ const subjects = Array.from(
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={refreshStudentData}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh student data"
+          >
+            <svg
+              className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
           <img
             src={`https://i.pravatar.cc/100?u=${student?.["Mob No"]}`}
             alt="User Avatar"
