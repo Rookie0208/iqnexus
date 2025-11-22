@@ -142,6 +142,26 @@ export async function fetchKgDataByMobile(mobNo) {
       DOB: data.dob || "",
       "Mob No": data.mobNo || "",
       "IQKG": data.IQKG !== undefined ? data.IQKG : "0",
+      // KD Exam fields formatted to match Dashboard pattern
+      "IQKDL Basic": data.IQKD1 !== undefined ? data.IQKD1 : "0",
+      "IQKDL Advance": data.IQKD2 !== undefined ? data.IQKD2 : "0",
+      "IQKDL Basic Book": data.iqkdBook !== undefined ? data.iqkdBook : "0",
+      "Total Basic Level Participated Exams":
+        data.totalBasicLevelParticipatedExams !== undefined
+          ? data.totalBasicLevelParticipatedExams
+          : "0",
+      "Basic Level Full Amount":
+        data.basicLevelFullAmount !== undefined ? data.basicLevelFullAmount : "0",
+      "Basic Level Paid Amount":
+        data.basicLevelAmountPaid !== undefined ? data.basicLevelAmountPaid : "0",
+      "Basic Level Amount Paid Online":
+        data.basicLevelAmountPaidOnline !== undefined
+          ? data.basicLevelAmountPaidOnline
+          : "",
+      "Advance Level Paid Amount": data.advanceLevelAmountPaid || "",
+      "Advance Level Amount Paid Online": data.advanceLevelAmountPaidOnline || "",
+      "Total Amount Paid": data.totalAmountPaid || "",
+      "Total Amount Paid Online": data.totalAmountPaidOnline || "",
       // School data fields
       "School City": schoolData[index]?.city?.trim() || "Unknown",
       Country: schoolData[index]?.country?.trim() || "Unknown",

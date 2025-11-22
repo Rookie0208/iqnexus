@@ -61,6 +61,7 @@ const Dashboard = () => {
   IENGOL: "IQEO",
   IAOL: "IQRO",
   IGKOL: "IQGKO",
+  IQKDL: "IQKD",
 };
 
 const subjects = Array.from(
