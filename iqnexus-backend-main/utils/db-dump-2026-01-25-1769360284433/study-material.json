@@ -1,0 +1,490 @@
+[
+  {
+    "_id": "691649989a74f6fd5352728b",
+    "class": "kindergarten",
+    "kgSection": "PG",
+    "category": "test",
+    "examId": "IQKD1",
+    "cost": 544,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763068312056_KG_Attendance_IQKD1_180.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6916f0459a74f6fd53527377",
+    "class": "1",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763110981672_IMO%20class%201%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6916f0479a74f6fd5352737a",
+    "class": "1",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763110983187_IMO%20class%201%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6916f0c19a74f6fd5352737f",
+    "class": "kindergarten",
+    "kgSection": "LKG",
+    "category": "Work Book",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763111104712_KG_Attendance_IQKD1_140.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6916f0d49a74f6fd53527382",
+    "class": "kindergarten",
+    "kgSection": "LKG",
+    "category": "Work Book",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763111124215_KG_Attendance_IQKD1_140.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b4cd59a74f6fd53527517",
+    "class": "2",
+    "category": "Work Book",
+    "examId": "IAOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763396821186_IAO%20class%202nd%20workbok.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b4d0b9a74f6fd5352751c",
+    "class": "3",
+    "category": "Work Book",
+    "examId": "IAOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763396875821_IAO%20class%203rd%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b4d3a9a74f6fd53527520",
+    "class": "4",
+    "category": "Work Book",
+    "examId": "IAOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763396922799_IAO%20class%204th%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b4d839a74f6fd53527527",
+    "class": "5",
+    "category": "Work Book",
+    "examId": "IAOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763396995568_IAO%20class%205th%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b4db99a74f6fd5352752b",
+    "class": "6",
+    "category": "Work Book",
+    "examId": "IAOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763397049197_IAO%20class%206th%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b4ddb9a74f6fd5352752f",
+    "class": "7",
+    "category": "Work Book",
+    "examId": "IAOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763397083750_IAO%20class%207th%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b4f949a74f6fd53527542",
+    "class": "1",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763397524271_ISO%20class%201%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b50ce9a74f6fd53527546",
+    "class": "2",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763397838689_ISO%20class%202%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b524f9a74f6fd5352754b",
+    "class": "3",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398223464_ISO%20class%203%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b529e9a74f6fd5352754f",
+    "class": "4",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398302659_ISO%20class%204%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b52c89a74f6fd53527553",
+    "class": "5",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398344273_ISO%20class%205%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b53089a74f6fd53527558",
+    "class": "6",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398408567_ISO%20class%206%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b532c9a74f6fd5352755b",
+    "class": "7",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398444087_ISO%20class%207%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b53589a74f6fd5352755f",
+    "class": "8",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398488823_ISO%20class%208%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b53af9a74f6fd53527563",
+    "class": "9",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398575247_ISO%20class%209%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b54039a74f6fd53527567",
+    "class": "10",
+    "category": "Work Book",
+    "examId": "ITSTL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398659264_ISO%20class%2010th%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b54f29a74f6fd5352756c",
+    "class": "1",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398898409_IMO%20class%201%20workbook%20%282%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b553f9a74f6fd5352756f",
+    "class": "2",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763398975316_IMO%20class%202%20workbook%20%282%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b55959a74f6fd53527573",
+    "class": "3",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763399061445_IMO%20class%203%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b55d49a74f6fd53527577",
+    "class": "4",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763399124604_IMO%20class%204%20workbook%20%282%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b568e9a74f6fd5352757b",
+    "class": "5",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763399310425_IMO%20class%205%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b56f49a74f6fd5352757f",
+    "class": "6",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763399412624_IMO%20class%206%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b57829a74f6fd53527583",
+    "class": "7",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763399554840_IMO%20class%207%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b58219a74f6fd5352758a",
+    "class": "8",
+    "category": "Work Book",
+    "examId": "IMOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763399713030_IMO%20class%208%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b7d369a74f6fd535275c7",
+    "class": "kindergarten",
+    "kgSection": "LKG",
+    "category": "Sample Paper",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763409206266_L.k.G.%20sample%20paper.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b7d6b9a74f6fd535275ca",
+    "class": "kindergarten",
+    "kgSection": "PG",
+    "category": "Sample Paper",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763409259575_P.%20G.%20Sample%20paper.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "691b7da09a74f6fd535275cd",
+    "class": "kindergarten",
+    "kgSection": "UKG",
+    "category": "Sample Paper",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763409312641_Ukg.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920c7f69bcaf10d7aa1f2dd",
+    "class": "1",
+    "category": "Work Book",
+    "examId": "IGKOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763756021657_Class+1st+gk.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920c8489bcaf10d7aa1f2e1",
+    "class": "2",
+    "category": "Work Book",
+    "examId": "IGKOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763756103726_Class+2+gk.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920c91b9bcaf10d7aa1f2e5",
+    "class": "3",
+    "category": "Work Book",
+    "examId": "IGKOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763756314927_Class+3rd+.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920c96c9bcaf10d7aa1f2e9",
+    "class": "4",
+    "category": "Work Book",
+    "examId": "IGKOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763756396493_Class+4th+gk.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920c9b59bcaf10d7aa1f2ec",
+    "class": "5",
+    "category": "Work Book",
+    "examId": "IGKOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763756469573_Clasd%205%20.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920c9f79bcaf10d7aa1f2ef",
+    "class": "6",
+    "category": "Work Book",
+    "examId": "IGKOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763756534986_Class%206.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920cbae9bcaf10d7aa1f2f7",
+    "class": "kindergarten",
+    "kgSection": "PG",
+    "category": "Work Book",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763756974165_KG+STUDENTS+WORK+BOOK.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920cf3f9bcaf10d7aa1f2fc",
+    "class": "kindergarten",
+    "kgSection": "LKG",
+    "category": "Work Book",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763757886923_DOC-20251005-WA0000._20251005_173724_0000.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920cfad9bcaf10d7aa1f2ff",
+    "class": "kindergarten",
+    "kgSection": "UKG",
+    "category": "Work Book",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763757997292_DOC-20251005-WA0000._20251005_173724_0000+%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d0109bcaf10d7aa1f303",
+    "class": "kindergarten",
+    "kgSection": "UKG",
+    "category": "Work Book",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758095825_Kidspire+olympiad-book-for-Class-0.+%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d22d9bcaf10d7aa1f308",
+    "class": "1",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758637397_IEO%20class%201%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d2869bcaf10d7aa1f30c",
+    "class": "2",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758726321_IEO%20class%202workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d2a29bcaf10d7aa1f30f",
+    "class": "3",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758754431_IEO%20class%203%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d2c19bcaf10d7aa1f312",
+    "class": "4",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758785094_IEO%20class%204%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d2df9bcaf10d7aa1f315",
+    "class": "5",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758815405_IEO%20class%205%20workbook%20%282%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d2fe9bcaf10d7aa1f318",
+    "class": "6",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758846738_IEO%20class%206%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d3179bcaf10d7aa1f31b",
+    "class": "7",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758871316_IEO%20class%207%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d3399bcaf10d7aa1f31e",
+    "class": "8",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758905189_IEO%20class%208%20workbook%20%281%29.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d35f9bcaf10d7aa1f321",
+    "class": "9",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758942900_IEO%20class%209%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d3799bcaf10d7aa1f324",
+    "class": "10",
+    "category": "Work Book",
+    "examId": "IENGOL1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763758969360_IEO%20class%2010th%20workbook.pdf",
+    "__v": 0
+  },
+  {
+    "_id": "6920d3d19bcaf10d7aa1f327",
+    "class": "kindergarten",
+    "kgSection": "PG",
+    "category": "Work Book",
+    "examId": "IQKD1",
+    "cost": 0,
+    "pdfLink": "https://epocho-1.s3.ap-south-1.amazonaws.com/pdfs/1763759057008_Kidspire+olympiad-book-for-Class-0.+%282%29.pdf",
+    "__v": 0
+  }
+]

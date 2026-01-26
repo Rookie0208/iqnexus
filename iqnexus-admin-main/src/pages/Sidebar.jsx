@@ -200,6 +200,20 @@ const Sidebar = () => {
                 active={location.pathname === "/uploadresults"}
                 onClick={closeSidebar}
               />
+              <MenuItem
+                icon={<ClipboardList size={20} />}
+                text="View Results"
+                href="/ViewResults"
+                active={location.pathname === "/ViewResults"}
+                onClick={closeSidebar}
+              />
+              <MenuItem
+                icon={<School size={20} />}
+                text="Exam Management"
+                href="/ExamManagement"
+                active={location.pathname === "/ExamManagement"}
+                onClick={closeSidebar}
+              />
 
               {/* Participation List Dropdown */}
             <MenuItem

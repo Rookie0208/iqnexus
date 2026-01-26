@@ -1,10 +1,59 @@
 import express from 'express';
-import { uploadResult,getResult } from '../controllers/resultController.js';
+import xlsx from 'xlsx';
+import { uploadResult, uploadResultSimple, getResult, getAllResults, getSchoolsForFilter, exportResultsToExcel } from '../controllers/resultController.js';
+import { 
+  getResultConfig, 
+  updateResultConfig, 
+  publishResults, 
+  getSingleStudentResult, 
+  getPublishedResult,
+  getAllConfigs,
+  deleteResultConfig
+} from '../controllers/resultConfigController.js';
 import { fetchBLQList } from '../controllers/BLQListController.js';
+import generateResultTemplate from '../utils/generateResultTemplate.js';
 
 const router = express.Router();
 
-router.post('/uploadResult', uploadResult )
-router.get('/getResult', getResult) 
+// Detailed result upload with section-wise breakdown (new format)
+router.post('/upload-result', uploadResult);
+router.post('/uploadResult', uploadResult); // Backward compatible route
+
+// Simple result upload (backward compatible - old format)
+router.post('/upload-result-simple', uploadResultSimple);
+
+// Download result template (Classes 1-12)
+router.get('/download-result-template', (req, res) => {
+  try {
+    const workbook = generateResultTemplate();
+    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    
+    res.setHeader('Content-Disposition', 'attachment; filename=Result_Upload_Template.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error generating template:', error);
+    res.status(500).json({ error: 'Failed to generate template' });
+  }
+});
+
+// View results with filters (for admin panel)
+router.get('/view-results', getAllResults);
+router.get('/schools-filter', getSchoolsForFilter);
+router.get('/export-results', exportResultsToExcel);
+
+// Result Configuration APIs
+router.get('/result-config', getResultConfig);
+router.post('/result-config', updateResultConfig);
+router.delete('/result-config', deleteResultConfig);
+router.get('/result-configs', getAllConfigs);
+router.post('/publish-results', publishResults);
+
+// Single student result view
+router.get('/single-result', getSingleStudentResult);
+router.get('/published-result', getPublishedResult);
+
+router.get('/getResult', getResult);
 router.get('/fetchBLQList', fetchBLQList);
+
 export default router;

@@ -15,8 +15,13 @@ const generateResultCardHTML = (resultData, studentData) => {
   const isBasicLevel = lastTwoChars === 'L1';
   const levelText = isBasicLevel ? 'BASIC LEVEL RESULT' : 'ADVANCED LEVEL RESULT';
 
-  const percentage = Math.round((result.marksObtained / result.totalMarks) * 100);
-  const isQualified = result.passOrFail === "pass";
+  // Handle both old format (marksObtained/totalMarks) and new format (total.score/total.totalCount)
+  const marksObtained = result.total?.score ?? result.marksObtained ?? 0;
+  const totalMarks = result.total?.totalCount ?? result.totalMarks ?? 100;
+  const percentage = result.total?.percentage ?? Math.round((marksObtained / totalMarks) * 100);
+  const rank = result.total?.rank ?? '';
+  const hasNewFormat = result.section1 !== undefined;
+  const isQualified = result.passOrFail?.toUpperCase() === "PASS";
   
   const htmlTemplate = `
     <!DOCTYPE html>
@@ -222,7 +227,7 @@ const generateResultCardHTML = (resultData, studentData) => {
             <div class="form-section">
               <div class="form-row student-name-row">
                 <span class="form-label">Student Name:</span>
-                <span class="form-value">${resultData.studentName || 'MOHAN'}</span>
+                <span class="form-value">${resultData.studentName || studentData["Student's Name"] || 'N/A'}</span>
               </div>
               
               <div class="form-row">
@@ -246,8 +251,13 @@ const generateResultCardHTML = (resultData, studentData) => {
               </div>
               
               <div class="form-row">
-                <span class="form-label">Mark Scored:</span>
-                <span class="form-value">${result.marksObtained || ''}</span>
+                <span class="form-label">Attendance:</span>
+                <span class="form-value">${result.attendance || 'PRESENT'}</span>
+              </div>
+              
+              <div class="form-row">
+                <span class="form-label">Total Score:</span>
+                <span class="form-value">${marksObtained}</span>
               </div>
               
               <div class="form-row">
@@ -255,30 +265,47 @@ const generateResultCardHTML = (resultData, studentData) => {
                 <span class="form-value">${percentage}%</span>
               </div>
               
+              ${rank ? `
+              <div class="form-row">
+                <span class="form-label">Rank:</span>
+                <span class="form-value">${rank}</span>
+              </div>
+              ` : ''}
+              
+              ${result.percentileScore ? `
               <div class="form-row">
                 <span class="form-label">Percentile Score:</span>
-                <span class="form-value">${result.percentileScore || ''}</span>
+                <span class="form-value">${result.percentileScore}</span>
               </div>
+              ` : ''}
               
+              ${result.schoolRank ? `
               <div class="form-row">
                 <span class="form-label">School Rank:</span>
-                <span class="form-value">${result.schoolRank || ''}</span>
+                <span class="form-value">${result.schoolRank}</span>
               </div>
+              ` : ''}
               
+              ${result.zonalRank ? `
               <div class="form-row">
                 <span class="form-label">Zonal Rank:</span>
-                <span class="form-value">${result.zonalRank || ''}</span>
+                <span class="form-value">${result.zonalRank}</span>
               </div>
+              ` : ''}
               
+              ${result.nationalRank ? `
               <div class="form-row">
                 <span class="form-label">National Rank:</span>
-                <span class="form-value">${result.nationalRank || ''}</span>
+                <span class="form-value">${result.nationalRank}</span>
               </div>
+              ` : ''}
               
+              ${result.internationRank ? `
               <div class="form-row">
                 <span class="form-label">International Rank:</span>
-                <span class="form-value">${result.internationRank || ''}</span>
+                <span class="form-value">${result.internationRank}</span>
               </div>
+              ` : ''}
               
               <div class="form-row">
                 <span class="form-label">Qualified for 2nd Level:</span>
@@ -288,13 +315,38 @@ const generateResultCardHTML = (resultData, studentData) => {
               </div>
             </div>
 
+            ${hasNewFormat ? `
+            <!-- Section-wise Performance -->
+            <div class="performance-section">
+              <div class="performance-title">Section-wise Performance</div>
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                  <tr style="background: #f0f0f0;">
+                    <th style="border: 1px solid #000; padding: 8px;">Section</th>
+                    <th style="border: 1px solid #000; padding: 8px;">Score</th>
+                    <th style="border: 1px solid #000; padding: 8px;">%</th>
+                    <th style="border: 1px solid #000; padding: 8px;">Correct</th>
+                    <th style="border: 1px solid #000; padding: 8px;">Total Q</th>
+                    <th style="border: 1px solid #000; padding: 8px;">Unattempted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${[1,2,3,4,5].map(num => result[`section${num}`] ? `
+                  <tr>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">Section ${num}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${result[`section${num}`].score || 0}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${result[`section${num}`].percentage || 0}%</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${result[`section${num}`].correctCount || 0}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${result[`section${num}`].totalCount || 0}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${result[`section${num}`].unAttempted || 0}</td>
+                  </tr>
+                  ` : '').join('')}
+                </tbody>
+              </table>
+            </div>
+            ` : `
             <!-- Performance Section -->
-           
-        </div>
-      </body>
-    </html>
-  `;
-
+            `}
   return htmlTemplate;
 };
 

@@ -1,6 +1,7 @@
 import fs from "fs";
 import { parse } from "csv-parse";
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js"
+import { School } from "../models/schoolModel.js";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 
@@ -172,6 +173,40 @@ export async function excelToMongoDbForStudent(filePath) {
       }
       return true;
     });
+
+    // Extract unique school codes from valid students
+    const uniqueSchoolCodes = [...new Set(validStudents.map(s => s.schoolCode).filter(code => code !== null))];
+    
+    // Verify all school codes exist in the database
+    const existingSchools = await School.find({ schoolCode: { $in: uniqueSchoolCodes } }).lean();
+    const existingSchoolCodes = new Set(existingSchools.map(s => s.schoolCode));
+    
+    // Find school codes that don't exist
+    const missingSchoolCodes = uniqueSchoolCodes.filter(code => !existingSchoolCodes.has(code));
+    
+    if (missingSchoolCodes.length > 0) {
+      // Find all students with missing school codes and add to invalid records
+      const studentsWithMissingSchools = [];
+      validStudents.forEach((student, index) => {
+        if (missingSchoolCodes.includes(student.schoolCode)) {
+          studentsWithMissingSchools.push({
+            row: index + 2,
+            rollNo: student.rollNo,
+            schoolCode: student.schoolCode,
+            message: `School with code ${student.schoolCode} does not exist in the database`,
+          });
+        }
+      });
+      
+      // Return error with details about missing schools
+      return {
+        success: false,
+        message: `Upload failed. The following school codes do not exist: ${missingSchoolCodes.join(", ")}. Please add these schools first before uploading students.`,
+        missingSchoolCodes: missingSchoolCodes,
+        affectedStudents: studentsWithMissingSchools,
+        totalAffectedStudents: studentsWithMissingSchools.length,
+      };
+    }
 
     // Log invalid records if any
     if (invalidRecords.length > 0) {

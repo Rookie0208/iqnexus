@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-01-25T16:58:04.435Z",
+  "database": "Epoch-olympiad-foundation_New",
+  "mongoUri": "mongodb://mongodb:27017/Epoch-olympiad-foundation_New",
+  "collections": [
+    {
+      "name": "kindergarten_student_datas",
+      "documentCount": 174,
+      "filename": "kindergarten_student_datas.json"
+    },
+    {
+      "name": "study-material",
+      "documentCount": 53,
+      "filename": "study-material.json"
+    },
+    {
+      "name": "feedbacks",
+      "documentCount": 8,
+      "filename": "feedbacks.json"
+    },
+    {
+      "name": "student_data_latests",
+      "documentCount": 591,
+      "filename": "student_data_latests.json"
+    },
+    {
+      "name": "questions",
+      "documentCount": 0,
+      "filename": "questions.json"
+    },
+    {
+      "name": "schools-datas",
+      "documentCount": 16,
+      "filename": "schools-datas.json"
+    },
+    {
+      "name": "teacher-incharge-data",
+      "documentCount": 0,
+      "filename": "teacher-incharge-data.json"
+    }
+  ]
+}

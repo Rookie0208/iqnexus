@@ -3,17 +3,18 @@ import { Download, FileText } from "lucide-react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASE_API_URL } from "../Api";
-import jsPDF from "jspdf";
 
 const AdmitCard = () => {
   const student = useSelector((state) => state.auth.user);
   const [selectedLevel, setSelectedLevel] = useState("");
-  const [admitCardImage, setAdmitCardImage] = useState(null);
+  const [admitCardUrl, setAdmitCardUrl] = useState(null);
   const [admitCardBlob, setAdmitCardBlob] = useState(null);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const fetchAdmitCard = async () => {
     try {
+      setLoading(true);
       const levelMap = { "L1": "basic", "L2": "advanced" };
       const level = levelMap[selectedLevel] || "basic";
       const session = "2024-25";
@@ -26,8 +27,8 @@ const AdmitCard = () => {
 
       if (response.status === 200 && response.data) {
         const blob = response.data;
-        const imageUrl = URL.createObjectURL(blob);
-        setAdmitCardImage(imageUrl);
+        const pdfUrl = URL.createObjectURL(blob);
+        setAdmitCardUrl(pdfUrl);
         setAdmitCardBlob(blob);
         setError(false);
       } else {
@@ -36,6 +37,8 @@ const AdmitCard = () => {
     } catch (error) {
       console.error("Error fetching admit card:", error);
       setError(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,69 +48,25 @@ const AdmitCard = () => {
     }
   }, [selectedLevel, student]);
 
-  const downloadFile = (blob, fileName, type) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+  // Cleanup URL on unmount
+  useEffect(() => {
+    return () => {
+      if (admitCardUrl) {
+        URL.revokeObjectURL(admitCardUrl);
+      }
+    };
+  }, [admitCardUrl]);
 
   const handleDownloadPDF = () => {
     if (admitCardBlob) {
-      // Create a new jsPDF instance
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      // Load the PNG blob as an image
-      const img = new Image();
-      img.src = URL.createObjectURL(admitCardBlob);
-      img.onload = () => {
-        // Calculate dimensions to fit the image within A4 (210mm x 297mm)
-        const imgWidth = img.width;
-        const imgHeight = img.height;
-        const pageWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
-        const margin = 10; // Margin in mm
-        const maxWidth = pageWidth - 2 * margin;
-        const maxHeight = pageHeight - 2 * margin;
-
-        // Scale the image to fit within the page
-        let pdfWidth = imgWidth;
-        let pdfHeight = imgHeight;
-        const aspectRatio = imgWidth / imgHeight;
-
-        if (pdfWidth > maxWidth) {
-          pdfWidth = maxWidth;
-          pdfHeight = pdfWidth / aspectRatio;
-        }
-        if (pdfHeight > maxHeight) {
-          pdfHeight = maxHeight;
-          pdfWidth = pdfHeight * aspectRatio;
-        }
-
-        // Center the image on the page
-        const x = (pageWidth - pdfWidth) / 2;
-        const y = (pageHeight - pdfHeight) / 2;
-
-        // Add the image to the PDF
-        pdf.addImage(img, "PNG", x, y, pdfWidth, pdfHeight);
-
-        // Download the PDF
-        pdf.save("admit-card.pdf");
-      };
-    }
-  };
-
-  const handleDownloadImage = () => {
-    if (admitCardBlob) {
-      downloadFile(admitCardBlob, "admit-card.png", "image/png");
+      const url = URL.createObjectURL(admitCardBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `admit-card-${selectedLevel}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -128,7 +87,7 @@ const AdmitCard = () => {
           value={selectedLevel}
           onChange={(e) => {
             setSelectedLevel(e.target.value);
-            setAdmitCardImage(null); // Reset image on level change
+            setAdmitCardUrl(null); // Reset URL on level change
             setAdmitCardBlob(null); // Reset blob on level change
             setError(false); // Reset error on level change
           }}
@@ -141,44 +100,44 @@ const AdmitCard = () => {
       </div>
 
       {/* Admit Card Container */}
-      <div className="flex items-center justify-center">
-        <div className="relative w-full max-w-3xl animate-slideUp transition-all">
-          {admitCardImage ? (
-            <img src={admitCardImage} alt="Admit Card" className="w-full" />
+      <div className="flex items-center justify-center flex-1">
+        <div className="relative w-full max-w-3xl animate-slideUp transition-all h-full">
+          {admitCardUrl ? (
+            <iframe 
+              src={admitCardUrl} 
+              title="Admit Card" 
+              className="w-full h-[600px] border border-gray-200 rounded-lg shadow-md"
+            />
           ) : (
             <div className="flex items-center justify-center h-64">
-              {selectedLevel && error ? (
+              {loading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-gray-600">Loading Admit Card...</span>
+                </div>
+              ) : selectedLevel && error ? (
                 <div className="p-4 bg-red-100 text-red-800 rounded-lg shadow-md">
                   <p className="font-semibold">
                     Admit Card Not Found. Please contact support for assistance.
                   </p>
                 </div>
-              ) : selectedLevel ? (
-                "Loading Admit Card..."
               ) : (
-                "Please select Level"
+                <span className="text-gray-500">Please select Level</span>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Download Buttons */}
-      {admitCardImage && (
-        <div className="flex flex-col md:flex-row justify-center items-center mt-4 gap-3">
+      {/* Download Button */}
+      {admitCardUrl && (
+        <div className="flex justify-center items-center mt-4">
           <button
             onClick={handleDownloadPDF}
-            className="bg-blue-600 w-fit text-center text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all"
+            className="bg-blue-600 w-fit text-center text-white px-6 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all"
           >
             <Download size={16} />
-            Download PDF
-          </button>
-          <button
-            onClick={handleDownloadImage}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all"
-          >
-            <Download size={16} />
-            Download Image
+            Download Admit Card (PDF)
           </button>
         </div>
       )}

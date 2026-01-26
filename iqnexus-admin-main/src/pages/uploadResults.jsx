@@ -1,27 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Upload,
     FileSpreadsheet,
     CheckCircle2,
     AlertCircle,
     Download,
+    Info,
+    BookOpen,
 } from "lucide-react";
 import axios from "axios";
 import { BASE_URL } from "../Api";
-
-// Exam field mapping and exam codes for levels
-const examFieldMap = {
-    IQEOL1: "IENGOL1",
-    IQEOL2: "IENGOL2",
-    IQROL1: "IAOL1",
-    IQROL2: "IAOL2",
-    IQSOL1: "ITSTL1",
-    IQSOL2: "ITSTL2",
-    IQMOL1: "IMOL1",
-    IQMOL2: "IMOL2",
-    IQGKOL1: "IGKOL1",
-    IQGKOL2: "IGKOL2",
-};
 
 const examLevelOptions = [
     { value: "L1", label: "Basic" },
@@ -35,17 +23,17 @@ const classOptions = [
 // Example qualifiedlist structure (replace with your actual data source)
 const qualifiedlist = {
     L1: [
-        { value: "IQMOL1", label: "IQMOL1" },
-        { value: "IQSOL1", label: "IQSOL1" },
-        { value: "IQEOL1", label: "IQEOL1" },
-        { value: "IQROL1", label: "IQROL1" },
-        { value: "IQGKOL1", label: "IQGKOL1" },
+        { value: "IQMOL1", label: "IQMOL1 - Maths Olympiad" },
+        { value: "IQSOL1", label: "IQSOL1 - Science Olympiad" },
+        { value: "IQEOL1", label: "IQEOL1 - English Olympiad" },
+        { value: "IQROL1", label: "IQROL1 - Reasoning Olympiad" },
+        { value: "IQGKOL1", label: "IQGKOL1 - GK Olympiad" },
     ],
     L2: [
-        { value: "IQMOL2", label: "IQMOL2" },
-        { value: "IQSOL2", label: "IQSOL2" },
-        { value: "IQEOL2", label: "IQEOL2" },
-        { value: "IQROL2", label: "IQROL2" },
+        { value: "IQMOL2", label: "IQMOL2 - Maths Olympiad" },
+        { value: "IQSOL2", label: "IQSOL2 - Science Olympiad" },
+        { value: "IQEOL2", label: "IQEOL2 - English Olympiad" },
+        { value: "IQROL2", label: "IQROL2 - Reasoning Olympiad" },
     ],
 };
 
@@ -57,9 +45,43 @@ const Uploadresults = () => {
     const [studentClass, setStudentClass] = useState("");
     const [schoolCode, setSchoolCode] = useState("");
     const [examLevel, setExamLevel] = useState("");
+    const [uploadSummary, setUploadSummary] = useState(null);
+    const [examConfig, setExamConfig] = useState(null);
+    const [loadingConfig, setLoadingConfig] = useState(false);
 
     // Get subject options based on selected exam level
     const subjectOptions = examLevel ? qualifiedlist[examLevel] || [] : [];
+
+    // Fetch exam config when subject changes
+    useEffect(() => {
+        const fetchExamConfig = async () => {
+            if (!subject) {
+                setExamConfig(null);
+                return;
+            }
+            setLoadingConfig(true);
+            try {
+                const res = await axios.get(`${BASE_URL}/result-config`, {
+                    params: { subject, classLevel: 'all' }
+                });
+                if (res.data.success && res.data.config) {
+                    setExamConfig(res.data.config);
+                }
+            } catch (error) {
+                console.error("Error fetching exam config:", error);
+            } finally {
+                setLoadingConfig(false);
+            }
+        };
+        fetchExamConfig();
+    }, [subject]);
+
+    // Get topic count from config
+    const getTopicCount = () => {
+        if (!examConfig?.topicNames) return 5;
+        const count = Object.values(examConfig.topicNames).filter(name => name && name.trim() !== "" && name !== `Section ${Object.keys(examConfig.topicNames).indexOf(name) + 1}`).length;
+        return count || 5;
+    };
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
@@ -75,6 +97,7 @@ const Uploadresults = () => {
         ) {
             setFile(selectedFile);
             setUploadStatus(null);
+            setUploadSummary(null);
         } else {
             setUploadStatus({
                 type: "error",
@@ -99,6 +122,7 @@ const Uploadresults = () => {
         ) {
             setFile(droppedFile);
             setUploadStatus(null);
+            setUploadSummary(null);
         } else {
             setUploadStatus({
                 type: "error",
@@ -117,6 +141,29 @@ const Uploadresults = () => {
         setIsDragging(false);
     };
 
+    const handleDownloadTemplate = async () => {
+        try {
+            const response = await axios.get(`${BASE_URL}/download-result-template`, {
+                responseType: 'blob',
+            });
+            
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'Result_Upload_Template.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading template:', error);
+            setUploadStatus({
+                type: "error",
+                message: "Failed to download template. Please try again.",
+            });
+        }
+    };
+
     const handleUpload = async () => {
         if (!file || !subject || !studentClass || !schoolCode || !examLevel) {
             setUploadStatus({
@@ -127,6 +174,7 @@ const Uploadresults = () => {
         }
 
         setUploadStatus({ type: "loading", message: "Uploading..." });
+        setUploadSummary(null);
 
         try {
             const formData = new FormData();
@@ -149,13 +197,15 @@ const Uploadresults = () => {
             if (response.status === 200) {
                 setUploadStatus({
                     type: "success",
-                    message: "Results uploaded successfully!",
+                    message: response.data.message || "Results uploaded successfully!",
                 });
+                
+                // Show upload summary if available
+                if (response.data.summary) {
+                    setUploadSummary(response.data.summary);
+                }
+                
                 setFile(null);
-                setSubject("");
-                setStudentClass("");
-                setSchoolCode("");
-                setExamLevel("");
             } else {
                 throw new Error("Upload failed");
             }
@@ -164,6 +214,7 @@ const Uploadresults = () => {
                 type: "error",
                 message:
                     error.response?.data?.message ||
+                    error.response?.data?.error ||
                     "Failed to upload results.",
             });
         }
@@ -171,13 +222,13 @@ const Uploadresults = () => {
 
     return (
         <div className="max-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-4xl w-full mx-auto">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-5xl w-full mx-auto">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800 mb-2">
                         Bulk Result Upload
                     </h1>
                     <p className="text-gray-600">
-                        Upload student results using the official template.
+                        Upload student results for Classes 1-12 using the official template.
                     </p>
                 </div>
 
@@ -320,48 +371,120 @@ const Uploadresults = () => {
 
                     {/* File Requirement Info */}
                     <div className="bg-gray-50 rounded-xl p-6 space-y-4">
-                        <h2 className="text-lg font-semibold text-gray-800">
-                            File Guidelines
+                        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                            <Info className="w-5 h-5 text-blue-600" />
+                            Template Format (Classes 1-12)
                         </h2>
-                        <ul className="space-y-3 text-sm text-gray-600">
-                            <li className="flex items-start gap-2">
-                                <div className="min-w-4 mt-1">•</div>
-                                <p>
-                                    CSV or Excel file (.csv, .xlsx, .xls) with UTF-8 encoding is required.
-                                </p>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <div className="min-w-4 mt-1">•</div>
-                                <p>
-                                    Required columns: <strong>roll no</strong>,{" "}
-                                    <strong>marks obtained</strong>, <strong>total marks</strong>,{" "}
-                                    <strong>pass or fail</strong>
-                                </p>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <div className="min-w-4 mt-1">•</div>
-                                <p>Max file size: 10MB</p>
-                            </li>
-                        </ul>
 
-                        <div className="pt-4 border-t border-gray-200">
-                            <a
-                                href="/resultTemplate.xlsx"
-                                className="hover:cursor-pointer flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-                                download
-                            >
-                                <Download className="w-4 h-4" />
-                                Download Result Template
-                            </a>
+                        {/* Exam Config Preview */}
+                        {subject && examConfig && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                                <h3 className="text-sm font-semibold text-purple-800 mb-2 flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4" />
+                                    Configured Topics for {subject}
+                                </h3>
+                                <div className="grid grid-cols-1 gap-1 text-sm text-purple-700">
+                                    {examConfig.topicNames && Object.entries(examConfig.topicNames).map(([key, name], index) => (
+                                        name && name.trim() !== "" && (
+                                            <div key={key} className="flex items-center gap-2">
+                                                <span className="font-medium">Section {index + 1}:</span>
+                                                <span className="text-purple-900">{name}</span>
+                                            </div>
+                                        )
+                                    ))}
+                                </div>
+                                <p className="text-xs text-purple-600 mt-2">
+                                    <a href="/ExamManagement" className="underline hover:text-purple-800">
+                                        Edit topic names in Exam Management →
+                                    </a>
+                                </p>
+                            </div>
+                        )}
+                        
+                        <div className="space-y-3 text-sm text-gray-600">
+                            <p className="font-medium text-gray-700">Required Columns:</p>
+                            <div className="bg-white rounded-lg p-3 border text-xs">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <span className="font-semibold text-blue-600">Basic Info:</span>
+                                        <ul className="ml-2 mt-1 space-y-0.5">
+                                            <li>• ROLL NO</li>
+                                            <li>• ATTENDANCE</li>
+                                            <li>• CLASS</li>
+                                            <li>• SECTION</li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <span className="font-semibold text-green-600">Sections 1-5:</span>
+                                        <ul className="ml-2 mt-1 space-y-0.5">
+                                            <li>• S{"{n}"}_Score</li>
+                                            <li>• S{"{n}"}_Percentage</li>
+                                            <li>• S{"{n}"}_CorrectQCount</li>
+                                            <li>• S{"{n}"}_TotalQCount</li>
+                                            <li>• S{"{n}"}_UnAttempted</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div className="mt-2 pt-2 border-t">
+                                    <span className="font-semibold text-purple-600">Total:</span>
+                                    <span className="ml-2">Total_Score, Total_Rank, Total_Percentage, Total_CorrectQCount, Total_TotalQCount, Total_UnAttempted</span>
+                                </div>
+                                <div className="mt-2 pt-2 border-t">
+                                    <span className="font-semibold text-orange-600">Optional Ranks:</span>
+                                    <span className="ml-2">School_Rank, Class_Rank, Section_Rank, City_Rank, National_Rank, International_Rank</span>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                <p className="text-yellow-800 text-xs">
+                                    <strong>ATTENDANCE Values:</strong> PRESENT | ABSENT | DISQUALIFIED
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="bg-blue-50 rounded-lg p-4 mt-6">
+                        <div className="pt-4 border-t border-gray-200">
+                            <button
+                                onClick={handleDownloadTemplate}
+                                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium hover:underline"
+                            >
+                                <Download className="w-4 h-4" />
+                                Download Result Template (Classes 1-12)
+                            </button>
+                            <p className="text-xs text-gray-500 mt-1">
+                                XLSX format with sample data and instructions
+                            </p>
+                        </div>
+
+                        {/* Upload Summary */}
+                        {uploadSummary && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                                <h3 className="text-sm font-medium text-blue-800 mb-2">
+                                    Upload Summary
+                                </h3>
+                                <div className="text-sm text-blue-700 space-y-1">
+                                    <p>Total Processed: <strong>{uploadSummary.totalProcessed}</strong></p>
+                                    <p>Success: <strong className="text-green-600">{uploadSummary.successCount}</strong></p>
+                                    <p>Errors: <strong className="text-red-600">{uploadSummary.errorCount}</strong></p>
+                                </div>
+                                {uploadSummary.errors && uploadSummary.errors.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-blue-200">
+                                        <p className="text-xs font-medium text-red-600 mb-1">First {uploadSummary.errors.length} errors:</p>
+                                        <ul className="text-xs text-red-500 space-y-0.5">
+                                            {uploadSummary.errors.slice(0, 5).map((err, idx) => (
+                                                <li key={idx}>• {err.rollNo || 'Unknown'}: {err.error}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="bg-blue-50 rounded-lg p-4 mt-4">
                             <h3 className="text-sm font-medium text-blue-800 mb-2">
                                 Need Help?
                             </h3>
                             <p className="text-sm text-blue-600">
-                                If you need assistance with the upload process or have questions
-                                about the required format, please contact our support team.
+                                Download the template first. It contains sample data and detailed instructions in the second sheet.
                             </p>
                         </div>
                     </div>

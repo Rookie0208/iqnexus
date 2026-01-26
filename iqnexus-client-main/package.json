@@ -11,7 +11,7 @@
     "axios": "^1.8.4",
     "framer-motion": "^12.5.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.0",
+    "jspdf": "^4.0.0",
     "lucide-react": "^0.483.0",
     "node-html-to-image": "^5.0.0",
     "react": "^19.0.0",

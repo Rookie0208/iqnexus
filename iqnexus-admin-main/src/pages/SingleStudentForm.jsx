@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import axios from "axios";
 import { BASE_URL } from "../Api";
@@ -9,9 +9,63 @@ const SingleStudentForm = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    watch,
+    setError,
+    clearErrors,
   } = useForm();
 
+  const [schoolVerified, setSchoolVerified] = useState(false);
+  const [schoolVerifying, setSchoolVerifying] = useState(false);
+  const [schoolName, setSchoolName] = useState("");
+
+  const schoolCode = watch("schoolCode");
+
+  // Verify school existence
+  const verifySchool = async (code) => {
+    if (!code) {
+      setSchoolVerified(false);
+      setSchoolName("");
+      return false;
+    }
+
+    setSchoolVerifying(true);
+    try {
+      const response = await axios.get(`${BASE_URL}/get-school/${code}`);
+      if (response.data.success && response.data.school) {
+        setSchoolVerified(true);
+        setSchoolName(response.data.school.schoolName || "");
+        clearErrors("schoolCode");
+        return true;
+      } else {
+        setSchoolVerified(false);
+        setSchoolName("");
+        setError("schoolCode", {
+          type: "manual",
+          message: "School not found. Please enter a valid school code.",
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error("Error verifying school:", error);
+      setSchoolVerified(false);
+      setSchoolName("");
+      setError("schoolCode", {
+        type: "manual",
+        message: "School not found. Please enter a valid school code.",
+      });
+      return false;
+    } finally {
+      setSchoolVerifying(false);
+    }
+  };
+
   const onSubmit = async (data) => {
+    // Verify school before submission
+    const isSchoolValid = await verifySchool(data.schoolCode);
+    if (!isSchoolValid) {
+      alert("Please enter a valid school code before submitting.");
+      return;
+    }
     // Map true/false to "1"/"0" for exam fields
     const examFields = [
       "IAOL1",
@@ -108,17 +162,45 @@ const SingleStudentForm = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       School Code
                     </label>
-                    <input
-                      type="number"
-                      {...register("schoolCode", {
-                        required: "School Code is required",
-                      })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
-                      placeholder="Enter school code"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        {...register("schoolCode", {
+                          required: "School Code is required",
+                          onChange: () => {
+                            setSchoolVerified(false);
+                            setSchoolName("");
+                          },
+                        })}
+                        className={`flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm ${
+                          schoolVerified
+                            ? "border-green-500 bg-green-50"
+                            : errors.schoolCode
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
+                        placeholder="Enter school code"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => verifySchool(schoolCode)}
+                        disabled={!schoolCode || schoolVerifying}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-150 text-sm"
+                      >
+                        {schoolVerifying ? "Verifying..." : "Verify"}
+                      </button>
+                    </div>
                     {errors.schoolCode && (
                       <p className="text-red-500 text-xs mt-1">
-                        School Code is required
+                        {errors.schoolCode.message || "School Code is required"}
+                      </p>
+                    )}
+                    {schoolVerified && schoolName && (
+                      <p className="text-green-600 text-xs mt-1 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        School: {schoolName}
                       </p>
                     )}
                   </div>

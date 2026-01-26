@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { BASE_URL } from "../Api";
-import html2pdf from "html2pdf.js";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
@@ -83,7 +82,7 @@ const examFullNames = {
 
 const AllStudents = () => {
   const [students, setStudents] = useState([]);
-  const[isFilterApplied, setIsFilterApplied] = useState(false);
+  // const[isFilterApplied, setIsFilterApplied] = useState(false);
   const [searched, setSearched] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -93,7 +92,7 @@ const AllStudents = () => {
   const [totalStudents, setTotalStudents] = useState(0);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [noStudentsFound, setNoStudentsFound] = useState(false);
+  // const [noStudentsFound, setNoStudentsFound] = useState(false);
   const [searchData, setSearchData] = useState({
     studentName: "",
     classes: [],
@@ -402,11 +401,11 @@ const AllStudents = () => {
       }
 
       // Generate filename with multiple classes and sections
-      const classString = selectedClasses.map((opt) => opt.value).join("-");
-      const sectionString = selectedSections.map((opt) => opt.value).join("-");
-      const filename = `Attendance_${classString}_${sectionString}${
-        selectedExam ? `_${selectedExam}` : ""
-      }${selectedSchoolCode ? `_${selectedSchoolCode}` : ""}.pdf`;
+      // const classString = selectedClasses.map((opt) => opt.value).join("-");
+      // const sectionString = selectedSections.map((opt) => opt.value).join("-");
+      // const filename = `Attendance_${classString}_${sectionString}${
+      //   selectedExam ? `_${selectedExam}` : ""
+      // }${selectedSchoolCode ? `_${selectedSchoolCode}` : ""}.pdf`;
 
       // Save PDF
       // pdf.save(filename);
@@ -581,36 +580,38 @@ const AllStudents = () => {
 
   useEffect(() => {
     fetchStudents(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
   useEffect(()=>{
 if(searchData.totalPages){
     console.log("Search data before change:", searchData.totalPages);
-fetchStudents(1, searchData);
+fetchStudents(1);
 }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   },[searchData])
-  const fetchStudents = async (page, filters = {}) => {
+  const fetchStudents = async (page, filters = searchData) => {
     try {
       let res;
-      const hasFilters = Object.values(searchData).some(
+      const hasFilters = Object.values(filters).some(
         (val) =>
           (Array.isArray(val) ? val.length > 0 : val !== "" && val !== null) &&
-          val !== undefined
+          val !== undefined && val !== 'totalPages'
       );
-        console.log("Fetching students with filters:", hasFilters);
+        console.log("Fetching students with filters:", hasFilters, filters);
       if (hasFilters) {
 
         res = await axios.post(
-          `${BASE_URL}/students?page=${page}&limit=${searchData.totalPages || limit}`,
+          `${BASE_URL}/students?page=${page}&limit=${filters.totalPages || limit}`,
           {
-            schoolCode: searchData.schoolCode
-              ? Number(searchData.schoolCode)
+            schoolCode: filters.schoolCode
+              ? (typeof filters.schoolCode === 'string' ? Number(filters.schoolCode) : filters.schoolCode)
               : undefined,
-            className: searchData.classes.length > 0 ? searchData.classes : undefined,
-            rollNo: searchData.rollNo,
-            section: searchData.sections.length > 0 ? searchData.sections : undefined,
-            studentName: searchData.studentName,
-            subject: searchData.subject,
+            className: filters.classes && filters.classes.length > 0 ? filters.classes : undefined,
+            rollNo: filters.rollNo || undefined,
+            section: filters.sections && filters.sections.length > 0 ? filters.sections : undefined,
+            studentName: filters.studentName || undefined,
+            subject: filters.subject || undefined,
           }
         );
       } else {
@@ -628,7 +629,7 @@ fetchStudents(1, searchData);
         setStudents([]);
         setTotalPages(1);
         setTotalStudents(0);
-        setNoStudentsFound(true);
+        // setNoStudentsFound(true);
       }
     } catch (err) {
       console.error("Failed to fetch students:", err);
@@ -642,8 +643,8 @@ fetchStudents(1, searchData);
   };
 
   const handleSearchChange = (e) => {
-  
-    setSearchData({ ...searchData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setSearchData({ ...searchData, [name]: value });
   };
 
   const handleClassChange = (selectedOptions) => {
@@ -661,15 +662,14 @@ fetchStudents(1, searchData);
   };
 
   const handleSearchSubmit = async (e) => {
-
-   setIsFilterApplied(true)
     e.preventDefault();
+    // setIsFilterApplied(true);
     setCurrentPage(1);
-    await fetchStudents(1, searchData);
+    await fetchStudents(1);
   };
 
   const handleClearFilters = () => {
-    setSearchData({
+    const clearedFilters = {
       studentName: "",
       classes: [],
       schoolCode: null,
@@ -677,10 +677,13 @@ fetchStudents(1, searchData);
       sections: [],
       subject: "",
       totalPages: null,
-    });
+    };
+    setSearchData(clearedFilters);
     setSearched(false);
+    // setIsFilterApplied(false);
     setCurrentPage(1);
-    fetchStudents(1);
+    // setNoStudentsFound(false);
+    fetchStudents(1, clearedFilters);
   };
 
   const handleDelete = async (rollNo, studentClass) => {
@@ -690,8 +693,9 @@ fetchStudents(1, searchData);
           data: { rollNo, class: studentClass },
         });
         alert(res.data.message);
-        fetchStudents(currentPage, searchData);
+        fetchStudents(currentPage);
       } catch (err) {
+        console.error("Delete error:", err);
         alert("Failed to delete student");
       }
     }
@@ -735,7 +739,7 @@ fetchStudents(1, searchData);
       const res = await axios.put(`${BASE_URL}/student`, payload);
       alert(res.data.message);
       setIsModalOpen(false);
-      fetchStudents(currentPage, searchData);
+      fetchStudents(currentPage);
     } catch (error) {
       console.error("Update error:", error);
       const errorMessage =

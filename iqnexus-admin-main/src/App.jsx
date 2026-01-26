@@ -25,7 +25,9 @@ import AnswerKeyUpload from "./pages/AnswerKeyUpload";
 import QualifiedList from "./pages/Qualifiedlist";
 import TeachersData from "./pages/TeachersData";
 import Uploadresults from "./pages/uploadResults";
+import ViewResults from "./pages/ViewResults";
 import UpdateAdvanceList from "./pages/updateAdvanceList";
+import ExamManagement from "./pages/ExamManagement";
 
 
 const App = () => {
@@ -51,6 +53,8 @@ const App = () => {
             <Route path="/Class-wise" element={<Classwiselist />} />
             <Route path="/Feedbackview" element={<FeedbackView />} />
             <Route path="/UploadResults" element={<Uploadresults />} />
+            <Route path="/ViewResults" element={<ViewResults />} />
+            <Route path="/ExamManagement" element={<ExamManagement />} />
             <Route path="/StudyMaterial" element={<StudyMaterial />} />
             <Route path="/studymatview" element={ <Studymatview />} />
             <Route path="/allSchools" element={< AllSchools />} />

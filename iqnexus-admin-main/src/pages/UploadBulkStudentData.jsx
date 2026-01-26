@@ -13,12 +13,14 @@ const UploadBulkStudentData = () => {
   const [file, setFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [missingSchools, setMissingSchools] = useState(null);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.type === "text/csv") {
       setFile(selectedFile);
       setUploadStatus(null);
+      setMissingSchools(null);
     } else {
       setUploadStatus({
         type: "error",
@@ -34,6 +36,7 @@ const UploadBulkStudentData = () => {
     if (droppedFile && droppedFile.type === "text/csv") {
       setFile(droppedFile);
       setUploadStatus(null);
+      setMissingSchools(null);
     } else {
       setUploadStatus({
         type: "error",
@@ -61,7 +64,8 @@ const UploadBulkStudentData = () => {
       return;
     }
 
-    setUploadStatus({ type: "loading", message: "Uploading..." });
+    setUploadStatus({ type: "loading", message: "Uploading and validating school codes..." });
+    setMissingSchools(null);
 
     try {
       const formData = new FormData();
@@ -75,23 +79,48 @@ const UploadBulkStudentData = () => {
 
       console.log(response.data);
 
-      if (response.status === 200) {
+      if (response.data.success) {
         setUploadStatus({
           type: "success",
-          message: "Student data uploaded successfully!",
+          message: response.data.message || "Student data uploaded successfully!",
         });
         setFile(null);
+        setMissingSchools(null);
       } else {
-        throw new Error("Upload failed");
+        // Handle missing schools error from backend
+        if (response.data.missingSchoolCodes) {
+          setMissingSchools({
+            codes: response.data.missingSchoolCodes,
+            affectedStudents: response.data.totalAffectedStudents,
+          });
+        }
+        setUploadStatus({
+          type: "error",
+          message: response.data.message || "Upload failed",
+        });
       }
     } catch (error) {
-      setUploadStatus({
-        type: "error",
-        message:
-          error.response?.data?.message === "Please upload a CSV file"
-            ? "Please upload a valid CSV file."
-            : error.response?.data?.message || "Failed to upload school data.",
-      });
+      console.error("Upload error:", error);
+      
+      // Check if backend returned missing schools info
+      if (error.response?.data?.missingSchoolCodes) {
+        setMissingSchools({
+          codes: error.response.data.missingSchoolCodes,
+          affectedStudents: error.response.data.totalAffectedStudents,
+        });
+        setUploadStatus({
+          type: "error",
+          message: error.response.data.message,
+        });
+      } else {
+        setUploadStatus({
+          type: "error",
+          message:
+            error.response?.data?.message === "Please upload a CSV file"
+              ? "Please upload a valid CSV file."
+              : error.response?.data?.message || "Failed to upload student data.",
+        });
+      }
     }
   };
   return (
@@ -156,7 +185,7 @@ const UploadBulkStudentData = () => {
               {uploadStatus?.type === "loading" ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                  Uploading...
+                  Validating & Uploading...
                 </>
               ) : (
                 <>
@@ -168,7 +197,7 @@ const UploadBulkStudentData = () => {
 
             {uploadStatus && (
               <div
-                className={`p-4 rounded-lg text-sm flex items-center gap-2 ${
+                className={`p-4 rounded-lg text-sm ${
                   uploadStatus.type === "success"
                     ? "bg-green-100 text-green-800"
                     : uploadStatus.type === "error"
@@ -176,12 +205,36 @@ const UploadBulkStudentData = () => {
                     : "bg-blue-100 text-blue-800"
                 }`}
               >
-                {uploadStatus.type === "success" ? (
-                  <CheckCircle2 className="w-5 h-5" />
-                ) : (
-                  <AlertCircle className="w-5 h-5" />
-                )}
-                {uploadStatus.message}
+                <div className="flex items-start gap-2">
+                  {uploadStatus.type === "success" ? (
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <p>{uploadStatus.message}</p>
+                    {/* Show missing schools details */}
+                    {missingSchools && (
+                      <div className="mt-3 p-3 bg-red-50 rounded-md border border-red-200">
+                        <p className="font-medium mb-2">Missing School Codes:</p>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {missingSchools.codes.map((code) => (
+                            <span
+                              key={code}
+                              className="px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-medium"
+                            >
+                              {code}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-xs text-red-600">
+                          {missingSchools.affectedStudents} student(s) affected. 
+                          Please add these schools first before uploading.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -215,6 +268,21 @@ const UploadBulkStudentData = () => {
                 <p>Each student must have a unique email and phone number.</p>
               </li>
             </ul>
+
+            {/* Important Warning */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <span className="text-amber-500 text-lg">⚠️</span>
+                <div>
+                  <p className="font-medium text-amber-800 text-sm">Important</p>
+                  <p className="text-amber-700 text-xs mt-1">
+                    All school codes in the CSV must exist in the database. 
+                    The upload will be rejected if any school code is not found.
+                    Please add schools first before uploading students.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="pt-4 border-t border-gray-200">
               <a
