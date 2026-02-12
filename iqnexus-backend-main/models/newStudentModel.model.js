@@ -25,7 +25,7 @@ const StudentSchema = new Schema(
     result: {
       // Section-wise result schema for each exam
       IAOL1: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -35,7 +35,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       IAOL2: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -45,7 +45,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       ITSTL1: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -55,7 +55,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       ITSTL2: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -65,7 +65,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       IMOL1: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -75,7 +75,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       IMOL2: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -85,7 +85,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       IGKOL1: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -95,7 +95,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       IENGOL1: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -105,7 +105,7 @@ const StudentSchema = new Schema(
         passOrFail: String,
       },
       IENGOL2: {
-        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'], default: 'ABSENT' },
+        attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
         section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
         section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },

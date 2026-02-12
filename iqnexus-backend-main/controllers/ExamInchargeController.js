@@ -55,6 +55,9 @@ export const createExamIncharge = async (req, res) => {
       });
       await inchargeModel.save();
     } else {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "No file uploaded" });
+      }
       const filePath = req.file.path;
       const fileBuffer = fs.readFileSync(filePath);
 
@@ -66,7 +69,23 @@ export const createExamIncharge = async (req, res) => {
       const sheet = workbook.Sheets[sheetName];
       const data = xlsx.utils.sheet_to_json(sheet);
 
-      console.log(data);
+      // Validate file format
+      if (!data || data.length === 0) {
+        fs.unlinkSync(filePath);
+        return res.status(400).json({ success: false, message: "File is empty. No data found." });
+      }
+      const fileColumns = Object.keys(data[0]).map(c => c.toLowerCase());
+      const requiredExamCols = ["schoolcode", "class", "section", "classteacher", "classteachermobno", "classteacheremail", "examinchargename", "examinchargemobno", "examinchargeemail"];
+      const missingExamCols = requiredExamCols.filter(c => !fileColumns.includes(c));
+      if (missingExamCols.length > 0) {
+        fs.unlinkSync(filePath);
+        return res.status(400).json({ 
+          success: false, 
+          message: `Invalid file format. Missing required columns: ${missingExamCols.join(", ")}. ` +
+            `Expected columns: schoolcode, class, section, classTeacher, classTeacherMobNo, classTeacherEmail, classTeacherDob, examInchargeName, examInchargeMobNo, examInchargeEmail, examInchargeDob. ` +
+            `Please use the correct template format.`
+        });
+      }
  
 
       for (const row of data) {
@@ -110,6 +129,8 @@ export const createExamIncharge = async (req, res) => {
 
         await inchargeModel.save();
       }
+      // Cleanup uploaded file
+      fs.unlinkSync(filePath);
     }
     res.status(200).json({
       success: true,

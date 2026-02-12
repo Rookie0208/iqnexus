@@ -53,10 +53,6 @@ async function generateAdmitCard(students, level, /* session, */ examDate, schoo
     const outputDir = "./outputs";
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
-    } else {
-      fs.readdirSync(outputDir).forEach((file) => {
-        fs.unlinkSync(path.join(outputDir, file));
-      });
     }
 
     const logoPath = path.join(__dirname, "..", "assets", "logo.png");

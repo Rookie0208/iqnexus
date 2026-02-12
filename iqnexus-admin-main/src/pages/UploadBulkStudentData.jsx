@@ -15,16 +15,29 @@ const UploadBulkStudentData = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [missingSchools, setMissingSchools] = useState(null);
 
+  const allowedTypes = [
+    "text/csv",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ];
+  const allowedExtensions = [".csv", ".xlsx", ".xls"];
+
+  const isValidFile = (f) => {
+    if (!f) return false;
+    const ext = "." + f.name.split(".").pop().toLowerCase();
+    return allowedTypes.includes(f.type) || allowedExtensions.includes(ext);
+  };
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === "text/csv") {
+    if (isValidFile(selectedFile)) {
       setFile(selectedFile);
       setUploadStatus(null);
       setMissingSchools(null);
     } else {
       setUploadStatus({
         type: "error",
-        message: "Please select a valid CSV file.",
+        message: "Please select a valid CSV or Excel (.xlsx) file.",
       });
     }
   };
@@ -33,14 +46,14 @@ const UploadBulkStudentData = () => {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && droppedFile.type === "text/csv") {
+    if (isValidFile(droppedFile)) {
       setFile(droppedFile);
       setUploadStatus(null);
       setMissingSchools(null);
     } else {
       setUploadStatus({
         type: "error",
-        message: "Please drop a valid CSV file.",
+        message: "Please drop a valid CSV or Excel (.xlsx) file.",
       });
     }
   };
@@ -116,9 +129,9 @@ const UploadBulkStudentData = () => {
         setUploadStatus({
           type: "error",
           message:
-            error.response?.data?.message === "Please upload a CSV file"
-              ? "Please upload a valid CSV file."
-              : error.response?.data?.message || "Failed to upload student data.",
+            error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to upload student data.",
         });
       }
     }
@@ -131,7 +144,7 @@ const UploadBulkStudentData = () => {
             Bulk Student Data Upload
           </h1>
           <p className="text-gray-600">
-            Upload a list of students using the official CSV template.
+            Upload a list of students using the official CSV or Excel (.xlsx) template.
           </p>
         </div>
 
@@ -150,7 +163,7 @@ const UploadBulkStudentData = () => {
             >
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleFileChange}
                 className="hidden"
                 id="fileInput"
@@ -172,7 +185,7 @@ const UploadBulkStudentData = () => {
                   )}
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
-                  Only .csv files allowed
+                  .csv and .xlsx files allowed
                 </p>
               </label>
             </div>
@@ -247,7 +260,7 @@ const UploadBulkStudentData = () => {
             <ul className="space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
                 <div className="min-w-4 mt-1">•</div>
-                <p>CSV file with UTF-8 encoding format is required.</p>
+                <p>CSV (UTF-8 encoding) or Excel (.xlsx) file format is accepted.</p>
               </li>
               <li className="flex items-start gap-2">
                 <div className="min-w-4 mt-1">•</div>
@@ -276,7 +289,7 @@ const UploadBulkStudentData = () => {
                 <div>
                   <p className="font-medium text-amber-800 text-sm">Important</p>
                   <p className="text-amber-700 text-xs mt-1">
-                    All school codes in the CSV must exist in the database. 
+                    All school codes in the CSV/Excel file must exist in the database. 
                     The upload will be rejected if any school code is not found.
                     Please add schools first before uploading students.
                   </p>

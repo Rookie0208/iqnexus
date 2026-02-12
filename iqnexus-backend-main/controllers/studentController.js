@@ -93,7 +93,7 @@ export const getStudentsWithoutPagination = async (req, res) => {
     if (studentName) query.studentName = { $regex: studentName, $options: "i" };
     if (subject) query[subject] = "1";
 
-    const data = await STUDENT_LATEST.find(query);
+    const data = await STUDENT_LATEST.find(query).limit(10000).lean();
     const totalStudents = data.length;
 
     return res.status(200).json({ success: true, data, totalStudents });
@@ -113,6 +113,17 @@ export const updateStudent = async (req, res) => {
       updateFields.Duplicates = ["1", "true", true].includes(updateFields.Duplicates);
     }
 
+    // Check rollNo uniqueness BEFORE performing the update
+    if (updateFields.rollNo && updateFields.rollNo !== rollNo) {
+      const existingStudent = await STUDENT_LATEST.findOne({
+        rollNo: updateFields.rollNo,
+        _id: { $ne: _id },
+      });
+      if (existingStudent) {
+        return res.status(400).json({ message: "rollNo must be unique" });
+      }
+    }
+
     let updatedStudent;
     if (_id) {
       updatedStudent = await STUDENT_LATEST.findByIdAndUpdate(_id, { $set: updateFields }, { new: true, runValidators: true });
@@ -122,16 +133,6 @@ export const updateStudent = async (req, res) => {
 
     if (!updatedStudent) {
       return res.status(404).json({ message: "Student not found" });
-    }
-
-    if (updateFields.rollNo && updateFields.rollNo !== rollNo) {
-      const existingStudent = await STUDENT_LATEST.findOne({
-        rollNo: updateFields.rollNo,
-        _id: { $ne: updatedStudent._id },
-      });
-      if (existingStudent) {
-        return res.status(400).json({ message: "rollNo must be unique" });
-      }
     }
 
     res.json({ message: "Student updated successfully", updatedStudent });

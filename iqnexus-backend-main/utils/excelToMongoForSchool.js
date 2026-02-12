@@ -11,26 +11,66 @@ export async function convertXlsxToMongoDbForSchool(filePath) {
   try {
     const schools = [];
     const invalidRecords = [];
+
+    const expectedColumns = [
+      "School Code",
+      "School Name",
+      "Email Id",
+      "FAX",
+      "Area",
+      "City",
+      "Country",
+      "Incharge",
+      "Incharge DOB",
+      "Incharge Mob",
+      "Principal Name",
+      "Principal DOB",
+      "Principal Mob",
+      "Remark",
+    ];
+
+    // Validate header row first
+    const headerLine = await new Promise((resolve, reject) => {
+      const stream = fs.createReadStream(filePath, { encoding: "utf8" });
+      let buffer = "";
+      stream.on("data", (chunk) => {
+        buffer += chunk;
+        const newlineIdx = buffer.indexOf("\n");
+        if (newlineIdx !== -1) {
+          stream.destroy();
+          resolve(buffer.substring(0, newlineIdx).trim());
+        }
+      });
+      stream.on("end", () => resolve(buffer.trim()));
+      stream.on("error", reject);
+    });
+
+    if (!headerLine) {
+      throw new Error("File is empty. No data found.");
+    }
+
+    const headers = headerLine.split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+    const requiredHeaders = ["School Code", "School Name"];
+    const missingRequired = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingRequired.length > 0) {
+      throw new Error(
+        `Invalid CSV format. Missing required columns: ${missingRequired.join(", ")}. ` +
+        `Expected columns: ${expectedColumns.join(", ")}. ` +
+        `Please download the template and use the correct format.`
+      );
+    }
+    if (headers.length < 5) {
+      throw new Error(
+        `Invalid CSV format. Found only ${headers.length} columns, expected at least ${expectedColumns.length}. ` +
+        `Please download the template and use the correct format.`
+      );
+    }
+
     const parser = fs
       .createReadStream(filePath)
       .pipe(
         parse({
-          columns: [
-            "School Code",
-            "School Name",
-            "Email Id",
-            "FAX",
-            "Area",
-            "City",
-            "Country",
-            "Incharge",
-            "Incharge DOB",
-            "Incharge Mob",
-            "Principal Name",
-            "Principal DOB",
-            "Principal Mob",
-            "Remark",
-          ],
+          columns: expectedColumns,
           skip_lines: 1, 
           trim: true,
         })

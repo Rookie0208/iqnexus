@@ -68,6 +68,44 @@ export async function excelToMongoDbForKindergarten(filePath) {
         const students = [];
         let headers = [];
 
+        // Validate header row before parsing
+        const headerLine = await new Promise((resolve, reject) => {
+            const stream = fs.createReadStream(filePath, { encoding: "utf8" });
+            let buffer = "";
+            stream.on("data", (chunk) => {
+                buffer += chunk;
+                const newlineIdx = buffer.indexOf("\n");
+                if (newlineIdx !== -1) {
+                    stream.destroy();
+                    resolve(buffer.substring(0, newlineIdx).trim());
+                }
+            });
+            stream.on("end", () => resolve(buffer.trim()));
+            stream.on("error", reject);
+        });
+
+        if (!headerLine) {
+            throw new Error("File is empty. No data found.");
+        }
+
+        const rawHeaders = headerLine.split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+        const expectedCsvHeaders = Object.keys(renameFields);
+        const requiredCsvHeaders = ["Roll No", "School Code", "Student Name", "Section"];
+        const missingCsvHeaders = requiredCsvHeaders.filter(h => !rawHeaders.includes(h));
+        if (missingCsvHeaders.length > 0) {
+            throw new Error(
+                `Invalid CSV format. Missing required columns: ${missingCsvHeaders.join(", ")}. ` +
+                `Expected columns: ${expectedCsvHeaders.join(", ")}. ` +
+                `Please download the kindergarten template and use the correct format.`
+            );
+        }
+        if (rawHeaders.length < 5) {
+            throw new Error(
+                `Invalid CSV format. Found only ${rawHeaders.length} columns, expected at least ${expectedCsvHeaders.length}. ` +
+                `Please download the kindergarten template and use the correct format.`
+            );
+        }
+
         // Parse CSV file
         await new Promise((resolve, reject) => {
             fs.createReadStream(filePath)
@@ -79,28 +117,7 @@ export async function excelToMongoDbForKindergarten(filePath) {
                         skip_empty_lines: true,
                     })
                 )
-                .on("headers", (headerList) => {
-                    headers = headerList;
-                    console.log("CSV Headers:", headers); // Debug headers
-                    const missingColumns = requiredColumns.filter(
-                        (col) => !headers.includes(col)
-                    );
-                    if (missingColumns.length > 0) {
-                        reject(
-                            new Error(`Missing required columns: ${missingColumns.join(", ")}`)
-                        );
-                    }
-                    const unexpectedColumns = headers.filter(
-                        (col) => !allColumns.includes(col)
-                    );
-                    if (unexpectedColumns.length > 0) {
-                        console.warn(
-                            `Unexpected columns ignored: ${unexpectedColumns.join(", ")}`
-                        );
-                    }
-                })
                 .on("data", (row) => {
-                    console.log("CSV Row:", row);
                     students.push(row);
                 })
                 .on("end", resolve)

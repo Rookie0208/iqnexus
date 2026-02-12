@@ -36,11 +36,18 @@ export const getResultConfig = async (req, res) => {
       return res.status(400).json({ error: "Subject is required" });
     }
 
-    const config = await ResultConfig.findOne({ 
+    // Try exact classLevel first, then fall back to any config for this subject
+    let config = await ResultConfig.findOne({ 
       subject, 
       classLevel: classLevel || "all",
       batchId 
     });
+    if (!config) {
+      config = await ResultConfig.findOne({ 
+        subject,
+        batchId 
+      });
+    }
 
     // Return null if config doesn't exist - DO NOT auto-create
     if (!config) {
@@ -349,7 +356,12 @@ export const getSingleStudentResult = async (req, res) => {
         examDate: resultData.examDate || "",
         attendance: resultData.attendance || "PRESENT",
         totalScore: resultData.total?.score ?? 0,
-        totalMarks: resultData.total?.totalCount ?? 50,
+        totalMarks: resultData.total?.totalCount ?? 0,
+        // Calculate total max score from percentage: maxScore = score / (percentage/100)
+        // Fall back to 100 if percentage is 0 or missing
+        totalMaxScore: (resultData.total?.percentage > 0 && resultData.total?.score != null)
+          ? Math.round(resultData.total.score / (resultData.total.percentage / 100))
+          : 100,
         percentage: resultData.total?.percentage ?? 0,
         percentile: resultData.percentileScore || resultData.total?.percentile || 0,
         qualifiedForLevel2: resultData.passOrFail?.toUpperCase() === "PASS",
@@ -390,12 +402,21 @@ export const getPublishedResult = async (req, res) => {
       });
     }
 
-    // Check if results are published - first check universal config
+    // Check if results are published - first check universal config, then any matching config
     let config = await ResultConfig.findOne({ 
       subject, 
       classLevel: "all",
       batchId: "2024-25"
     });
+
+    // If no universal config found, try finding any published config for this subject
+    if (!config) {
+      config = await ResultConfig.findOne({
+        subject,
+        batchId: "2024-25",
+        isPublished: true
+      });
+    }
 
     if (!config?.isPublished) {
       return res.status(200).json({ 

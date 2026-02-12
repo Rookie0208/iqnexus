@@ -1,5 +1,6 @@
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
 import { School } from "../models/schoolModel.js";
+import mongoose from "mongoose";
 import fs from "fs";
 import xlsx from "xlsx";
 
@@ -47,6 +48,27 @@ export const uploadResult = async (req, res) => {
     const sheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(sheet);
 
+    // Validate file format - check for required columns
+    if (!data || data.length === 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ error: "File is empty. No data found." });
+    }
+    const fileColumns = Object.keys(data[0]);
+    const requiredResultColumns = ["ROLL NO", "ATTENDANCE", "S1_Score", "Total_Score"];
+    // Check case-insensitively
+    const fileColumnsLower = fileColumns.map(c => c.toLowerCase());
+    const missingColumns = requiredResultColumns.filter(c => 
+      !fileColumnsLower.includes(c.toLowerCase())
+    );
+    if (missingColumns.length > 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ 
+        error: `Invalid file format. Missing required columns: ${missingColumns.join(", ")}. ` +
+          `Expected columns: ROLL NO, ATTENDANCE, CLASS, SECTION, S1_Score, S1_Percentage, S1_CorrectQCount, S1_TotalQCount, S1_UnAttempted, ... Total_Score, Total_Rank, Total_Percentage, etc. ` +
+          `Please download the result template and use the correct format.`
+      });
+    }
+
     const { subject, studentClass, schoolCode, examLevel } = req.body;
 
     if (!subject || !studentClass || !schoolCode) {
@@ -55,8 +77,57 @@ export const uploadResult = async (req, res) => {
       return res.status(400).json({ error: "Subject, class, and school code are required" });
     }
 
+    // Validate school exists
+    const school = await School.findOne({ schoolCode: Number(schoolCode) });
+    if (!school) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
+    }
+
     // Map exam code to internal field name (e.g., IQMOL1 -> IMOL1)
     const resultKey = examFieldMap[subject] || subject;
+
+    // Validate students exist for this school + class
+    const studentCount = await STUDENT_LATEST.countDocuments({
+      schoolCode: Number(schoolCode),
+      class: studentClass,
+    });
+    if (studentCount === 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ 
+        error: `No students found for school ${schoolCode} (${school.schoolName || ''}) in class ${studentClass}. Please upload student data first before uploading results.` 
+      });
+    }
+
+    // Check if admit cards have been generated for this school
+    try {
+      const db = mongoose.connection.db;
+      const admitCardFiles = db.collection('admitCards.files');
+      const schoolStudents = await STUDENT_LATEST.find({
+        schoolCode: Number(schoolCode),
+        class: studentClass,
+      }).select('studentName _id').limit(3).lean();
+      
+      if (schoolStudents.length > 0) {
+        const sampleStudent = schoolStudents[0];
+        const studentAdmitCard = await admitCardFiles.countDocuments({
+          filename: { $regex: sampleStudent._id.toString() }
+        });
+        if (studentAdmitCard === 0) {
+          fs.unlinkSync(filePath);
+          return res.status(400).json({ 
+            error: `Admit cards have not been generated for students of school ${schoolCode} (${school.schoolName || ''}). Please generate admit cards before uploading results.` 
+          });
+        }
+      }
+    } catch (gridfsErr) {
+      // If GridFS collection doesn't exist yet, no admit cards generated at all
+      console.warn('Could not check admit cards:', gridfsErr.message);
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ 
+        error: `Admit cards have not been generated yet. Please generate admit cards before uploading results.` 
+      });
+    }
 
     console.log(`📊 Processing ${data.length} result records for ${resultKey}`);
 
@@ -205,8 +276,82 @@ export const uploadResultSimple = async (req, res) => {
     const sheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(sheet);
 
+    // Validate file format - check for required columns
+    if (!data || data.length === 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ error: "File is empty. No data found." });
+    }
+    const fileColumns = Object.keys(data[0]);
+    const requiredSimpleColumns = ["roll no", "marks obtained", "total marks", "pass or fail"];
+    const fileColumnsLower = fileColumns.map(c => c.toLowerCase());
+    const missingSimpleCols = requiredSimpleColumns.filter(c => 
+      !fileColumnsLower.includes(c)
+    );
+    if (missingSimpleCols.length > 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ 
+        error: `Invalid file format. Missing required columns: ${missingSimpleCols.join(", ")}. ` +
+          `Expected columns: roll no, marks obtained, total marks, pass or fail. ` +
+          `Please download the result template and use the correct format.`
+      });
+    }
+
     const { subject, studentClass, schoolCode } = req.body;
+
+    if (!subject || !studentClass || !schoolCode) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ error: "Subject, class, and school code are required" });
+    }
+
+    // Validate school exists
+    const school = await School.findOne({ schoolCode: Number(schoolCode) });
+    if (!school) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
+    }
+
+    // Validate students exist for this school + class
+    const studentCount = await STUDENT_LATEST.countDocuments({
+      schoolCode: Number(schoolCode),
+      class: studentClass,
+    });
+    if (studentCount === 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ 
+        error: `No students found for school ${schoolCode} (${school.schoolName || ''}) in class ${studentClass}. Please upload student data first before uploading results.` 
+      });
+    }
+
     const resultKey = examFieldMap[subject] || subject;
+
+    // Check if admit cards have been generated for this school
+    try {
+      const db = mongoose.connection.db;
+      const admitCardFiles = db.collection('admitCards.files');
+      const schoolStudents = await STUDENT_LATEST.find({
+        schoolCode: Number(schoolCode),
+        class: studentClass,
+      }).select('_id').limit(3).lean();
+      
+      if (schoolStudents.length > 0) {
+        const sampleStudent = schoolStudents[0];
+        const studentAdmitCard = await admitCardFiles.countDocuments({
+          filename: { $regex: sampleStudent._id.toString() }
+        });
+        if (studentAdmitCard === 0) {
+          fs.unlinkSync(filePath);
+          return res.status(400).json({ 
+            error: `Admit cards have not been generated for students of school ${schoolCode} (${school.schoolName || ''}). Please generate admit cards before uploading results.` 
+          });
+        }
+      }
+    } catch (gridfsErr) {
+      console.warn('Could not check admit cards:', gridfsErr.message);
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ 
+        error: `Admit cards have not been generated yet. Please generate admit cards before uploading results.` 
+      });
+    }
 
     let successCount = 0;
 
@@ -218,7 +363,7 @@ export const uploadResultSimple = async (req, res) => {
 
       if (!rollNo || isNaN(marksObtained) || isNaN(totalMarks)) continue;
 
-      await STUDENT_LATEST.findOneAndUpdate(
+      const updateResult = await STUDENT_LATEST.findOneAndUpdate(
         {
           rollNo: rollNo,
           class: studentClass,
@@ -235,7 +380,9 @@ export const uploadResultSimple = async (req, res) => {
         },
         { new: true }
       );
-      successCount++;
+      if (updateResult) {
+        successCount++;
+      }
     }
 
     fs.unlinkSync(filePath);
@@ -301,21 +448,18 @@ export const getAllResults = async (req, res) => {
       return res.status(400).json({ error: "Subject is required" });
     }
 
-    // Check if exam config exists for this subject - REQUIRED before viewing results
+    // Check if exam config exists for this subject
     const { ResultConfig } = await import("../models/resultConfigModel.js");
-    const examConfig = await ResultConfig.findOne({ 
+    // Try universal "all" config first, then fall back to any class-specific config
+    let examConfig = await ResultConfig.findOne({ 
       subject, 
       classLevel: "all",
       batchId: "2024-25"
     });
-
-    // BLOCK results if no exam config exists
     if (!examConfig) {
-      return res.status(403).json({ 
-        success: false,
-        error: "Exam configuration required",
-        message: `No exam configuration found for ${subject}. Please configure the exam topics in Exam Management before viewing results.`,
-        hasExamConfig: false
+      examConfig = await ResultConfig.findOne({ 
+        subject,
+        batchId: "2024-25"
       });
     }
 
@@ -338,9 +482,10 @@ export const getAllResults = async (req, res) => {
       query.rollNo = { $regex: rollNo, $options: 'i' };
     }
 
-    // Show all students with results (PRESENT, ABSENT, DISQUALIFIED)
-    // Just check that attendance field exists
-    query[`result.${resultKey}.attendance`] = { $exists: true };
+    // Show only students who actually have result data uploaded
+    // Check that total.score exists — this field is ONLY set during result upload
+    // (cannot rely on attendance because the schema defaults it to 'ABSENT' for all exams)
+    query[`result.${resultKey}.total.score`] = { $exists: true };
 
     // Get list of student IDs/mobNos that have admit cards generated
     // We need to filter results to only show students with admit cards
@@ -356,15 +501,17 @@ export const getAllResults = async (req, res) => {
     if (admitCardMobNos.length > 0) {
       query.mobNo = { $in: admitCardMobNos };
     } else {
-      // No admit cards exist at all - return empty results
+      // No admit cards exist at all - return warning
       return res.status(200).json({
         success: true,
         data: [],
-        hasExamConfig: true,
-        examConfig: {
+        noAdmitCards: true,
+        message: "No admit cards have been generated yet. Please generate admit cards first before viewing or uploading results.",
+        hasExamConfig: !!examConfig,
+        examConfig: examConfig ? {
           topicNames: examConfig.topicNames,
           isPublished: examConfig.isPublished
-        },
+        } : null,
         pagination: {
           currentPage: Number(page),
           totalPages: 0,
@@ -596,7 +743,7 @@ export const exportResultsToExcel = async (req, res) => {
     const resultKey = subject ? (examFieldMap[subject] || subject) : null;
 
     if (resultKey) {
-      query[`result.${resultKey}.attendance`] = { $exists: true };
+      query[`result.${resultKey}.total.score`] = { $exists: true };
     }
 
     // Fetch all matching results (no pagination for export)
@@ -613,12 +760,9 @@ export const exportResultsToExcel = async (req, res) => {
         "Subject": subject || '',
         "Exam Date": resultData?.examDate || '',
         "SCORE": resultData?.total?.score ?? 0,
-        "INTERNATIONAL RANK": resultData?.ranks?.internationalRank ?? 0,
-        "National Rank": resultData?.ranks?.nationalRank ?? 0,
-        "City Rank": resultData?.ranks?.cityRank ?? 0,
-        "School Rank": resultData?.ranks?.schoolRank ?? 0,
-        "Class Rank": resultData?.ranks?.classRank ?? 0,
-        "SECTION RANK": resultData?.ranks?.sectionRank ?? 0,
+        "TOTAL MARKS": resultData?.total?.totalCount ?? 0,
+        "PERCENTAGE": resultData?.total?.percentage ?? 0,
+        "PASS/FAIL": resultData?.passOrFail || '',
         "Prize": resultData?.prize || ''
       };
     });
@@ -636,12 +780,9 @@ export const exportResultsToExcel = async (req, res) => {
       { wch: 12 }, // Subject
       { wch: 12 }, // Exam Date
       { wch: 8 },  // SCORE
-      { wch: 18 }, // INTERNATIONAL RANK
-      { wch: 14 }, // National Rank
-      { wch: 10 }, // City Rank
-      { wch: 12 }, // School Rank
-      { wch: 10 }, // Class Rank
-      { wch: 12 }, // SECTION RANK
+      { wch: 12 }, // TOTAL MARKS
+      { wch: 12 }, // PERCENTAGE
+      { wch: 10 }, // PASS/FAIL
       { wch: 10 }, // Prize
     ];
     worksheet['!cols'] = colWidths;

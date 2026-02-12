@@ -52,11 +52,12 @@ export const getAnswers = async (req, res) => {
         query.class = className;
         const answers = await answersModel.find({ ...query })
         console.log("Answers fetched:", answers);
-        res.status(200).json({  answerKeys:answers });
 
-        if (!answers) {
+        if (!answers || answers.length === 0) {
             return res.status(404).json({ message: "Answers List not available" });
         }
+
+        res.status(200).json({ answerKeys: answers });
 
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });

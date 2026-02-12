@@ -52,116 +52,59 @@ export const fetchBLQList = async (req, res) => {
   try {
     console.log("Query:", query);
     const student = await STUDENT_LATEST.find(query);
-    student.map((s) => {
+
+    if (!student || student.length === 0) {
+      return res.status(404).json({ error: "No students found" });
+    }
+
+    student.forEach((s) => {
+      const result = s.result || {};
+      const base = {
+        studentName: s.studentName,
+        rollNo: s.rollNo,
+        class: s.class,
+        schoolCode: s.schoolCode,
+        fatherName: s.fatherName,
+        motherName: s.motherName,
+        section: s.section,
+      };
+
       if (examLevel === "L1") {
-        if (s.result.IAOL1.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            IAOL1: s.IAOL1,
-            passOrFail: s.result.IAOL1.passOrFail,
-            fatherName: s.fatherName,
-            motherName: s.motherName,
-            section:s.section
-          });
+        if (result.IAOL1?.total?.score != null) {
+          studentData.push({ ...base, IAOL1: s.IAOL1, passOrFail: result.IAOL1.passOrFail });
         }
-        if (s.result.ITSTL1.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            ITSTL1: s.ITSTL1,
-            passOrFail: s.result.ITSTL1.passOrFail,
-          });
+        if (result.ITSTL1?.total?.score != null) {
+          studentData.push({ ...base, ITSTL1: s.ITSTL1, passOrFail: result.ITSTL1.passOrFail });
         }
-        if (s.result.IMOL1.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            IMOL1: s.IMOL1,
-            passOrFail: s.result.IMOL1.passOrFail,
-          });
+        if (result.IMOL1?.total?.score != null) {
+          studentData.push({ ...base, IMOL1: s.IMOL1, passOrFail: result.IMOL1.passOrFail });
         }
-        if (s.result.IGKOL1.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            IGKOL1: s.IGKOL1,
-            passOrFail: s.result.IGKOL1.passOrFail,
-          });
+        if (result.IGKOL1?.total?.score != null) {
+          studentData.push({ ...base, IGKOL1: s.IGKOL1, passOrFail: result.IGKOL1.passOrFail });
         }
-        if (s.result.IENGOL1.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            IENGOL1: s.IENGOL1,
-            passOrFail: s.result.IENGOL1.passOrFail,
-          });
+        if (result.IENGOL1?.total?.score != null) {
+          studentData.push({ ...base, IENGOL1: s.IENGOL1, passOrFail: result.IENGOL1.passOrFail });
         }
       }
       if (examLevel === "L2") {
-        if (s.result.IAOL2.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            IAOL2: s.IAOL2,
-            passOrFail: s.result.IAOL2.passOrFail,
-          });
+        if (result.IAOL2?.total?.score != null) {
+          studentData.push({ ...base, IAOL2: s.IAOL2, passOrFail: result.IAOL2.passOrFail });
         }
-        if (s.result.ITSTL2.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            ITSTL2: s.ITSTL2,
-            passOrFail: s.result.ITSTL2.passOrFail,
-          });
+        if (result.ITSTL2?.total?.score != null) {
+          studentData.push({ ...base, ITSTL2: s.ITSTL2, passOrFail: result.ITSTL2.passOrFail });
         }
-        if (s.result.IMOL2.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            IMOL2: s.IMOL2,
-            passOrFail: s.result.IMOL2.passOrFail,
-          });
+        if (result.IMOL2?.total?.score != null) {
+          studentData.push({ ...base, IMOL2: s.IMOL2, passOrFail: result.IMOL2.passOrFail });
         }
-
-        if (s.result.IENGOL2.marksObtained != undefined) {
-          studentData.push({
-            studentName: s.studentName,
-            rollNo: s.rollNo,
-            class: s.class,
-            schoolCode: s.schoolCode,
-            IENGOL2: s.IENGOL2,
-            passOrFail: s.result.IENGOL2.passOrFail,
-          });
+        if (result.IENGOL2?.total?.score != null) {
+          studentData.push({ ...base, IENGOL2: s.IENGOL2, passOrFail: result.IENGOL2.passOrFail });
         }
       }
     });
 
-  const schoolName= await School.findOne({
-      schoolCode: schoolCode
-    })
+    const schoolName = await School.findOne({ schoolCode: schoolCode });
     console.log("Student Data:", studentData);
-    res.status(200).json({studentData:studentData ,school:schoolName});
-
-    if (!student) {
-      return res.status(404).json({ error: "Student not found" });
-    }
+    res.status(200).json({ studentData: studentData, school: schoolName });
   } catch (error) {
     console.error("Error fetching result:", error);
     res.status(500).json({ error: "Internal server error" });

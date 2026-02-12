@@ -155,7 +155,13 @@ export const uploadSchoolData = async (req, res) => {
     res.status(200).json(response);
   } catch (error) {
     console.error("Error uploading school data:", error);
-    res.status(500).json({ error: error.message });
+    const isValidationError = error.message?.includes("Invalid") || 
+                              error.message?.includes("Missing") || 
+                              error.message?.includes("empty");
+    res.status(isValidationError ? 400 : 500).json({ 
+      error: error.message,
+      message: error.message 
+    });
   } finally {
     await fs.unlink(req.file.path).catch((err) => console.error("Error deleting file:", err));
   }

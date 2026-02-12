@@ -3,8 +3,7 @@ import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
 import { dbConnection, uploadAdmitCard, generateAdmitCard, fetchAdmitCardFromDB } from "../services/admitCardService.js";
 import { ObjectId, GridFSBucket } from "mongodb";
-
-const studentCache = {};
+import mongoose from "mongoose";
 
 export const getAdmitCardStudents = async (req, res) => {
   try {
@@ -43,14 +42,7 @@ export const getAdmitCardStudents = async (req, res) => {
 
     console.log("🔍 Query for admit card students:", JSON.stringify(query, null, 2));
 
-    // Query regular students
-    const regularStudents = await STUDENT_LATEST.find(query)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .select("rollNo schoolCode class section dob mobNo studentName IAOL1 ITSTL1 IMOL1 IGKOL1 IENGOL1 IAOL2 ITSTL2 IMOL2 IENGOL2")
-      .lean();
-
-    // Query kindergarten students
+    // Build KG query
     const kgQuery = { schoolCode: parseInt(schoolCode) };
     if (examLevel === "L1") {
       kgQuery.IQKD1 = "1";
@@ -58,26 +50,46 @@ export const getAdmitCardStudents = async (req, res) => {
       kgQuery.IQKD2 = "1";
     }
 
-    console.log("🔍 KG Query:", JSON.stringify(kgQuery, null, 2));
-
-    const kgStudents = await KINDERGARTEN_STUDENT.find(kgQuery)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .select("rollNo schoolCode class section dob mobNo studentName IQKD1 IQKD2")
-      .lean();
-
-    console.log("📊 Regular students found:", regularStudents.length);
-    console.log("📊 KG students found:", kgStudents.length);
-
-    // Combine both results
-    const students = [...regularStudents, ...kgStudents];
-    
-    // Get total count from both collections
+    // Get total counts first for proper pagination
     const totalRegular = await STUDENT_LATEST.countDocuments(query);
     const totalKG = await KINDERGARTEN_STUDENT.countDocuments(kgQuery);
     const totalStudents = totalRegular + totalKG;
-
     const totalPages = Math.ceil(totalStudents / limit);
+    const skip = (page - 1) * limit;
+
+    let students = [];
+
+    if (skip < totalRegular) {
+      // Page starts within regular students
+      const regularStudents = await STUDENT_LATEST.find(query)
+        .skip(skip)
+        .limit(limit)
+        .select("rollNo schoolCode class section dob mobNo studentName IAOL1 ITSTL1 IMOL1 IGKOL1 IENGOL1 IAOL2 ITSTL2 IMOL2 IENGOL2")
+        .lean();
+      students.push(...regularStudents);
+
+      // If we still have room on this page, fill with KG students
+      const remaining = limit - regularStudents.length;
+      if (remaining > 0) {
+        const kgStudents = await KINDERGARTEN_STUDENT.find(kgQuery)
+          .skip(0)
+          .limit(remaining)
+          .select("rollNo schoolCode class section dob mobNo studentName IQKD1 IQKD2")
+          .lean();
+        students.push(...kgStudents);
+      }
+    } else {
+      // Page starts within KG students
+      const kgSkip = skip - totalRegular;
+      const kgStudents = await KINDERGARTEN_STUDENT.find(kgQuery)
+        .skip(kgSkip)
+        .limit(limit)
+        .select("rollNo schoolCode class section dob mobNo studentName IQKD1 IQKD2")
+        .lean();
+      students.push(...kgStudents);
+    }
+
+    console.log("📊 Students found for page:", students.length);
 
     return res.status(200).json({
       success: true,
@@ -147,14 +159,8 @@ export const generateAdmitCards = async (req, res) => {
       }
     }
 
-    const cachedStudents = uniqueStudents.map((student) => {
-      const studentData = studentCache[student.mobNo] || student;
-      studentCache[student.mobNo] = studentData;
-      return studentData;
-    });
-
-    const generateResults = await generateAdmitCard(cachedStudents, level, examDate, school);
-    const uploadResults = await uploadAdmitCard(cachedStudents, level, db, examDate);
+    const generateResults = await generateAdmitCard(uniqueStudents, level, examDate, school);
+    const uploadResults = await uploadAdmitCard(uniqueStudents, level, db, examDate);
 
     const results = generateResults.map((gen, index) => ({
       mobNo: gen.mobNo,
@@ -260,70 +266,72 @@ export const getGeneratedAdmitCards = async (req, res) => {
       .sort({ uploadDate: -1 })
       .toArray();
 
-    // Filter by rollNo if provided (need to fetch student data)
-    if (rollNo || schoolCode) {
-      // Get student IDs from filename and filter
-      const filteredFiles = [];
-      
-      for (const file of files) {
-        // Extract student ID from filename: admitCard_StudentName-L1-studentId.pdf
-        const filenameMatch = file.filename.match(/admitCard_.*-L[12]-([a-f0-9]+)\.pdf/i);
-        if (!filenameMatch) continue;
-        
-        const studentId = filenameMatch[1];
-        
-        // Find student in both collections
+    // Helper: extract student ID from file (prefer metadata, fallback to filename regex)
+    const extractStudentId = (file) => {
+      // Prefer metadata.studentId (stored during upload)
+      if (file.metadata?.studentId) {
+        return String(file.metadata.studentId);
+      }
+      // Fallback: extract from filename for older files
+      const filenameMatch = file.filename.match(/admitCard_.*-L[12]-([a-f0-9]{24})\.pdf/i);
+      return filenameMatch ? filenameMatch[1] : null;
+    };
+
+    // Helper: find student by ID in both collections with error handling
+    const findStudentById = async (studentId) => {
+      if (!studentId || !mongoose.Types.ObjectId.isValid(studentId)) return null;
+      try {
         let student = await STUDENT_LATEST.findById(studentId).lean();
         if (!student) {
           student = await KINDERGARTEN_STUDENT.findById(studentId).lean();
         }
+        return student;
+      } catch (err) {
+        console.warn(`⚠️ Could not find student ${studentId}:`, err.message);
+        return null;
+      }
+    };
+
+    // Helper: format student data for response
+    const formatStudent = (student) => student ? {
+      studentName: student.studentName,
+      rollNo: student.rollNo,
+      schoolCode: student.schoolCode,
+      class: student.class,
+      section: student.section,
+      mobNo: student.mobNo,
+    } : null;
+
+    // Filter by rollNo or schoolCode if provided
+    if (rollNo || schoolCode) {
+      const filteredFiles = [];
+      
+      for (const file of files) {
+        const studentId = extractStudentId(file);
+        if (!studentId) continue;
         
+        const student = await findStudentById(studentId);
         if (!student) continue;
         
         // Apply filters
         if (rollNo && !student.rollNo?.toString().includes(rollNo)) continue;
         if (schoolCode && student.schoolCode !== parseInt(schoolCode)) continue;
         
-        filteredFiles.push({
-          ...file,
-          student: {
-            studentName: student.studentName,
-            rollNo: student.rollNo,
-            schoolCode: student.schoolCode,
-            class: student.class,
-            section: student.section,
-            mobNo: student.mobNo,
-          }
-        });
+        filteredFiles.push({ ...file, student: formatStudent(student) });
       }
       files = filteredFiles;
     } else {
       // Enrich files with student data
       const enrichedFiles = [];
       for (const file of files) {
-        const filenameMatch = file.filename.match(/admitCard_.*-L[12]-([a-f0-9]+)\.pdf/i);
-        if (!filenameMatch) {
-          enrichedFiles.push(file);
+        const studentId = extractStudentId(file);
+        if (!studentId) {
+          enrichedFiles.push({ ...file, student: null });
           continue;
         }
         
-        const studentId = filenameMatch[1];
-        let student = await STUDENT_LATEST.findById(studentId).lean();
-        if (!student) {
-          student = await KINDERGARTEN_STUDENT.findById(studentId).lean();
-        }
-        
-        enrichedFiles.push({
-          ...file,
-          student: student ? {
-            studentName: student.studentName,
-            rollNo: student.rollNo,
-            schoolCode: student.schoolCode,
-            class: student.class,
-            section: student.section,
-            mobNo: student.mobNo,
-          } : null
-        });
+        const student = await findStudentById(studentId);
+        enrichedFiles.push({ ...file, student: formatStudent(student) });
       }
       files = enrichedFiles;
     }

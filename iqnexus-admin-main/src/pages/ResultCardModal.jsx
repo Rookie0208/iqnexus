@@ -240,7 +240,7 @@ const ResultCardModal = ({ isOpen, onClose, result, config }) => {
                 <>
                   <tr>
                     <td className="border border-black px-3 py-2 font-semibold bg-gray-100">MARK SCORED</td>
-                    <td className="border border-black px-3 py-2 font-bold">{resultData.totalScore ?? 0} / {resultData.totalMarks || 100}</td>
+                    <td className="border border-black px-3 py-2 font-bold">{resultData.totalScore ?? 0} / {resultData.totalMaxScore || resultData.totalMarks || 100}</td>
                     <td className="border border-black px-3 py-2 font-semibold bg-gray-100">PERCENTAGE</td>
                     <td className="border border-black px-3 py-2 font-bold">{resultData.percentage?.toFixed(1) || 0}%</td>
                   </tr>

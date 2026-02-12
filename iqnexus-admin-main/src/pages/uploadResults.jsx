@@ -48,6 +48,8 @@ const Uploadresults = () => {
     const [uploadSummary, setUploadSummary] = useState(null);
     const [examConfig, setExamConfig] = useState(null);
     const [loadingConfig, setLoadingConfig] = useState(false);
+    const [validationStatus, setValidationStatus] = useState(null);
+    const [isValidating, setIsValidating] = useState(false);
 
     // Get subject options based on selected exam level
     const subjectOptions = examLevel ? qualifiedlist[examLevel] || [] : [];
@@ -75,6 +77,62 @@ const Uploadresults = () => {
         };
         fetchExamConfig();
     }, [subject]);
+
+    // Validate school + students exist when schoolCode and class are set
+    useEffect(() => {
+        const validateSchoolAndStudents = async () => {
+            if (!schoolCode || !studentClass) {
+                setValidationStatus(null);
+                return;
+            }
+            setIsValidating(true);
+            try {
+                // Check school exists
+                const schoolRes = await axios.get(`${BASE_URL}/get-school/${schoolCode}`);
+                
+                if (!schoolRes.data?.school) {
+                    setValidationStatus({
+                        type: "error",
+                        message: `School with code ${schoolCode} does not exist. Please add the school first.`
+                    });
+                    setIsValidating(false);
+                    return;
+                }
+
+                const schoolName = schoolRes.data.school.schoolName || '';
+
+                // Check students exist for this school + class
+                const studentRes = await axios.post(`${BASE_URL}/all-students-no-pagination`, {
+                    schoolCode,
+                    className: [studentClass],
+                });
+                const studentCount = studentRes.data?.totalStudents || 0;
+                
+                if (studentCount === 0) {
+                    setValidationStatus({
+                        type: "error",
+                        message: `No students found for ${schoolName} (${schoolCode}) in class ${studentClass}. Upload student data first.`
+                    });
+                } else {
+                    setValidationStatus({
+                        type: "success",
+                        message: `✓ ${studentCount} students found for ${schoolName} (${schoolCode}), class ${studentClass}`
+                    });
+                }
+            } catch (error) {
+                setValidationStatus({
+                    type: "error",
+                    message: `Could not verify school/student data: ${error.response?.data?.message || error.message}`
+                });
+            } finally {
+                setIsValidating(false);
+            }
+        };
+
+        // Debounce to avoid too many requests
+        const timer = setTimeout(validateSchoolAndStudents, 500);
+        return () => clearTimeout(timer);
+    }, [schoolCode, studentClass]);
 
     // Get topic count from config
     const getTopicCount = () => {
@@ -284,6 +342,28 @@ const Uploadresults = () => {
                                 className="w-full border rounded-lg px-3 py-2"
                                 min="0"
                             />
+
+                            {/* Validation Status */}
+                            {isValidating && (
+                                <div className="p-3 rounded-lg text-sm bg-blue-50 text-blue-700 flex items-center gap-2">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
+                                    Verifying school and student data...
+                                </div>
+                            )}
+                            {!isValidating && validationStatus && (
+                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
+                                    validationStatus.type === "success"
+                                        ? "bg-green-50 text-green-700 border border-green-200"
+                                        : "bg-red-50 text-red-700 border border-red-200"
+                                }`}>
+                                    {validationStatus.type === "success" ? (
+                                        <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                                    ) : (
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                    )}
+                                    {validationStatus.message}
+                                </div>
+                            )}
                         </div>
                         <div
                             className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 cursor-pointer ${
@@ -332,7 +412,9 @@ const Uploadresults = () => {
                                 !studentClass ||
                                 !schoolCode ||
                                 !examLevel ||
-                                uploadStatus?.type === "loading"
+                                uploadStatus?.type === "loading" ||
+                                isValidating ||
+                                validationStatus?.type === "error"
                             }
                             className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
                         >

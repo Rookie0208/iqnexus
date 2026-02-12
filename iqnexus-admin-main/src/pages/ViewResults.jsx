@@ -24,6 +24,9 @@ const ViewResults = () => {
   // Exam config warning
   const [hasExamConfig, setHasExamConfig] = useState(true);
   const [showConfigWarning, setShowConfigWarning] = useState(false);
+
+  // Inline status message (replaces alerts)
+  const [fetchMessage, setFetchMessage] = useState(null);
   
   // Configuration Panel
   const [showConfigPanel, setShowConfigPanel] = useState(false);
@@ -138,7 +141,25 @@ const ViewResults = () => {
     fetchSchools();
   }, []);
 
-  // Fetch config for subject (universal - not class specific)
+  // Default topic/rank state
+  const defaultTopicNames = {
+    section1: 'Section 1',
+    section2: 'Section 2',
+    section3: 'Section 3',
+    section4: 'Section 4',
+    section5: 'Section 5'
+  };
+
+  const defaultRankVisibility = {
+    schoolRank: true,
+    zonalRank: true,
+    nationalRank: true,
+    internationalRank: true,
+    classRank: true,
+    sectionRank: true
+  };
+
+  // Fetch config for subject (tries universal first, falls back to any class-level config)
   const fetchConfig = async (subjectValue) => {
     if (!subjectValue) return;
     try {
@@ -147,8 +168,16 @@ const ViewResults = () => {
       });
       if (res.data.success && res.data.config) {
         setCurrentConfig(res.data.config);
-        setTopicNames(res.data.config.topicNames || topicNames);
-        setRankVisibility(res.data.config.rankVisibility || rankVisibility);
+        setTopicNames(res.data.config.topicNames || defaultTopicNames);
+        setRankVisibility(res.data.config.rankVisibility || defaultRankVisibility);
+        setHasExamConfig(true);
+        setShowConfigWarning(false);
+      } else {
+        // No config found - reset to defaults
+        setCurrentConfig(null);
+        setTopicNames(defaultTopicNames);
+        setRankVisibility(defaultRankVisibility);
+        setHasExamConfig(false);
       }
     } catch (error) {
       console.error("Error fetching config:", error);
@@ -221,6 +250,7 @@ const ViewResults = () => {
     }
 
     setIsLoading(true);
+    setFetchMessage(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -246,13 +276,33 @@ const ViewResults = () => {
       const res = await axios.get(`${BASE_URL}/view-results?${params.toString()}`);
       
       if (res.data.success) {
+        // Check for no admit cards warning
+        if (res.data.noAdmitCards) {
+          setResults([]);
+          setTotalCount(0);
+          setTotalPages(1);
+          setShowConfigPanel(false);
+          setFetchMessage({ type: 'warning', text: res.data.message || 'No admit cards have been generated yet. Please generate admit cards first before viewing or uploading results.' });
+          setIsLoading(false);
+          return;
+        }
+
+        setFetchMessage(null);
+
         setResults(res.data.data);
         setCurrentPage(res.data.pagination.currentPage);
         setTotalPages(res.data.pagination.totalPages);
         setTotalCount(res.data.pagination.totalCount);
         setShowConfigPanel(true);
-        setHasExamConfig(true);
-        setShowConfigWarning(false);
+        
+        // Check if exam config exists from response
+        if (res.data.hasExamConfig === false) {
+          setHasExamConfig(false);
+          setShowConfigWarning(true);
+        } else {
+          setHasExamConfig(true);
+          setShowConfigWarning(false);
+        }
         
         // Update config from response if available
         if (res.data.examConfig) {
@@ -267,17 +317,8 @@ const ViewResults = () => {
       }
     } catch (error) {
       console.error("Error fetching results:", error);
-      
-      // Check if it's a "no config" error (403)
-      if (error.response?.status === 403 && error.response?.data?.hasExamConfig === false) {
-        setHasExamConfig(false);
-        setShowConfigWarning(true);
-        setResults([]);
-        setTotalCount(0);
-        setShowConfigPanel(false);
-      } else {
-        alert("Failed to fetch results. Please try again.");
-      }
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Failed to fetch results. Please try again.';
+      setFetchMessage({ type: 'error', text: msg });
     } finally {
       setIsLoading(false);
     }
@@ -1019,10 +1060,30 @@ const ViewResults = () => {
               ) : results.length === 0 ? (
                 <tr>
                   <td colSpan={15} className="px-4 py-12 text-center text-gray-500">
-                    <div className="flex flex-col items-center gap-2">
-                      <Eye size={48} className="text-gray-300" />
-                      <p className="text-lg font-medium">No results found</p>
-                      <p className="text-sm">Select a subject and click "Search Results" to view data</p>
+                    <div className="flex flex-col items-center gap-3">
+                      {fetchMessage ? (
+                        <>
+                          <AlertCircle size={48} className={fetchMessage.type === 'error' ? 'text-red-400' : 'text-yellow-400'} />
+                          <p className={`text-lg font-medium ${
+                            fetchMessage.type === 'error' ? 'text-red-600' : 'text-yellow-700'
+                          }`}>
+                            {fetchMessage.type === 'error' ? 'Error' : 'Action Required'}
+                          </p>
+                          <span className={`text-sm max-w-md px-4 py-2 rounded-lg ${
+                            fetchMessage.type === 'error' 
+                              ? 'bg-red-50 text-red-700 border border-red-200' 
+                              : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                          }`}>
+                            {fetchMessage.text}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye size={48} className="text-gray-300" />
+                          <p className="text-lg font-medium">No results found</p>
+                          <p className="text-sm">Select a subject and click "Search Results" to view data</p>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
