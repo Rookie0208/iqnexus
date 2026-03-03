@@ -2,11 +2,12 @@ import { School } from "../models/schoolModel.js";
 import { fetchSchoolNames } from "../services/studentService.js";
 import { convertXlsxToMongoDbForSchool } from "../utils/excelToMongoForSchool.js";
 import fs from "fs/promises";
-import { Int32 } from "mongodb";
 
 export const getAllSchools = async (req, res) => {
   try {
     const { page, limit, search, city, sortBy, sortOrder } = req.query;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
     
     // Build filter query
     const query = {};
@@ -34,11 +35,11 @@ export const getAllSchools = async (req, res) => {
     }
 
     const totalSchools = await School.countDocuments(query);
-    const totalPages = Math.ceil(totalSchools / limit);
+    const totalPages = Math.ceil(totalSchools / limitNum);
     const schools = await School.find(query)
       .sort(sortOptions)
-      .skip((page - 1) * limit)
-      .limit(limit);
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum);
 
     // Get distinct cities for dropdown filter
     const cities = await School.distinct("city");
@@ -46,7 +47,7 @@ export const getAllSchools = async (req, res) => {
     return res.status(200).json({ schools, totalPages, totalSchools, cities, success: true });
   } catch (error) {
     console.error("❌ Error fetching schools:", error);
-    res.status(500).json({ message: "Error fetching schools", error });
+    res.status(500).json({ message: "Error fetching schools", error: error.message });
   }
 };
 
@@ -79,7 +80,7 @@ export const getAllSchoolsNoPagination = async (req, res) => {
     return res.status(200).json({ schools, success: true });
   } catch (error) {
     console.error("❌ Error fetching all schools:", error);
-    res.status(500).json({ message: "Error fetching schools", error });
+    res.status(500).json({ message: "Error fetching schools", error: error.message });
   }
 };
 
@@ -90,7 +91,7 @@ export const getSchoolById = async (req, res) => {
     return res.status(200).json({ school, success: true });
   } catch (error) {
     console.error("❌ Error fetching school:", error);
-    res.status(500).json({ message: "Error fetching school", error });
+    res.status(500).json({ message: "Error fetching school", error: error.message });
   }
 };
 
@@ -100,7 +101,7 @@ export const getAllSchoolAdmitCards = async (req, res) => {
     return res.status(200).json({ schools, success: true });
   } catch (error) {
     console.error("❌ Error fetching school admit cards:", error);
-    res.status(500).json({ message: "Error fetching schools", error });
+    res.status(500).json({ message: "Error fetching schools", error: error.message });
   }
 };
 
@@ -116,7 +117,7 @@ export const addSchool = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error adding school:", error);
-    res.status(500).json({ message: "Error adding school", error });
+    res.status(500).json({ message: "Error adding school", error: error.message });
   }
 };
 
@@ -145,7 +146,7 @@ export const updateSchool = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error updating school:", error);
-    res.status(500).json({ message: "Error updating school", error });
+    res.status(500).json({ message: "Error updating school", error: error.message });
   }
 };
 
@@ -161,7 +162,7 @@ export const deleteSchool = async (req, res) => {
     return res.status(400).json({ message: "Invalid School Code format" });
   }
 
-  const queryCode = new Int32(parsedCode);
+  const queryCode = parsedCode;
 
   try {
     const deletedSchool = await School.findOneAndDelete({ schoolCode: queryCode });

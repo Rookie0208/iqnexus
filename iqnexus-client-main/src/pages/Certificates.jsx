@@ -8,24 +8,27 @@ const Certificates = () => {
   const student = useSelector((state) => state.auth.user);
   const [selectedLevel, setSelectedLevel] = useState("IMO BASIC LEVEL");
   const [certificate, setCertificate] = useState(null);
+  const [certificateBlob, setCertificateBlob] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const fetchCertificate = async () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `${BASE_API_URL}/fetch-ceritficate/${student["Mob No"]}`,
-        { responseType: "blob" } // Important!
+        `${BASE_API_URL}/fetch-certificate/${student["Mob No"]}`,
+        { responseType: "blob" }
       );
 
       if (response.status === 200 && response.data) {
-        const imageUrl = URL.createObjectURL(response.data);
+        const blob = response.data;
+        const imageUrl = URL.createObjectURL(blob);
         setCertificate(imageUrl);
+        setCertificateBlob(blob);
       } else {
-        console.error("Failed to fetch admit card.");
+        console.error("Failed to fetch certificate.");
       }
     } catch (error) {
-      console.error("Error fetching admit card:", error);
+      console.error("Error fetching certificate:", error);
     } finally {
       setLoading(false);
     }
@@ -82,12 +85,38 @@ const Certificates = () => {
 
       {/* Download Buttons */}
       <div className="flex flex-col md:flex-row justify-center items-center mt-4">
-        <button className="bg-blue-600 w-fit text-center text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all">
+        <button
+          onClick={() => {
+            if (certificateBlob) {
+              const url = URL.createObjectURL(certificateBlob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `certificate-${selectedLevel}.pdf`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            }
+          }}
+          className="bg-blue-600 w-fit text-center text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all"
+        >
           <Download size={16} />
           Download PDF
         </button>
         <button className="text-blue-600 px-4 py-2 hover:underline">or</button>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all">
+        <button
+          onClick={() => {
+            if (certificate) {
+              const link = document.createElement("a");
+              link.href = certificate;
+              link.download = `certificate-${selectedLevel}.png`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+          }}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-blue-700 transition-all"
+        >
           <Download size={16} />
           Download Image
         </button>

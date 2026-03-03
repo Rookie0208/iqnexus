@@ -33,7 +33,8 @@ export const generateDocument = async (req, res) => {
   const { mobNo } = req.body;
 
   try {
-    const studentData = studentCache[mobNo] || (await fetchDataByMobile(mobNo));
+    const rawData = studentCache[mobNo] || (await fetchDataByMobile(mobNo));
+    const studentData = Array.isArray(rawData) ? rawData[0] : rawData;
     if (!studentData || !studentData["Mob No"]) {
       return res.status(404).json({ error: "No student found with this mobile number" });
     }

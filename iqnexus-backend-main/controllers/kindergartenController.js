@@ -149,7 +149,7 @@ export const addKindergartenStudent = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error adding student:", error);
-    res.status(500).json({ message: "Error adding student", error });
+    res.status(500).json({ message: "Error adding student", error: error.message });
   }
 };
 

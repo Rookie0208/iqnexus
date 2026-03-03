@@ -472,8 +472,17 @@ const ViewResults = () => {
     return colors[rating] || 'bg-gray-400 text-white';
   };
 
-  // Get rating based on percentage
-  const getRating = (percentage) => {
+  // Get rating based on percentage (uses config thresholds from backend when available)
+  const getRating = (percentage, ratingScale) => {
+    // If a custom ratingScale is provided (from ResultConfig), use it
+    if (ratingScale) {
+      if (percentage >= (ratingScale.excellent?.min ?? 80)) return ratingScale.excellent?.label || 'EXCELLENT';
+      if (percentage >= (ratingScale.good?.min ?? 70)) return ratingScale.good?.label || 'GOOD';
+      if (percentage >= (ratingScale.average?.min ?? 60)) return ratingScale.average?.label || 'AVERAGE';
+      if (percentage >= (ratingScale.improve?.min ?? 45)) return ratingScale.improve?.label || 'IMPROVE';
+      return ratingScale.bad?.label || 'BAD';
+    }
+    // Default fallback thresholds
     if (percentage >= 80) return 'EXCELLENT';
     if (percentage >= 70) return 'GOOD';
     if (percentage >= 60) return 'AVERAGE';
@@ -969,6 +978,7 @@ const ViewResults = () => {
                           <thead>
                             <tr className="bg-gray-200">
                               <th className="border border-black px-1 py-1 text-left font-bold text-[10px]">TOPIC</th>
+                              <th className="border border-black px-1 py-1 text-center font-bold text-[10px]">%</th>
                               <th className="border border-black px-1 py-1 text-center font-bold text-[10px]">RATING</th>
                               <th className="border border-black px-1 py-1 text-center font-bold text-[10px]">AI CHART</th>
                             </tr>
@@ -978,6 +988,8 @@ const ViewResults = () => {
                               if (!name || name.trim() === '') return null;
                               const sampleRatings = ['EXCELLENT', 'GOOD', 'AVERAGE', 'IMPROVE', 'BAD'];
                               const sampleRating = sampleRatings[index % sampleRatings.length];
+                              const samplePercentages = [92, 75, 65, 52, 30];
+                              const samplePct = samplePercentages[index % samplePercentages.length];
                               const getRatingClass = (rating) => {
                                 const classes = {
                                   'EXCELLENT': 'text-green-600',
@@ -993,6 +1005,9 @@ const ViewResults = () => {
                                   <td className="border border-black px-1 py-1 font-medium text-[10px]">
                                     {index + 1}. {name.toUpperCase()}
                                   </td>
+                                  <td className="border border-black px-1 py-1 text-center font-bold text-[10px]">
+                                    {samplePct}%
+                                  </td>
                                   <td className={`border border-black px-1 py-1 text-center font-bold text-[10px] ${getRatingClass(sampleRating)}`}>
                                     {sampleRating}
                                   </td>
@@ -1005,6 +1020,9 @@ const ViewResults = () => {
                             {/* Total Row */}
                             <tr className="bg-gray-100 font-bold">
                               <td className="border border-black px-1 py-1 text-[10px]">TOTAL</td>
+                              <td className="border border-black px-1 py-1 text-center font-bold text-[10px]">
+                                {demoResult.percentage?.toFixed(1) || 0}%
+                              </td>
                               <td className="border border-black px-1 py-1 text-center text-[10px]">
                                 {getRating(demoResult.percentage || 0)}
                               </td>

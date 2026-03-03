@@ -11,15 +11,21 @@ const examNameMapping = {
 
 export const fetchBLQList = async (req, res) => {
   const { studentClass, schoolCode, examLevel, subject } = req.query;
-  console.log(JSON.parse(req.query.subject))
-  const subjectArray = JSON.parse(req.query.subject);
-  const query = {};
-  if (studentClass) {
-    query.class = studentClass;
+  
+  if (!req.query.subject) {
+    return res.status(400).json({ message: "Subject parameter is required" });
   }
-  if (schoolCode) {
-    query.schoolCode = schoolCode;
-  }
+  
+  try {
+    const subjectArray = JSON.parse(req.query.subject);
+    console.log(subjectArray);
+    const query = {};
+    if (studentClass) {
+      query.class = studentClass;
+    }
+    if (schoolCode) {
+      query.schoolCode = Number(schoolCode);
+    }
   if (subject) {
     subjectArray.forEach((sub) => {
       const examName =sub.value
@@ -49,7 +55,7 @@ export const fetchBLQList = async (req, res) => {
   }
   //for storing student data
   const studentData = [];
-  try {
+
     console.log("Query:", query);
     const student = await STUDENT_LATEST.find(query);
 
@@ -103,7 +109,6 @@ export const fetchBLQList = async (req, res) => {
     });
 
     const schoolName = await School.findOne({ schoolCode: schoolCode });
-    console.log("Student Data:", studentData);
     res.status(200).json({ studentData: studentData, school: schoolName });
   } catch (error) {
     console.error("Error fetching result:", error);

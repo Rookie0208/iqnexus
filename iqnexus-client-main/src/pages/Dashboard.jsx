@@ -63,7 +63,7 @@ const Dashboard = () => {
         }
         if (Array.isArray(studentData) && studentData.length > 0) {
           // Update Redux state with fresh data
-          const updatedStudent = studentData.find(s => s["Mob No"] === phone) || studentData[0];
+          const updatedStudent = studentData.find(s => s["Roll No"] === student["Roll No"]) || studentData[0];
           
           // Force new object reference
           const freshStudent = { ...updatedStudent };

@@ -63,34 +63,33 @@ const TeachersData = () => {
 
 
     const handleExcelUpload = async() => {
-
+        if (!selectedFile) {
+            alert("Please select a file first.");
+            return;
+        }
 
         const formDataToSubmit = new FormData();
+        formDataToSubmit.append('file', selectedFile);
 
+        try {
+            const result = await axios.post(`${BASE_URL}/createExamIncharge`, formDataToSubmit, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
 
-  
-            formDataToSubmit.append('file', selectedFile);
-        
-
-        const result = await axios.post(`${BASE_URL}/createExamIncharge`, formDataToSubmit, {
-            headers: {
-            'Content-Type': 'multipart/form-data'
+            if (result.status === 200) {
+                alert("Data submitted successfully!");
+            } else {
+                alert("Failed to submit data. Please try again.");
             }
-
-        });
-           e.preventDefault();
-
-
-        if (result.status === 200) {
-            alert("Data submitted successfully!");
-            // handleReset();
-        } else {
+        } catch (error) {
+            console.error("Excel upload error:", error);
             alert("Failed to submit data. Please try again.");
         }
 
         // Reset form after submission
-        handleReset(
-)
+        handleReset();
     };
     const handleReset = () => {
         setFormData({
@@ -275,29 +274,29 @@ const TeachersData = () => {
 
                             <div className="flex flex-col">
                                 <label htmlFor="classTeacherEmail" className="font-semibold text-gray-700 mb-2 text-sm">
-                                    classTeacherEmail
+                                    Email
                                 </label>
                                 <input
-                                    type="classTeacherEmail"
+                                    type="email"
                                     id="classTeacherEmail"
                                     name="classTeacherEmail"
                                     value={formData.classTeacherEmail}
                                     onChange={handleChange}
-                                    placeholder="Enter classTeacherEmail address"
+                                    placeholder="Enter email address"
                                     required
                                     className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-300 bg-gray-50 hover:border-indigo-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white"
                                 />
                             </div>
 
                             <div className="flex flex-col">
-                                <label htmlFor="examInchargeDob" className="font-semibold text-gray-700 mb-2 text-sm">
-                                    Date of Birth
+                                <label htmlFor="classTeacherDob" className="font-semibold text-gray-700 mb-2 text-sm">
+                                    Class Teacher Date of Birth
                                 </label>
                                 <input
                                     type="date"
-                                    id="examInchargeDob"
-                                    name="examInchargeDob"
-                                    value={formData.examInchargeDob}
+                                    id="classTeacherDob"
+                                    name="classTeacherDob"
+                                    value={formData.classTeacherDob}
                                     onChange={handleChange}
                                     required
                                     className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-300 bg-gray-50 hover:border-indigo-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white"
@@ -347,29 +346,29 @@ const TeachersData = () => {
 
                             <div className="flex flex-col">
                                 <label htmlFor="examInchargeEmail" className="font-semibold text-gray-700 mb-2 text-sm">
-                                    Exam Incharge classTeacherEmail
+                                    Exam Incharge Email
                                 </label>
                                 <input
-                                    type="classTeacherEmail"
+                                    type="email"
                                     id="examInchargeEmail"
                                     name="examInchargeEmail"
                                     value={formData.examInchargeEmail}
                                     onChange={handleChange}
-                                    placeholder="Enter classTeacherEmail address"
+                                    placeholder="Enter email address"
                                     required
                                     className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-300 bg-gray-50 hover:border-indigo-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white"
                                 />
                             </div>
 
                             <div className="flex flex-col">
-                                <label htmlFor="classTeacherDob" className="font-semibold text-gray-700 mb-2 text-sm">
+                                <label htmlFor="examInchargeDob" className="font-semibold text-gray-700 mb-2 text-sm">
                                     Exam Incharge Date of Birth
                                 </label>
                                 <input
                                     type="date"
-                                    id="classTeacherDob"
-                                    name="classTeacherDob"
-                                    value={formData.classTeacherDob}
+                                    id="examInchargeDob"
+                                    name="examInchargeDob"
+                                    value={formData.examInchargeDob}
                                     onChange={handleChange}
                                     required
                                     className="p-3 border-2 border-gray-200 rounded-lg text-base transition-all duration-300 bg-gray-50 hover:border-indigo-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:bg-white"

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { BASE_URL } from "../Api";
 
 const UpdateAdvanceList = () => {
     const [file, setFile] = useState(null);
@@ -55,7 +56,7 @@ const UpdateAdvanceList = () => {
         try {
             setIsUploading(true);
             setUploadStatus("Uploading...");
-            await axios.post("https://dummy-route.com/upload", formData, {
+            await axios.post(`${BASE_URL}/updateAdvanceList`, formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },

@@ -11,9 +11,6 @@ AWS.config.update({
 const s3 = new AWS.S3();
 
 export const addStudentStudyMaterial = async (req, res) => {
-  console.log("Received request body:", req.body);
-  console.log("Received file:", req.file);
-  
   const { name, age, class: className, subject, fee, kgSection } = req.body;
 
   if (!req.file) {

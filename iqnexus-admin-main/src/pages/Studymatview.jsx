@@ -39,7 +39,7 @@ const Studymatview = () => {
         isActive: !currentStatus,
       })
       // Update local state
-      setStudyMaterials((prev) => prev.map((item) => (item.id === id ? { ...item, isActive: !currentStatus } : item)))
+      setStudyMaterials((prev) => prev.map((item) => (item._id === id ? { ...item, isActive: !currentStatus } : item)))
     } catch (error) {
       console.error("Failed to update status", error)
     }

@@ -1,11 +1,6 @@
 import fs from "fs";
 import { parse } from "csv-parse";
 import { School } from "../models/schoolModel.js";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-
-dotenv.config();
-mongoose.connect(process.env.MONGO_URI);
 
 export async function convertXlsxToMongoDbForSchool(filePath) {
   try {

@@ -69,11 +69,17 @@ fetchAnswerKeys();
         
         }, []);
         const fetchAnswerKeys = async () => {
+        const raw = localStorage.getItem("student_data");
+        if (!raw) {
+            console.error("No student data in localStorage");
+            return;
+        }
+        const parsed = JSON.parse(raw);
         try {
       const response=await  axios.post(`${BASE_API_URL}/getAnswers`, {
-          rollNo: JSON.parse(localStorage.getItem("student_data"))['Roll No'],
-          className: JSON.parse(localStorage.getItem("student_data"))['Class'],
-            schoolCode: JSON.parse(localStorage.getItem("student_data"))['School Code']
+          rollNo: parsed['Roll No'],
+          className: parsed['Class'],
+            schoolCode: parsed['School Code']
         
         })
             if (response.status === 200) {

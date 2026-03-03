@@ -170,9 +170,12 @@ async function generateAndUploadDocument(info, type) {
   const fileName = `${type}_${info["Student's Name"]}.pdf`;
   const outputDir = path.join(__dirname, "outputs");
   const outputPath = path.join(outputDir, fileName);
+  let client = null;
 
   try {
-    const { bucket, client } = await getMongoBucket(type);
+    const result = await getMongoBucket(type);
+    const bucket = result.bucket;
+    client = result.client;
 
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
@@ -197,12 +200,10 @@ async function generateAndUploadDocument(info, type) {
       const uploadStream = bucket.openUploadStream(fileName);
       readStream.pipe(uploadStream);
       uploadStream.on("finish", () => {
-        client.close();
         resolve(fileName);
       });
       uploadStream.on("error", (err) => {
         console.error("❌ GridFS Upload Error:", err);
-        client.close();
         reject(err);
       });
     });
@@ -211,6 +212,10 @@ async function generateAndUploadDocument(info, type) {
   } catch (error) {
     console.error("❌ Error generating/uploading document:", error);
     throw new Error("Operation failed");
+  } finally {
+    if (client) {
+      try { client.close(); } catch (e) { /* ignore */ }
+    }
   }
 }
 
@@ -227,7 +232,7 @@ async function fetchImage(type, name, res) {
       return res.status(404).json({ error: "File not found" });
     }
     const downloadStream = bucket.openDownloadStreamByName(fileName);
-    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Type", "application/pdf");
     downloadStream.on("data", () => console.log(`📥 Streaming file: ${fileName}`));
     downloadStream.on("end", () => {
       console.log(`✅ File streaming completed: ${fileName}`);

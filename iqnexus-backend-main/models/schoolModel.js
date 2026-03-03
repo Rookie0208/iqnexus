@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
 const schoolSchema = new mongoose.Schema({
-  schoolCode: Number,
-  schoolName: String,
+  schoolCode: { type: Number, required: true, unique: true, index: true },
+  schoolName: { type: String, index: true },
   schoolEmail: String,
   fax: String,
   area: String,

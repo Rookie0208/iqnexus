@@ -73,6 +73,8 @@ const Home = () => {
       icon: <BookOpen size={24} />,
       color: "bg-purple-600",
       gradient: "from-purple-600 to-purple-400",
+      href: "/studymatview",
+      clickable: true,
     },
   ];
 

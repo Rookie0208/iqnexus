@@ -84,11 +84,9 @@ const UploadBulkStudentData = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await axios.post(`${BASE_URL}/upload-studentData`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      // Don't set Content-Type manually — axios + browser will auto-set
+      // the correct multipart/form-data boundary
+      const response = await axios.post(`${BASE_URL}/upload-studentData`, formData);
 
       console.log(response.data);
 
@@ -125,13 +123,24 @@ const UploadBulkStudentData = () => {
           type: "error",
           message: error.response.data.message,
         });
-      } else {
+      } else if (error.response?.data) {
         setUploadStatus({
           type: "error",
           message:
-            error.response?.data?.error ||
-            error.response?.data?.message ||
+            error.response.data.error ||
+            error.response.data.message ||
             "Failed to upload student data.",
+        });
+      } else if (error.request) {
+        // Network error — no response received
+        setUploadStatus({
+          type: "error",
+          message: "Cannot reach the server. Please make sure the backend is running.",
+        });
+      } else {
+        setUploadStatus({
+          type: "error",
+          message: error.message || "Failed to upload student data.",
         });
       }
     }

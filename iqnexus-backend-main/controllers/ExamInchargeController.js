@@ -26,7 +26,7 @@ export const getExamInchargeById = async (req, res) => {
 
 export const createExamIncharge = async (req, res) => {
   try {
-    if (req.body.schoolCode != undefined || req.body.schoolCode != '') {
+    if (req.body.schoolCode != undefined && req.body.schoolCode != '') {
       const schoolCode = Number(req.body.schoolCode);
 
       const className = req.body.class;
@@ -53,7 +53,6 @@ export const createExamIncharge = async (req, res) => {
         examInchargeEmail: examInchargeEmail,
         examInchargeDob: examInchargeDob,
       });
-      await inchargeModel.save();
     } else {
       if (!req.file) {
         return res.status(400).json({ success: false, message: "No file uploaded" });

@@ -28,14 +28,17 @@ export const getAnswers = async (req, res) => {
     const subjectsToFetch =[]
     try {
         const {rollNo, className,schoolCode } = req.body;
-        console.log("Request body:", req.body);
-            const studentData=await STUDENT_LATEST.findOne({ schoolCode: Number(schoolCode), class: className, rollNo: rollNo });
-            
 
         if ( !rollNo|| !schoolCode || !className) {
             return res.status(400).json({ message: "Missing required query parameters" });
         }
-        console.log("Student data fetched:", studentData);
+
+        const studentData=await STUDENT_LATEST.findOne({ schoolCode: Number(schoolCode), class: className, rollNo: rollNo });
+
+        if (!studentData) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+
         if(studentData.IAOL1 === "1" ) subjectsToFetch.push("IAOL1");
         if(studentData.ITSTL1 === "1") subjectsToFetch.push("ITSTL1");
         if(studentData.IMOL1 === "1" ) subjectsToFetch.push("IMOL1");
@@ -51,7 +54,6 @@ export const getAnswers = async (req, res) => {
         };
         query.class = className;
         const answers = await answersModel.find({ ...query })
-        console.log("Answers fetched:", answers);
 
         if (!answers || answers.length === 0) {
             return res.status(404).json({ message: "Answers List not available" });

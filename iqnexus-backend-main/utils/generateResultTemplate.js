@@ -253,7 +253,7 @@ export function generateResultTemplate() {
     { Instructions: '• Delete the sample rows before uploading' },
     { Instructions: '• Keep only student data with valid roll numbers' },
     { Instructions: '• For ABSENT/DISQUALIFIED students, set all scores to 0' },
-    { Instructions: '• Select correct Exam Level, Subject, Class, and School Code in the upload form' },
+    { Instructions: '• Select Exam Level and Subject in the upload form. Class and School Code are optional — students are matched by Roll Number.' },
   ];
 
   const instructionSheet = xlsx.utils.json_to_sheet(instructionsData);

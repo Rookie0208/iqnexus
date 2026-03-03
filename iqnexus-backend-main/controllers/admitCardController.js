@@ -203,12 +203,13 @@ export const generateAdmitCards = async (req, res) => {
 
 export const fetchAdmitCardByPhone = async (req, res) => {
   const { phone } = req.params;
-  const dbResponse = await dbConnection();
-  if (dbResponse.status !== "success") {
-    return res.status(500).json({ error: "Database connection failed" });
-  }
-
+  let dbResponse;
   try {
+    dbResponse = await dbConnection();
+    if (dbResponse.status !== "success") {
+      return res.status(500).json({ error: "Database connection failed" });
+    }
+
     const admitcard = await dbResponse.conn.db
       .collection("admitCards.files")
       .findOne({ "metadata.mobNo": phone });
@@ -218,6 +219,10 @@ export const fetchAdmitCardByPhone = async (req, res) => {
   } catch (error) {
     console.error("Error fetching admit card:", error);
     res.status(500).json({ error: "Internal server error" });
+  } finally {
+    if (dbResponse?.conn) {
+      try { dbResponse.conn.close(); } catch (e) { /* ignore */ }
+    }
   }
 };
 

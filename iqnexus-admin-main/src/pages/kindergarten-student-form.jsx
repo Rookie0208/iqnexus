@@ -67,7 +67,7 @@ const KinderGartenStudentForm = () => {
                     <option value="">Select</option>
                     <option value="KD">KD</option>
                   </select>
-                  {errors.section && <p className="text-red-500 text-xs mt-1">{errors.section.message}</p>}
+                  {errors.Class && <p className="text-red-500 text-xs mt-1">{errors.Class.message}</p>}
                 </div>
 
                 <div>
@@ -81,7 +81,7 @@ const KinderGartenStudentForm = () => {
                     <option value="UK">UK</option>
                     <option value="PG">PG</option>
                   </select>
-                  {errors.Duplicates && <p className="text-red-500 text-xs mt-1">{errors.section.message}</p>}
+                  {errors.section && <p className="text-red-500 text-xs mt-1">{errors.section.message}</p>}
                 </div>
               </div>
             </div>

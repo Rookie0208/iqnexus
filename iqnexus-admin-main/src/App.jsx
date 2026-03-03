@@ -58,7 +58,7 @@ const App = () => {
             <Route path="/Section-wise" element={<SectionPartList />} />
             <Route path="/Class-wise" element={<Classwiselist />} />
             <Route path="/Feedbackview" element={<FeedbackView />} />
-            <Route path="/UploadResults" element={<Uploadresults />} />
+            <Route path="/uploadresults" element={<Uploadresults />} />
             <Route path="/ViewResults" element={<ViewResults />} />
             <Route path="/ExamManagement" element={<ExamManagement />} />
             <Route path="/StudyMaterial" element={<StudyMaterial />} />
@@ -66,7 +66,7 @@ const App = () => {
             <Route path="/allSchools" element={< AllSchools />} />
             <Route path="/allStudents" element={< AllStudents />} />
             <Route path="/genrate-admit-card" element={< AdmitCard />} />
-            <Route path="/allkindargartenStudents" element={< AllKindergartenStudents />} />
+            <Route path="/allKindergartenStudents" element={< AllKindergartenStudents />} />
             <Route path="/kindargartenStudent" element={< KinderGartenStudentForm />} />
             <Route path="/uploadKindergartenStudentData" element={< UploadBulkKindergartenStudentData />} />
             <Route path="/calendar-year" element={<CalendarYearManagement />} />
@@ -76,6 +76,7 @@ const App = () => {
             <Route path="/ranking-management" element={<RankingManagement />} />
             <Route path="/prize-override" element={<PrizeOverride />} />
           </Route>
+          <Route path="*" element={<div className="flex items-center justify-center min-h-screen"><h1 className="text-2xl font-bold text-gray-600">404 — Page Not Found</h1></div>} />
         </Routes>
       </Router>
     </div>

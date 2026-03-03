@@ -14,7 +14,7 @@ const dataBaseName = process.env.DATABASE_NAME;
 async function databaseConnection() {
   const client = new MongoClient(mongoURI);
   await client.connect();
-  return { conn: client.db(dataBaseName), status: "success" };
+  return { conn: client.db(dataBaseName), client, status: "success" };
 }
 
 async function dbConnection() {

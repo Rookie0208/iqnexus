@@ -325,31 +325,42 @@ export const getSingleStudentResult = async (req, res) => {
     
     for (let i = 1; i <= 5; i++) {
       const section = resultData[`section${i}`];
-      if (section) {
-        const percentage = section.percentage || 
-          (section.correctCount && section.totalCount 
-            ? Math.round((section.correctCount / section.totalCount) * 100) 
-            : 0);
-        const rating = getRating(percentage, config.ratingScale);
-        const wrong = (section.totalCount || 0) - (section.correctCount || 0) - (section.unAttempted || 0);
-        
-        const topicName = topicNamesObj?.[`section${i}`] || `Section ${i}`;
-        console.log(`📝 Section ${i} topic name:`, topicName);
-        
-        topicPerformance.push({
-          sectionNumber: i,
-          topicName: topicName,
-          totalQuestions: section.totalCount || 0,
-          correct: section.correctCount || 0,
-          wrong: wrong > 0 ? wrong : 0,
-          notAttempted: section.unAttempted || 0,
-          marks: section.score || 0,
-          totalMarks: section.totalCount || 0,
-          percentage,
-          rating: rating.label,
-          ratingColor: rating.color,
-        });
+      const topicName = topicNamesObj?.[`section${i}`] || `Section ${i}`;
+      const defaultName = `Section ${i}`;
+      
+      // A section is "configured" if admin gave it a custom topic name (not the default "Section N")
+      const isConfigured = topicName && topicName.trim().toLowerCase() !== defaultName.toLowerCase();
+      const hasData = section && ((section.totalCount > 0) || (section.score > 0) || (section.percentage > 0) || (section.correctCount > 0));
+
+      // Show a section if it has data OR if it's configured with a custom topic name in ResultConfig
+      if (!hasData && !isConfigured) {
+        console.log(`📝 Section ${i} skipped — no data and no custom topic name`);
+        continue;
       }
+
+      const percentage = section?.percentage || 
+        (section?.correctCount && section?.totalCount 
+          ? Math.round((section.correctCount / section.totalCount) * 100) 
+          : 0);
+      const rating = getRating(percentage, config.ratingScale);
+      const wrong = (section?.totalCount || 0) - (section?.correctCount || 0) - (section?.unAttempted || 0);
+      
+      console.log(`📝 Section ${i} topic name:`, topicName, `| percentage: ${percentage}% | rating: ${rating.label}`);
+      
+      topicPerformance.push({
+        sectionNumber: i,
+        topicName: topicName,
+        totalQuestions: section?.totalCount || 0,
+        correct: section?.correctCount || 0,
+        wrong: wrong > 0 ? wrong : 0,
+        notAttempted: section?.unAttempted || 0,
+        marks: section?.score || 0,
+        totalMarks: section?.totalCount || 0,
+        percentage,
+        displayPercentage: `${percentage}%`,
+        rating: rating.label,
+        ratingColor: rating.color,
+      });
     }
 
     // Calculate overall rating

@@ -142,7 +142,7 @@ const LoginPage = () => {
                 Mobile Number
               </label>
               <input
-                type="text"
+                type="tel"
                 placeholder="Enter your mobile number"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}

@@ -85,66 +85,69 @@ export const uploadResult = async (req, res) => {
 
     const { subject, studentClass, schoolCode, examLevel } = req.body;
 
-    if (!subject || !studentClass || !schoolCode) {
-      // Cleanup uploaded file
+    if (!subject) {
       fs.unlinkSync(filePath);
-      return res.status(400).json({ error: "Subject, class, and school code are required" });
+      return res.status(400).json({ error: "Subject is required" });
     }
 
-    // Validate school exists
-    const school = await School.findOne({ schoolCode: Number(schoolCode) });
-    if (!school) {
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
-    }
+    // Determine if class and schoolCode were provided (flexible mode when absent)
+    const hasClassAndSchool = studentClass && schoolCode;
 
     // Map exam code to internal field name (e.g., IQMOL1 -> IMOL1, IQKD1 -> IQKD1)
     const resultKey = examFieldMap[subject] || subject;
-    const isKG = studentClass === "KD";
-    const StudentModel = getStudentModel(studentClass);
 
-    // Validate students exist for this school + class
-    const studentQuery = isKG 
-      ? { schoolCode: Number(schoolCode), class: "KD" }
-      : { schoolCode: Number(schoolCode), class: studentClass };
-    const studentCount = await StudentModel.countDocuments(studentQuery);
-    if (studentCount === 0) {
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ 
-        error: `No ${isKG ? 'kindergarten ' : ''}students found for school ${schoolCode} (${school.schoolName || ''})${isKG ? '' : ` in class ${studentClass}`}. Please upload student data first before uploading results.` 
-      });
-    }
-
-    // Check if admit cards have been generated for this school (skip for KG students)
-    if (!isKG) {
-    try {
-      const db = mongoose.connection.db;
-      const admitCardFiles = db.collection('admitCards.files');
-      const schoolStudents = await STUDENT_LATEST.find({
-        schoolCode: Number(schoolCode),
-        class: studentClass,
-      }).select('studentName _id').limit(3).lean();
-      
-      if (schoolStudents.length > 0) {
-        const sampleStudent = schoolStudents[0];
-        const studentAdmitCard = await admitCardFiles.countDocuments({
-          filename: { $regex: sampleStudent._id.toString() }
-        });
-        if (studentAdmitCard === 0) {
-          fs.unlinkSync(filePath);
-          return res.status(400).json({ 
-            error: `Admit cards have not been generated for students of school ${schoolCode} (${school.schoolName || ''}). Please generate admit cards before uploading results.` 
-          });
-        }
+    // When class & schoolCode are provided, run batch-level pre-validations (original behavior)
+    if (hasClassAndSchool) {
+      const school = await School.findOne({ schoolCode: Number(schoolCode) });
+      if (!school) {
+        fs.unlinkSync(filePath);
+        return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
       }
-    } catch (gridfsErr) {
-      // If GridFS collection doesn't exist yet, no admit cards generated at all
-      console.warn('Could not check admit cards:', gridfsErr.message);
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ 
-        error: `Admit cards have not been generated yet. Please generate admit cards before uploading results.` 
-      });
-    }
+
+      const isKG = studentClass === "KD";
+      const StudentModel = getStudentModel(studentClass);
+
+      // Validate students exist for this school + class
+      const studentQuery = isKG 
+        ? { schoolCode: Number(schoolCode), class: "KD" }
+        : { schoolCode: Number(schoolCode), class: studentClass };
+      const studentCount = await StudentModel.countDocuments(studentQuery);
+      if (studentCount === 0) {
+        fs.unlinkSync(filePath);
+        return res.status(400).json({ 
+          error: `No ${isKG ? 'kindergarten ' : ''}students found for school ${schoolCode} (${school.schoolName || ''})${isKG ? '' : ` in class ${studentClass}`}. Please upload student data first before uploading results.` 
+        });
+      }
+
+      // Check if admit cards have been generated for this school (skip for KG students)
+      if (!isKG) {
+      try {
+        const db = mongoose.connection.db;
+        const admitCardFiles = db.collection('admitCards.files');
+        const schoolStudents = await STUDENT_LATEST.find({
+          schoolCode: Number(schoolCode),
+          class: studentClass,
+        }).select('studentName _id').limit(3).lean();
+        
+        if (schoolStudents.length > 0) {
+          const sampleStudent = schoolStudents[0];
+          const studentAdmitCard = await admitCardFiles.countDocuments({
+            filename: { $regex: sampleStudent._id.toString() }
+          });
+          if (studentAdmitCard === 0) {
+            fs.unlinkSync(filePath);
+            return res.status(400).json({ 
+              error: `Admit cards have not been generated for students of school ${schoolCode} (${school.schoolName || ''}). Please generate admit cards before uploading results.` 
+            });
+          }
+        }
+      } catch (gridfsErr) {
+        console.warn('Could not check admit cards:', gridfsErr.message);
+        // Don't block result upload on GridFS errors - just warn and continue
+      }
+      }
+    } else {
+      console.log(`📊 Flexible mode: class/schoolCode not provided, will lookup each student by rollNo`);
     }
 
     console.log(`📊 Processing ${data.length} result records for ${resultKey}`);
@@ -181,55 +184,71 @@ export const uploadResult = async (req, res) => {
           continue;
         }
 
-        // Parse section-wise data
+        // Helper to read a column with fallback names (handles both "CorrectQCount" and "CorrectCount" variants)
+        const readCol = (row, ...keys) => {
+          for (const key of keys) {
+            if (row[key] !== undefined && row[key] !== null && row[key] !== "") {
+              return Number(row[key]) || 0;
+            }
+          }
+          return 0;
+        };
+
+        // Parse section-wise data (support both "QCount" and "Count" column name variants)
         const section1 = {
-          score: Number(row["S1_Score"]) || 0,
-          percentage: Number(row["S1_Percentage"]) || 0,
-          correctCount: Number(row["S1_CorrectQCount"]) || 0,
-          totalCount: Number(row["S1_TotalQCount"]) || 0,
-          unAttempted: Number(row["S1_UnAttempted"]) || 0,
+          score: readCol(row, "S1_Score"),
+          percentage: readCol(row, "S1_Percentage"),
+          correctCount: readCol(row, "S1_CorrectQCount", "S1_CorrectCount"),
+          totalCount: readCol(row, "S1_TotalQCount", "S1_TotalCount"),
+          unAttempted: readCol(row, "S1_UnAttempted"),
         };
 
         const section2 = {
-          score: Number(row["S2_Score"]) || 0,
-          percentage: Number(row["S2_Percentage"]) || 0,
-          correctCount: Number(row["S2_CorrectQCount"]) || 0,
-          totalCount: Number(row["S2_TotalQCount"]) || 0,
-          unAttempted: Number(row["S2_UnAttempted"]) || 0,
+          score: readCol(row, "S2_Score"),
+          percentage: readCol(row, "S2_Percentage"),
+          correctCount: readCol(row, "S2_CorrectQCount", "S2_CorrectCount"),
+          totalCount: readCol(row, "S2_TotalQCount", "S2_TotalCount"),
+          unAttempted: readCol(row, "S2_UnAttempted"),
         };
 
         const section3 = {
-          score: Number(row["S3_Score"]) || 0,
-          percentage: Number(row["S3_Percentage"]) || 0,
-          correctCount: Number(row["S3_CorrectQCount"]) || 0,
-          totalCount: Number(row["S3_TotalQCount"]) || 0,
-          unAttempted: Number(row["S3_UnAttempted"]) || 0,
+          score: readCol(row, "S3_Score"),
+          percentage: readCol(row, "S3_Percentage"),
+          correctCount: readCol(row, "S3_CorrectQCount", "S3_CorrectCount"),
+          totalCount: readCol(row, "S3_TotalQCount", "S3_TotalCount"),
+          unAttempted: readCol(row, "S3_UnAttempted"),
         };
 
         const section4 = {
-          score: Number(row["S4_Score"]) || 0,
-          percentage: Number(row["S4_Percentage"]) || 0,
-          correctCount: Number(row["S4_CorrectQCount"]) || 0,
-          totalCount: Number(row["S4_TotalQCount"]) || 0,
-          unAttempted: Number(row["S4_UnAttempted"]) || 0,
+          score: readCol(row, "S4_Score"),
+          percentage: readCol(row, "S4_Percentage"),
+          correctCount: readCol(row, "S4_CorrectQCount", "S4_CorrectCount"),
+          totalCount: readCol(row, "S4_TotalQCount", "S4_TotalCount"),
+          unAttempted: readCol(row, "S4_UnAttempted"),
         };
 
         const section5 = {
-          score: Number(row["S5_Score"]) || 0,
-          percentage: Number(row["S5_Percentage"]) || 0,
-          correctCount: Number(row["S5_CorrectQCount"]) || 0,
-          totalCount: Number(row["S5_TotalQCount"]) || 0,
-          unAttempted: Number(row["S5_UnAttempted"]) || 0,
+          score: readCol(row, "S5_Score"),
+          percentage: readCol(row, "S5_Percentage"),
+          correctCount: readCol(row, "S5_CorrectQCount", "S5_CorrectCount"),
+          totalCount: readCol(row, "S5_TotalQCount", "S5_TotalCount"),
+          unAttempted: readCol(row, "S5_UnAttempted"),
         };
 
         const total = {
-          score: Number(row["Total_Score"]) || 0,
-          rank: Number(row["Total_Rank"]) || 0,
-          percentage: Number(row["Total_Percentage"]) || 0,
-          correctCount: Number(row["Total_CorrectQCount"]) || 0,
-          totalCount: Number(row["Total_TotalQCount"]) || 0,
-          unAttempted: Number(row["Total_UnAttempted"]) || 0,
+          score: readCol(row, "Total_Score"),
+          rank: readCol(row, "Total_Rank"),
+          percentage: readCol(row, "Total_Percentage"),
+          correctCount: readCol(row, "Total_CorrectQCount", "Total_CorrectCount"),
+          totalCount: readCol(row, "Total_TotalQCount", "Total_TotalCount"),
+          unAttempted: readCol(row, "Total_UnAttempted"),
         };
+
+        // Validate: log warning if Total_Percentage doesn't match sum of section percentages
+        const computedSumPct = section1.percentage + section2.percentage + section3.percentage + section4.percentage + section5.percentage;
+        if (total.percentage > 0 && computedSumPct > 0 && Math.abs(total.percentage - computedSumPct) > 1) {
+          console.warn(`⚠️ Roll ${rollNo}: Total_Percentage (${total.percentage}) differs from sum of section percentages (${computedSumPct})`);
+        }
 
         // Determine pass/fail based on attendance and qualifying percentage
         let passOrFail = "FAIL";
@@ -239,27 +258,62 @@ export const uploadResult = async (req, res) => {
           passOrFail = attendance;
         }
 
-        // Update student record (use appropriate model for KG vs regular)
-        const findQuery = isKG
-          ? { rollNo: rollNo, class: "KD", schoolCode: Number(schoolCode) }
-          : { rollNo: rollNo, class: studentClass, schoolCode: Number(schoolCode) };
-        
-        const updateResult = await StudentModel.findOneAndUpdate(
-          findQuery,
-          {
-            $set: {
-              [`result.${resultKey}.attendance`]: attendance,
-              [`result.${resultKey}.section1`]: section1,
-              [`result.${resultKey}.section2`]: section2,
-              [`result.${resultKey}.section3`]: section3,
-              [`result.${resultKey}.section4`]: section4,
-              [`result.${resultKey}.section5`]: section5,
-              [`result.${resultKey}.total`]: total,
-              [`result.${resultKey}.passOrFail`]: passOrFail,
+        // Update student record
+        let updateResult = null;
+
+        if (hasClassAndSchool) {
+          // Original mode: use form-provided class & schoolCode
+          const isKG = studentClass === "KD";
+          const StudentModel = getStudentModel(studentClass);
+          const findQuery = isKG
+            ? { rollNo: rollNo, class: "KD", schoolCode: Number(schoolCode) }
+            : { rollNo: rollNo, class: studentClass, schoolCode: Number(schoolCode) };
+          
+          updateResult = await StudentModel.findOneAndUpdate(
+            findQuery,
+            {
+              $set: {
+                [`result.${resultKey}.attendance`]: attendance,
+                [`result.${resultKey}.section1`]: section1,
+                [`result.${resultKey}.section2`]: section2,
+                [`result.${resultKey}.section3`]: section3,
+                [`result.${resultKey}.section4`]: section4,
+                [`result.${resultKey}.section5`]: section5,
+                [`result.${resultKey}.total`]: total,
+                [`result.${resultKey}.passOrFail`]: passOrFail,
+              },
             },
-          },
-          { new: true }
-        );
+            { new: true }
+          );
+        } else {
+          // Flexible mode: lookup by rollNo alone, try regular students first then KG
+          let student = await STUDENT_LATEST.findOne({ rollNo }).lean();
+          let model = STUDENT_LATEST;
+
+          if (!student) {
+            student = await KINDERGARTEN_STUDENT.findOne({ rollNo }).lean();
+            model = KINDERGARTEN_STUDENT;
+          }
+
+          if (student) {
+            updateResult = await model.findOneAndUpdate(
+              { rollNo },
+              {
+                $set: {
+                  [`result.${resultKey}.attendance`]: attendance,
+                  [`result.${resultKey}.section1`]: section1,
+                  [`result.${resultKey}.section2`]: section2,
+                  [`result.${resultKey}.section3`]: section3,
+                  [`result.${resultKey}.section4`]: section4,
+                  [`result.${resultKey}.section5`]: section5,
+                  [`result.${resultKey}.total`]: total,
+                  [`result.${resultKey}.passOrFail`]: passOrFail,
+                },
+              },
+              { new: true }
+            );
+          }
+        }
 
         if (updateResult) {
           successCount++;

@@ -81,6 +81,12 @@ export const setCurrentCalendarYear = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Verify the target exists before modifying anything
+    const target = await CalendarYear.findById(id);
+    if (!target) {
+      return res.status(404).json({ message: "Calendar year not found" });
+    }
+
     // Unset all current flags
     await CalendarYear.updateMany({}, { $set: { isCurrent: false } });
 
@@ -90,10 +96,6 @@ export const setCurrentCalendarYear = async (req, res) => {
       { $set: { isCurrent: true } },
       { new: true }
     );
-
-    if (!updated) {
-      return res.status(404).json({ message: "Calendar year not found" });
-    }
 
     return res.status(200).json({
       success: true,

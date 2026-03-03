@@ -183,7 +183,7 @@ export const generateResultCardPDF = async (resultData, studentData) => {
       y += 3;
 
       const sectionHead = [
-        ["Section", "Score", "%", "Correct", "Total Q", "Unattempted"],
+        ["Section", "Percentage", "Score", "Correct", "Total Q", "Unattempted"],
       ];
       const sectionBody = [];
       let totalScore = 0;
@@ -196,8 +196,8 @@ export const generateResultCardPDF = async (resultData, studentData) => {
         if (sec) {
           sectionBody.push([
             `Section ${num}`,
-            String(sec.score || 0),
             `${sec.percentage || 0}%`,
+            String(sec.score || 0),
             String(sec.correctCount || 0),
             String(sec.totalCount || 0),
             String(sec.unAttempted || 0),
@@ -212,8 +212,8 @@ export const generateResultCardPDF = async (resultData, studentData) => {
       // Grand total row
       sectionBody.push([
         "TOTAL",
-        String(totalScore),
         `${percentage}%`,
+        String(totalScore),
         String(totalCorrect),
         String(totalQuestions),
         String(totalUnattempted),

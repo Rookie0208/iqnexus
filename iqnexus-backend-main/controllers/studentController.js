@@ -99,7 +99,7 @@ export const getStudentsWithoutPagination = async (req, res) => {
     return res.status(200).json({ success: true, data, totalStudents });
   } catch (error) {
     console.error("❌ Error fetching students:", error);
-    res.status(500).json({ message: "Error fetching students", error });
+    res.status(500).json({ message: "Error fetching students", error: error.message });
   }
 };
 
@@ -166,7 +166,7 @@ export const addStudent = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error adding student:", error);
-    res.status(500).json({ message: "Error adding student", error });
+    res.status(500).json({ message: "Error adding student", error: error.message });
   }
 };
 
@@ -232,7 +232,7 @@ export const getDashboardAnalytics = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error fetching analytics:", error);
-    res.status(500).json({ message: "Error fetching dashboard analytics", error });
+    res.status(500).json({ message: "Error fetching dashboard analytics", error: error.message });
   }
 };
 
@@ -251,7 +251,7 @@ export const getAllStudents = async (req, res) => {
       .json({ allStudents, totalPages, totalStudents, success: true });
   } catch (error) {
     console.error("❌ Error fetching all students:", error);
-    res.status(500).json({ message: "Error fetching all students", error });
+    res.status(500).json({ message: "Error fetching all students", error: error.message });
   }
 };
 
@@ -298,8 +298,7 @@ export const getAttendanceStudents = async (req, res) => {
   
       // Fetch students
       const students = await STUDENT_LATEST.find(query);
-      console.log("Fetched students:", students);
-      return res.status(200).json({ student: students, school });
+    return res.status(200).json({ student: students, school });
     } catch (err) {
       res.status(500).json({ message: 'Server error', error: err.message });
     }

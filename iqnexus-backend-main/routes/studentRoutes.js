@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import {
   getAttendanceStudents,
   getStudentByMobile,
@@ -14,7 +15,8 @@ import { getFeedback } from "../controllers/feedbackController.js";
 import { uploadStudentBulk } from "../controllers/uploadStudentController.js";
 
 const router = express.Router();
-router.post('/upload-studentData' ,uploadStudentBulk)
+const upload = multer({ dest: "uploads/" });
+router.post('/upload-studentData', upload.single('file'), uploadStudentBulk)
 router.get("/get-student", getStudentByMobile);
 router.get("/all-students", getAllStudents);
 router.post("/allStudents", getAttendanceStudents)

@@ -86,7 +86,16 @@ const Uploadresults = () => {
     // Validate school + students exist when schoolCode and class are set
     useEffect(() => {
         const validateSchoolAndStudents = async () => {
-            if (!schoolCode || (!studentClass && examLevel !== "KG")) {
+            // Only validate when both schoolCode and class are provided
+            if (!schoolCode && (!studentClass || examLevel === "KG")) {
+                setValidationStatus(null);
+                return;
+            }
+            if (!schoolCode) {
+                setValidationStatus(null);
+                return;
+            }
+            if (!studentClass && examLevel !== "KG") {
                 setValidationStatus(null);
                 return;
             }
@@ -251,10 +260,11 @@ const Uploadresults = () => {
         const isKG = examLevel === "KG";
         const effectiveClass = isKG ? "KD" : studentClass;
         
-        if (!file || !subject || (!effectiveClass) || !schoolCode || !examLevel) {
+        // Only file, subject, and examLevel are required now
+        if (!file || !subject || !examLevel) {
             setUploadStatus({
                 type: "error",
-                message: "Please fill all fields and select a file.",
+                message: "Please select Exam Level, Subject, and a file.",
             });
             return;
         }
@@ -266,9 +276,10 @@ const Uploadresults = () => {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("subject", subject);
-            formData.append("studentClass", effectiveClass);
-            formData.append("schoolCode", schoolCode);
             formData.append("examLevel", examLevel);
+            // Only include class and schoolCode if provided (they're optional)
+            if (effectiveClass) formData.append("studentClass", effectiveClass);
+            if (schoolCode) formData.append("schoolCode", schoolCode);
 
             const response = await axios.post(
                 `${BASE_URL}/upload-result`,
@@ -360,27 +371,33 @@ const Uploadresults = () => {
                                     Kindergarten (KD) — LKG / UKG / PG
                                 </div>
                             ) : (
+                            <div>
                             <select
                                 value={studentClass}
                                 onChange={(e) => setStudentClass(e.target.value)}
                                 className="w-full border rounded-lg px-3 py-2"
                             >
-                                <option value="">Select Class</option>
+                                <option value="">Select Class (Optional)</option>
                                 {classOptions.map((cls) => (
                                     <option key={cls} value={cls}>
                                         {cls}
                                     </option>
                                 ))}
                             </select>
+                            <p className="text-xs text-gray-400 mt-1">Optional — auto-detected from Roll Number</p>
+                            </div>
                             )}
+                            <div>
                             <input
                                 type="number"
-                                placeholder="School Code"
+                                placeholder="School Code (Optional)"
                                 value={schoolCode}
                                 onChange={(e) => setSchoolCode(e.target.value.replace(/\D/, ""))}
                                 className="w-full border rounded-lg px-3 py-2"
                                 min="0"
                             />
+                            <p className="text-xs text-gray-400 mt-1">Optional — students matched by Roll Number</p>
+                            </div>
 
                             {/* Validation Status */}
                             {isValidating && (
@@ -448,8 +465,6 @@ const Uploadresults = () => {
                             disabled={
                                 !file ||
                                 !subject ||
-                                (!studentClass && examLevel !== "KG") ||
-                                !schoolCode ||
                                 !examLevel ||
                                 uploadStatus?.type === "loading" ||
                                 isValidating ||

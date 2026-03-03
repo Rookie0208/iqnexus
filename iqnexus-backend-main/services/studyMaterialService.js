@@ -1,12 +1,6 @@
 import mongoose from "mongoose";
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
 import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB Connected");
-  })
-  .catch((err) => console.error("MongoDB Connection Error:", err));
 
 const studyMaterialSchema = new mongoose.Schema({
   id: Number,

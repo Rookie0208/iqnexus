@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const asnswerSchema = new mongoose.Schema({
+const answerSchema = new mongoose.Schema({
     examLevel: {
         type: String,
         required: true
@@ -19,4 +19,4 @@ const asnswerSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
-export const answersModel= mongoose.model('Question', asnswerSchema);
+export const answersModel= mongoose.model('Question', answerSchema);

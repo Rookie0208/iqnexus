@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import {
   getAllSchools,
   getAllSchoolsNoPagination,
@@ -12,6 +13,7 @@ import {
 } from "../controllers/schoolController.js";
 
 const router = express.Router();
+const upload = multer({ dest: "uploads/" });
 
 router.get("/all-schools", getAllSchools);
 router.get("/all-schools-no-pagination", getAllSchoolsNoPagination);
@@ -21,6 +23,6 @@ router.post("/add-school", addSchool);
 router.put("/school", updateSchool);
 router.delete("/school/:schoolCode", deleteSchool);
 router.post("/all-schools", fetchSchoolsByExamLevel);
-router.post("/upload-schooldata", uploadSchoolData);
+router.post("/upload-schooldata", upload.single("file"), uploadSchoolData);
 
 export default router;

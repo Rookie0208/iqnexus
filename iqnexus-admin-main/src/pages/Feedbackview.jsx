@@ -72,7 +72,7 @@ const FeedbackView = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="px-6 py-4 text-center text-gray-500 border border-gray-300">
+                <td colSpan="7" className="px-6 py-4 text-center text-gray-500 border border-gray-300">
                   Loading...
                 </td>
               </tr>
@@ -129,7 +129,7 @@ const FeedbackView = () => {
               })
             ) : (
               <tr>
-                <td colSpan="6" className="px-6 py-4 text-center text-gray-500 border border-gray-300">
+                <td colSpan="7" className="px-6 py-4 text-center text-gray-500 border border-gray-300">
                   No feedbacks found
                 </td>
               </tr>

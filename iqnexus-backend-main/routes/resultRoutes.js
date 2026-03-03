@@ -1,6 +1,9 @@
 import express from 'express';
+import multer from 'multer';
 import xlsx from 'xlsx';
 import { uploadResult, uploadResultSimple, getResult, getAllResults, getSchoolsForFilter, exportResultsToExcel } from '../controllers/resultController.js';
+
+const upload = multer({ dest: 'uploads/' });
 import { 
   getResultConfig, 
   updateResultConfig, 
@@ -16,11 +19,11 @@ import generateResultTemplate from '../utils/generateResultTemplate.js';
 const router = express.Router();
 
 // Detailed result upload with section-wise breakdown (new format)
-router.post('/upload-result', uploadResult);
-router.post('/uploadResult', uploadResult); // Backward compatible route
+router.post('/upload-result', upload.single('file'), uploadResult);
+router.post('/uploadResult', upload.single('file'), uploadResult); // Backward compatible route
 
 // Simple result upload (backward compatible - old format)
-router.post('/upload-result-simple', uploadResultSimple);
+router.post('/upload-result-simple', upload.single('file'), uploadResultSimple);
 
 // Download result template (Classes 1-12)
 router.get('/download-result-template', (req, res) => {

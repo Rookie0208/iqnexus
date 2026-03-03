@@ -18,8 +18,6 @@ const kgExamMapping = {
 export const getParticipationFilteredList = async (req, res) => {
   const { schoolCode, classes, sections, exam, examLevel } = req.body;
 
-  console.log("Request body:", req.body);
-
   try {
     // Find school
     const school = await School.findOne({ schoolCode }) || {};

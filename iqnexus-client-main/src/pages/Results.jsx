@@ -267,14 +267,16 @@ const Results = () => {
           pdf.line(margin, y, pageWidth - margin, y);
           y += 2;
 
-          const topicHead = [["TOPIC", "RATING", "AI CHART"]];
+          const topicHead = [["TOPIC", "PERCENTAGE", "RATING", "AI CHART"]];
           const topicBody = topicPerformance.map((topic, i) => [
             `${i + 1}. ${(topic.topicName || `SECTION ${i + 1}`).toUpperCase()}`,
+            topic.displayPercentage || `${topic.percentage || 0}%`,
             topic.rating || "N/A",
             getAIChartRange(topic.percentage || 0),
           ]);
           topicBody.push([
             "TOTAL",
+            `${resultData.percentage?.toFixed(1) || 0}%`,
             result.overallRating || "N/A",
             getAIChartRange(resultData.percentage || 0),
           ]);
@@ -295,12 +297,13 @@ const Results = () => {
             styles: { fontSize: 8, cellPadding: 2.5, lineColor: [44, 82, 130], lineWidth: 0.2, valign: "middle" },
             headStyles: { fillColor: [26, 54, 93], textColor: [255, 255, 255], fontStyle: "bold" },
             columnStyles: {
-              0: { cellWidth: 90, fontStyle: "bold" },
-              1: { halign: "center", cellWidth: 35 },
-              2: { halign: "center", cellWidth: 35, textColor: [100, 100, 100] },
+              0: { cellWidth: 70, fontStyle: "bold" },
+              1: { halign: "center", cellWidth: 30, fontStyle: "bold" },
+              2: { halign: "center", cellWidth: 30 },
+              3: { halign: "center", cellWidth: 30, textColor: [100, 100, 100] },
             },
             didParseCell: (data) => {
-              if (data.section === "body" && data.column.index === 1) {
+              if (data.section === "body" && data.column.index === 2) {
                 const rating = data.cell.raw;
                 if (ratingColors[rating]) {
                   data.cell.styles.textColor = ratingColors[rating];
@@ -589,6 +592,7 @@ const Results = () => {
                     <thead>
                       <tr className="bg-gray-200">
                         <th className="border border-black px-2 py-2 text-left font-bold">TOPIC</th>
+                        <th className="border border-black px-2 py-2 text-center font-bold">PERCENTAGE</th>
                         <th className="border border-black px-2 py-2 text-center font-bold">RATING</th>
                         <th className="border border-black px-2 py-2 text-center font-bold">AI CHART</th>
                       </tr>
@@ -598,6 +602,9 @@ const Results = () => {
                         <tr key={index}>
                           <td className="border border-black px-2 py-2 font-medium">
                             {index + 1}. {topic.topicName?.toUpperCase() || `SECTION ${index + 1}`}
+                          </td>
+                          <td className="border border-black px-2 py-2 text-center font-bold">
+                            {topic.displayPercentage || `${topic.percentage || 0}%`}
                           </td>
                           <td className={`border border-black px-2 py-2 text-center font-bold ${getRatingTextColor(topic.rating)}`}>
                             {topic.rating}
@@ -610,6 +617,9 @@ const Results = () => {
                       {/* Total Row */}
                       <tr className="bg-gray-100 font-bold">
                         <td className="border border-black px-2 py-2">TOTAL</td>
+                        <td className="border border-black px-2 py-2 text-center">
+                          {resultData.percentage?.toFixed(1) || 0}%
+                        </td>
                         <td className={`border border-black px-2 py-2 text-center ${getRatingTextColor(result.overallRating)}`}>
                           {result.overallRating || 'N/A'}
                         </td>

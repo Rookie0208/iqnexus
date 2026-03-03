@@ -1,17 +1,16 @@
 import axios from "axios";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { BASE_API_URL } from "../Api";
 
 const Feedback = () => {
   const studentData = localStorage.getItem("student_data");
+  const parsedStudent = studentData ? JSON.parse(studentData) : {};
   const [formData, setFormData] = useState({
     category: "complaint",
     message: "",
     status: "pending",
   });
-  const [student, setStudent] = useState({ rollNo: JSON.parse(studentData)["Roll No"], mobNo: JSON.parse(studentData)["Mob No"] });
-  const [loading, setLoading] = useState(true);
-console.log("studentData", student);
+  const [student] = useState({ rollNo: parsedStudent["Roll No"] || "", mobNo: parsedStudent["Mob No"] || "" });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -19,14 +18,25 @@ console.log("studentData", student);
 
   const handleSubmit = async(e) => {
     e.preventDefault();
-    const result= await  
-    axios.post(`${BASE_API_URL}/storeFeedback`,{ rollNo:JSON.parse(studentData)["Roll No"], category:formData.category, message: formData.message, status: formData.status, 
-      mobileNo: JSON.parse(studentData)["Mob No"] })
-      if(result.data.success){alert("🎉 Feedback submitted successfully!");}
-      else{alert("❌ Failed to submit feedback. Please try again later.");}
-    e.preventDefault();
+    try {
+      const result = await axios.post(`${BASE_API_URL}/storeFeedback`, {
+        rollNo: student.rollNo,
+        category: formData.category,
+        message: formData.message,
+        status: formData.status,
+        mobileNo: student.mobNo,
+      });
+      if (result.data.success) {
+        alert("Feedback submitted successfully!");
+      } else {
+        alert("Failed to submit feedback. Please try again later.");
+      }
+    } catch (error) {
+      console.error("Feedback submission error:", error);
+      alert("Failed to submit feedback. Please try again later.");
+    }
     
-    setFormData({ category: "complaint",rollNo: student.rollNo, mobNo: student.mobNo, message: "", status: "pending" });
+    setFormData({ category: "complaint", message: "", status: "pending" });
   };
 
 

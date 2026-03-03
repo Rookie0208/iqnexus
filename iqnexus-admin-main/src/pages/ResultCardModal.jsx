@@ -321,9 +321,11 @@ const ResultCardModal = ({ isOpen, onClose, result, config }) => {
                 <thead>
                   <tr className="bg-gray-200">
                     <th className="border border-black px-2 py-2 text-left font-bold">TOPIC</th>
+                    <th className="border border-black px-2 py-2 text-center font-bold">PERCENTAGE</th>
                     {showDetailedView && (
                       <>
-                        <th className="border border-black px-2 py-2 text-center font-bold">TOTAL</th>
+                        <th className="border border-black px-2 py-2 text-center font-bold">SCORE</th>
+                        <th className="border border-black px-2 py-2 text-center font-bold">TOTAL Q</th>
                         <th className="border border-black px-2 py-2 text-center font-bold">CORRECT</th>
                         <th className="border border-black px-2 py-2 text-center font-bold">WRONG</th>
                         <th className="border border-black px-2 py-2 text-center font-bold">N/A</th>
@@ -339,8 +341,12 @@ const ResultCardModal = ({ isOpen, onClose, result, config }) => {
                       <td className="border border-black px-2 py-2 font-medium">
                         {index + 1}. {topic.topicName?.toUpperCase() || `SECTION ${index + 1}`}
                       </td>
+                      <td className="border border-black px-2 py-2 text-center font-bold">
+                        {topic.displayPercentage || `${topic.percentage || 0}%`}
+                      </td>
                       {showDetailedView && (
                         <>
+                          <td className="border border-black px-2 py-2 text-center">{topic.marks || 0}</td>
                           <td className="border border-black px-2 py-2 text-center">{topic.totalQuestions}</td>
                           <td className="border border-black px-2 py-2 text-center">{topic.correct}</td>
                           <td className="border border-black px-2 py-2 text-center">{topic.wrong}</td>
@@ -358,8 +364,14 @@ const ResultCardModal = ({ isOpen, onClose, result, config }) => {
                   {/* Total Row */}
                   <tr className="bg-gray-100 font-bold">
                     <td className="border border-black px-2 py-2">TOTAL</td>
+                    <td className="border border-black px-2 py-2 text-center">
+                      {resultData.percentage?.toFixed(1) || 0}%
+                    </td>
                     {showDetailedView && (
                       <>
+                        <td className="border border-black px-2 py-2 text-center">
+                          {topicPerformance.reduce((sum, t) => sum + (t.marks || 0), 0)}
+                        </td>
                         <td className="border border-black px-2 py-2 text-center">
                           {topicPerformance.reduce((sum, t) => sum + (t.totalQuestions || 0), 0)}
                         </td>

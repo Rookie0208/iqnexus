@@ -2,8 +2,7 @@ import { feedbackModel } from "../models/feedbackModel.js";
 
 export async function storeFeedBack(req, res) {
     try {
-        // Assuming you have a Feedback model imported
-        // and your schema fields are: name, email, message, rating
+        // Schema fields: rollNo, category, message, status, mobileNo
         const { rollNo, category, message, status,mobileNo } = req.body;
 
         const feedback = new feedbackModel({

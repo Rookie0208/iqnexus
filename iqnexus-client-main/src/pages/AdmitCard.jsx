@@ -17,7 +17,10 @@ const AdmitCard = () => {
       setLoading(true);
       const levelMap = { "L1": "basic", "L2": "advanced" };
       const level = levelMap[selectedLevel] || "basic";
-      const session = "2024-25";
+      // Compute session dynamically: Apr-Dec = current year, Jan-Mar = previous year
+      const now = new Date();
+      const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+      const session = `${year}-${String(year + 1).slice(-2)}`;
 
       const response = await axios.post(
         `${BASE_API_URL}/fetch-admit-card`,

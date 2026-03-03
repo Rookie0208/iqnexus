@@ -27,6 +27,8 @@ const adminSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
     },
+}, {
+    timestamps: true,
 });
 
 const Admin = mongoose.models.Admin || mongoose.model("Admin", adminSchema, "admin-db");
