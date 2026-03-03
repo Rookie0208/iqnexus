@@ -77,7 +77,60 @@ const ResultConfigSchema = new mongoose.Schema({
       bad: { min: 0, max: 44, color: "#ef4444", label: "BAD" },
     }
   },
-  
+
+  // ===== QUALIFICATION SETTINGS =====
+  // Configurable qualifying percentage (admin can change anytime)
+  qualifyingPercentage: {
+    type: Number,
+    default: 40,
+    min: 0,
+    max: 100,
+  },
+
+  // ===== RESULT WORKFLOW STATUS =====
+  // Draft → Review → Approved → Locked & Published
+  resultStatus: {
+    type: String,
+    enum: ["draft", "review", "approved", "locked"],
+    default: "draft",
+  },
+
+  // Who moved the result to each status
+  statusHistory: [{
+    status: { type: String, enum: ["draft", "review", "approved", "locked", "unlocked"] },
+    changedBy: { type: String }, // admin email or ID
+    changedByRole: { type: String }, // "admin" or "superadmin"
+    changedAt: { type: Date, default: Date.now },
+    note: { type: String, default: "" },
+  }],
+
+  // Whether the result is locked (only super admin can unlock)
+  isLocked: {
+    type: Boolean,
+    default: false,
+  },
+
+  lockedAt: {
+    type: Date,
+    default: null,
+  },
+
+  lockedBy: {
+    type: String,
+    default: null,
+  },
+
+  // Who approved the result
+  approvedAt: {
+    type: Date,
+    default: null,
+  },
+
+  approvedBy: {
+    type: String,
+    default: null,
+  },
+
 }, { timestamps: true });
 
 // Compound unique index

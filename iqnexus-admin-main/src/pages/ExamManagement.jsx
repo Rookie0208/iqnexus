@@ -55,19 +55,40 @@ const ExamManagement = () => {
 
   const [newExam, setNewExam] = useState(defaultExam);
 
-  // Predefined exam options
-  const examOptions = [
-    { value: "IQMOL1", label: "IQMO Level 1 (Mathematics)", name: "Mathematics Olympiad L1" },
-    { value: "IQMOL2", label: "IQMO Level 2 (Mathematics)", name: "Mathematics Olympiad L2" },
-    { value: "IQROL1", label: "IQRO Level 1 (Reasoning)", name: "Reasoning Olympiad L1" },
-    { value: "IQROL2", label: "IQRO Level 2 (Reasoning)", name: "Reasoning Olympiad L2" },
-    { value: "IQSOL1", label: "IQSO Level 1 (Science)", name: "Science Olympiad L1" },
-    { value: "IQSOL2", label: "IQSO Level 2 (Science)", name: "Science Olympiad L2" },
-    { value: "IQEOL1", label: "IQEO Level 1 (English)", name: "English Olympiad L1" },
-    { value: "IQEOL2", label: "IQEO Level 2 (English)", name: "English Olympiad L2" },
-    { value: "IQGKOL1", label: "IQGKO Level 1 (GK)", name: "GK Olympiad L1" },
-    { value: "IQGKOL2", label: "IQGKO Level 2 (GK)", name: "GK Olympiad L2" },
-  ];
+  // Dynamic exam options from Subject Management API
+  const [examOptions, setExamOptions] = useState([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/subjects`);
+        if (res.data.success && res.data.subjects) {
+          setExamOptions(res.data.subjects.map(s => ({
+            value: s.code,
+            label: s.label || `${s.code} - ${s.name}`,
+            name: s.name
+          })));
+        }
+      } catch (err) {
+        // Fallback to hardcoded options if API fails
+        setExamOptions([
+          { value: "IQMOL1", label: "IQMO Level 1 (Mathematics)", name: "Mathematics Olympiad L1" },
+          { value: "IQMOL2", label: "IQMO Level 2 (Mathematics)", name: "Mathematics Olympiad L2" },
+          { value: "IQROL1", label: "IQRO Level 1 (Reasoning)", name: "Reasoning Olympiad L1" },
+          { value: "IQROL2", label: "IQRO Level 2 (Reasoning)", name: "Reasoning Olympiad L2" },
+          { value: "IQSOL1", label: "IQSO Level 1 (Science)", name: "Science Olympiad L1" },
+          { value: "IQSOL2", label: "IQSO Level 2 (Science)", name: "Science Olympiad L2" },
+          { value: "IQEOL1", label: "IQEO Level 1 (English)", name: "English Olympiad L1" },
+          { value: "IQEOL2", label: "IQEO Level 2 (English)", name: "English Olympiad L2" },
+          { value: "IQGKOL1", label: "IQGKO Level 1 (GK)", name: "GK Olympiad L1" },
+          { value: "IQGKOL2", label: "IQGKO Level 2 (GK)", name: "GK Olympiad L2" },
+          { value: "IQKD1", label: "IQKD1 - Kindergarten Exam 1", name: "Kindergarten Exam 1" },
+          { value: "IQKD2", label: "IQKD2 - Kindergarten Exam 2", name: "Kindergarten Exam 2" },
+        ]);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   // Fetch all exam configs
   const fetchExams = async () => {
@@ -266,7 +287,7 @@ const ExamManagement = () => {
                         </h3>
                         <p className="text-sm text-gray-500">
                           {getTopicCount(exam.topicNames)} topics configured • 
-                          Class: {exam.classLevel === "all" ? "All Classes" : `Class ${exam.classLevel}`} • 
+                          Class: {exam.classLevel === "all" ? "All Classes" : exam.classLevel === "KD" ? "Kindergarten" : `Class ${exam.classLevel}`} • 
                           {exam.isPublished ? (
                             <span className="text-green-600"> Published</span>
                           ) : (
@@ -472,6 +493,7 @@ const ExamManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="all">All Classes (Universal Config)</option>
+                    <option value="KD">Kindergarten (KD)</option>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(c => (
                       <option key={c} value={String(c)}>Class {c}</option>
                     ))}

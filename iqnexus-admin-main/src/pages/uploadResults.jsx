@@ -14,6 +14,7 @@ import { BASE_URL } from "../Api";
 const examLevelOptions = [
     { value: "L1", label: "Basic" },
     { value: "L2", label: "Advance" },
+    { value: "KG", label: "Kindergarten" },
 ];
 
 const classOptions = [
@@ -34,6 +35,10 @@ const qualifiedlist = {
         { value: "IQSOL2", label: "IQSOL2 - Science Olympiad" },
         { value: "IQEOL2", label: "IQEOL2 - English Olympiad" },
         { value: "IQROL2", label: "IQROL2 - Reasoning Olympiad" },
+    ],
+    KG: [
+        { value: "IQKD1", label: "IQKD1 - Kindergarten Exam 1" },
+        { value: "IQKD2", label: "IQKD2 - Kindergarten Exam 2" },
     ],
 };
 
@@ -81,7 +86,7 @@ const Uploadresults = () => {
     // Validate school + students exist when schoolCode and class are set
     useEffect(() => {
         const validateSchoolAndStudents = async () => {
-            if (!schoolCode || !studentClass) {
+            if (!schoolCode || (!studentClass && examLevel !== "KG")) {
                 setValidationStatus(null);
                 return;
             }
@@ -101,23 +106,43 @@ const Uploadresults = () => {
 
                 const schoolName = schoolRes.data.school.schoolName || '';
 
-                // Check students exist for this school + class
-                const studentRes = await axios.post(`${BASE_URL}/all-students-no-pagination`, {
-                    schoolCode,
-                    className: [studentClass],
-                });
-                const studentCount = studentRes.data?.totalStudents || 0;
-                
-                if (studentCount === 0) {
-                    setValidationStatus({
-                        type: "error",
-                        message: `No students found for ${schoolName} (${schoolCode}) in class ${studentClass}. Upload student data first.`
+                if (examLevel === "KG") {
+                    // Check KG students exist for this school
+                    const kgRes = await axios.post(`${BASE_URL}/kindergarten-students`, {
+                        schoolCode,
                     });
+                    const kgCount = kgRes.data?.totalStudents || kgRes.data?.data?.length || 0;
+                    
+                    if (kgCount === 0) {
+                        setValidationStatus({
+                            type: "error",
+                            message: `No kindergarten students found for ${schoolName} (${schoolCode}). Upload KG student data first.`
+                        });
+                    } else {
+                        setValidationStatus({
+                            type: "success",
+                            message: `✓ ${kgCount} kindergarten students found for ${schoolName} (${schoolCode})`
+                        });
+                    }
                 } else {
-                    setValidationStatus({
-                        type: "success",
-                        message: `✓ ${studentCount} students found for ${schoolName} (${schoolCode}), class ${studentClass}`
+                    // Check regular students exist for this school + class
+                    const studentRes = await axios.post(`${BASE_URL}/all-students-no-pagination`, {
+                        schoolCode,
+                        className: [studentClass],
                     });
+                    const studentCount = studentRes.data?.totalStudents || 0;
+                    
+                    if (studentCount === 0) {
+                        setValidationStatus({
+                            type: "error",
+                            message: `No students found for ${schoolName} (${schoolCode}) in class ${studentClass}. Upload student data first.`
+                        });
+                    } else {
+                        setValidationStatus({
+                            type: "success",
+                            message: `✓ ${studentCount} students found for ${schoolName} (${schoolCode}), class ${studentClass}`
+                        });
+                    }
                 }
             } catch (error) {
                 setValidationStatus({
@@ -132,7 +157,7 @@ const Uploadresults = () => {
         // Debounce to avoid too many requests
         const timer = setTimeout(validateSchoolAndStudents, 500);
         return () => clearTimeout(timer);
-    }, [schoolCode, studentClass]);
+    }, [schoolCode, studentClass, examLevel]);
 
     // Get topic count from config
     const getTopicCount = () => {
@@ -223,7 +248,10 @@ const Uploadresults = () => {
     };
 
     const handleUpload = async () => {
-        if (!file || !subject || !studentClass || !schoolCode || !examLevel) {
+        const isKG = examLevel === "KG";
+        const effectiveClass = isKG ? "KD" : studentClass;
+        
+        if (!file || !subject || (!effectiveClass) || !schoolCode || !examLevel) {
             setUploadStatus({
                 type: "error",
                 message: "Please fill all fields and select a file.",
@@ -238,7 +266,7 @@ const Uploadresults = () => {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("subject", subject);
-            formData.append("studentClass", studentClass);
+            formData.append("studentClass", effectiveClass);
             formData.append("schoolCode", schoolCode);
             formData.append("examLevel", examLevel);
 
@@ -286,7 +314,7 @@ const Uploadresults = () => {
                         Bulk Result Upload
                     </h1>
                     <p className="text-gray-600">
-                        Upload student results for Classes 1-12 using the official template.
+                        Upload student results for Classes 1-12 and Kindergarten using the official template.
                     </p>
                 </div>
 
@@ -299,6 +327,11 @@ const Uploadresults = () => {
                                 onChange={(e) => {
                                     setExamLevel(e.target.value);
                                     setSubject(""); // Reset subject when exam level changes
+                                    if (e.target.value === "KG") {
+                                        setStudentClass("KD"); // Auto-set class for KG
+                                    } else {
+                                        setStudentClass(""); // Reset class for non-KG
+                                    }
                                 }}
                                 className="w-full border rounded-lg px-3 py-2"
                             >
@@ -322,6 +355,11 @@ const Uploadresults = () => {
                                     </option>
                                 ))}
                             </select>
+                            {examLevel === "KG" ? (
+                                <div className="w-full border rounded-lg px-3 py-2 bg-gray-50 text-gray-700">
+                                    Kindergarten (KD) — LKG / UKG / PG
+                                </div>
+                            ) : (
                             <select
                                 value={studentClass}
                                 onChange={(e) => setStudentClass(e.target.value)}
@@ -334,6 +372,7 @@ const Uploadresults = () => {
                                     </option>
                                 ))}
                             </select>
+                            )}
                             <input
                                 type="number"
                                 placeholder="School Code"
@@ -409,7 +448,7 @@ const Uploadresults = () => {
                             disabled={
                                 !file ||
                                 !subject ||
-                                !studentClass ||
+                                (!studentClass && examLevel !== "KG") ||
                                 !schoolCode ||
                                 !examLevel ||
                                 uploadStatus?.type === "loading" ||
@@ -455,7 +494,7 @@ const Uploadresults = () => {
                     <div className="bg-gray-50 rounded-xl p-6 space-y-4">
                         <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                             <Info className="w-5 h-5 text-blue-600" />
-                            Template Format (Classes 1-12)
+                            Template Format {examLevel === "KG" ? "(Kindergarten)" : "(Classes 1-12)"}
                         </h2>
 
                         {/* Exam Config Preview */}
@@ -530,7 +569,7 @@ const Uploadresults = () => {
                                 className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium hover:underline"
                             >
                                 <Download className="w-4 h-4" />
-                                Download Result Template (Classes 1-12)
+                                Download Result Template
                             </button>
                             <p className="text-xs text-gray-500 mt-1">
                                 XLSX format with sample data and instructions

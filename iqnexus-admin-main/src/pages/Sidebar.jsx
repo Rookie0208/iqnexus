@@ -11,7 +11,12 @@ import {
   IdCard,
   ChevronDown,
   ChevronUp,
-  ClipboardList
+  ClipboardList,
+  CalendarDays,
+  Trophy,
+  BookOpen,
+  BarChart3,
+  Award
 } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import logo from "../assets/main_logo.png";
@@ -58,10 +63,12 @@ const Sidebar = () => {
   const [studentsOpen, setStudentsOpen] = useState(false);
   const [KGStudentsOpen, setKGStudentsOpen] = useState(false);
   const [StudyMaterialOpen, setStudyMaterialOpen] = useState(false);
+  const [prizeOpen, setPrizeOpen] = useState(false);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
   const closeSidebar = () => window.innerWidth < 768 && setIsOpen(false);
   const toggleParticipation = () => setParticipationOpen(!participationOpen);
+  const togglePrize = () => setPrizeOpen(!prizeOpen);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -107,6 +114,13 @@ const Sidebar = () => {
                 text="Dashboard"
                 href="/"
                 active={location.pathname === "/"}
+                onClick={closeSidebar}
+                />
+                <MenuItem
+                icon={<CalendarDays size={20} />}
+                text="Calendar Year"
+                href="/calendar-year"
+                active={location.pathname === "/calendar-year"}
                 onClick={closeSidebar}
                 />
                 {/* Schools Dropdown */}
@@ -214,6 +228,55 @@ const Sidebar = () => {
                 active={location.pathname === "/ExamManagement"}
                 onClick={closeSidebar}
               />
+              <MenuItem
+                icon={<BookOpen size={20} />}
+                text="Subject Management"
+                href="/subject-management"
+                active={location.pathname === "/subject-management"}
+                onClick={closeSidebar}
+              />
+              <MenuItem
+                icon={<BarChart3 size={20} />}
+                text="Ranking & Results"
+                href="/ranking-management"
+                active={location.pathname === "/ranking-management"}
+                onClick={closeSidebar}
+              />
+              <MenuItem
+                icon={<Trophy size={20} />}
+                text="Prize"
+                href="#"
+                active={location.pathname.startsWith("/prize")}
+                onClick={(e) => {
+                  e.preventDefault();
+                  togglePrize();
+                }}
+                isDropdown={true}
+                isOpen={prizeOpen}
+              >
+                {prizeOpen && (
+                  <div className="bg-[#003B87] pl-6">
+                    <MenuItem
+                      text="Prize Config"
+                      href="/prize-config"
+                      active={location.pathname === "/prize-config"}
+                      onClick={closeSidebar}
+                    />
+                    <MenuItem
+                      text="Prize Tag"
+                      href="/prize-tag"
+                      active={location.pathname === "/prize-tag"}
+                      onClick={closeSidebar}
+                    />
+                    <MenuItem
+                      text="Prize Override"
+                      href="/prize-override"
+                      active={location.pathname === "/prize-override"}
+                      onClick={closeSidebar}
+                    />
+                  </div>
+                )}
+              </MenuItem>
 
               {/* Participation List Dropdown */}
             <MenuItem

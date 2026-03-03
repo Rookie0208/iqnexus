@@ -1,4 +1,5 @@
 import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js"
+import { CalendarYear } from "../models/calendarYear.model.js";
 import fs from "fs";
 import { parse } from "csv-parse";
 import mongoose from "mongoose";
@@ -241,6 +242,12 @@ export async function excelToMongoDbForKindergarten(filePath) {
                     ", "
                 )}`
             );
+        }
+
+        // Fetch current calendar year and attach to all students
+        const currentCalendarYear = await CalendarYear.findOne({ isCurrent: true }).lean();
+        if (currentCalendarYear) {
+          validStudents.forEach(s => { s.calendarYear = currentCalendarYear.label; });
         }
 
         let insertedCount = 0;

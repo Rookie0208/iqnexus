@@ -1,5 +1,8 @@
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
+import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
+import { ResultConfig } from "../models/resultConfigModel.js";
+import { Subject } from "../models/subjectModel.js";
 import mongoose from "mongoose";
 import fs from "fs";
 import xlsx from "xlsx";
@@ -16,6 +19,17 @@ const examFieldMap = {
   IQMOL2: "IMOL2",
   IQGKOL1: "IGKOL1",
   IQGKOL2: "IGKOL2",
+  // KG exams map to themselves
+  IQKD1: "IQKD1",
+  IQKD2: "IQKD2",
+};
+
+// Check if an exam code is a kindergarten exam
+const isKGExam = (subject) => ["IQKD1", "IQKD2"].includes(subject);
+
+// Get the appropriate model based on student class
+const getStudentModel = (studentClass) => {
+  return studentClass === "KD" ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
 };
 
 /**
@@ -84,22 +98,25 @@ export const uploadResult = async (req, res) => {
       return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
     }
 
-    // Map exam code to internal field name (e.g., IQMOL1 -> IMOL1)
+    // Map exam code to internal field name (e.g., IQMOL1 -> IMOL1, IQKD1 -> IQKD1)
     const resultKey = examFieldMap[subject] || subject;
+    const isKG = studentClass === "KD";
+    const StudentModel = getStudentModel(studentClass);
 
     // Validate students exist for this school + class
-    const studentCount = await STUDENT_LATEST.countDocuments({
-      schoolCode: Number(schoolCode),
-      class: studentClass,
-    });
+    const studentQuery = isKG 
+      ? { schoolCode: Number(schoolCode), class: "KD" }
+      : { schoolCode: Number(schoolCode), class: studentClass };
+    const studentCount = await StudentModel.countDocuments(studentQuery);
     if (studentCount === 0) {
       fs.unlinkSync(filePath);
       return res.status(400).json({ 
-        error: `No students found for school ${schoolCode} (${school.schoolName || ''}) in class ${studentClass}. Please upload student data first before uploading results.` 
+        error: `No ${isKG ? 'kindergarten ' : ''}students found for school ${schoolCode} (${school.schoolName || ''})${isKG ? '' : ` in class ${studentClass}`}. Please upload student data first before uploading results.` 
       });
     }
 
-    // Check if admit cards have been generated for this school
+    // Check if admit cards have been generated for this school (skip for KG students)
+    if (!isKG) {
     try {
       const db = mongoose.connection.db;
       const admitCardFiles = db.collection('admitCards.files');
@@ -128,8 +145,26 @@ export const uploadResult = async (req, res) => {
         error: `Admit cards have not been generated yet. Please generate admit cards before uploading results.` 
       });
     }
+    }
 
     console.log(`📊 Processing ${data.length} result records for ${resultKey}`);
+
+    // Get configurable qualifying percentage (instead of hardcoded 40%)
+    let qualifyingPercentage = 40; // default fallback
+    try {
+      const config = await ResultConfig.findOne({ subject, batchId: "2024-25" });
+      if (config?.qualifyingPercentage != null) {
+        qualifyingPercentage = config.qualifyingPercentage;
+      } else {
+        const subjectDoc = await Subject.findOne({ code: subject }).lean();
+        if (subjectDoc?.qualificationRules?.qualifyingPercentage != null) {
+          qualifyingPercentage = subjectDoc.qualificationRules.qualifyingPercentage;
+        }
+      }
+    } catch (qErr) {
+      console.warn("Could not fetch qualifying percentage, using default:", qErr.message);
+    }
+    console.log(`📊 Using qualifying percentage: ${qualifyingPercentage}%`);
 
     let successCount = 0;
     let errorCount = 0;
@@ -196,21 +231,21 @@ export const uploadResult = async (req, res) => {
           unAttempted: Number(row["Total_UnAttempted"]) || 0,
         };
 
-        // Determine pass/fail based on attendance and total score
+        // Determine pass/fail based on attendance and qualifying percentage
         let passOrFail = "FAIL";
-        if (attendance === "PRESENT" && total.percentage >= 40) {
+        if (attendance === "PRESENT" && total.percentage >= qualifyingPercentage) {
           passOrFail = "PASS";
         } else if (attendance === "ABSENT" || attendance === "DISQUALIFIED") {
           passOrFail = attendance;
         }
 
-        // Update student record
-        const updateResult = await STUDENT_LATEST.findOneAndUpdate(
-          {
-            rollNo: rollNo,
-            class: studentClass,
-            schoolCode: Number(schoolCode),
-          },
+        // Update student record (use appropriate model for KG vs regular)
+        const findQuery = isKG
+          ? { rollNo: rollNo, class: "KD", schoolCode: Number(schoolCode) }
+          : { rollNo: rollNo, class: studentClass, schoolCode: Number(schoolCode) };
+        
+        const updateResult = await StudentModel.findOneAndUpdate(
+          findQuery,
           {
             $set: {
               [`result.${resultKey}.attendance`]: attendance,
@@ -310,21 +345,25 @@ export const uploadResultSimple = async (req, res) => {
       return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
     }
 
+    const isKG = studentClass === "KD";
+    const StudentModel = getStudentModel(studentClass);
+
     // Validate students exist for this school + class
-    const studentCount = await STUDENT_LATEST.countDocuments({
-      schoolCode: Number(schoolCode),
-      class: studentClass,
-    });
+    const studentQuery = isKG 
+      ? { schoolCode: Number(schoolCode), class: "KD" }
+      : { schoolCode: Number(schoolCode), class: studentClass };
+    const studentCount = await StudentModel.countDocuments(studentQuery);
     if (studentCount === 0) {
       fs.unlinkSync(filePath);
       return res.status(400).json({ 
-        error: `No students found for school ${schoolCode} (${school.schoolName || ''}) in class ${studentClass}. Please upload student data first before uploading results.` 
+        error: `No ${isKG ? 'kindergarten ' : ''}students found for school ${schoolCode} (${school.schoolName || ''})${isKG ? '' : ` in class ${studentClass}`}. Please upload student data first before uploading results.` 
       });
     }
 
     const resultKey = examFieldMap[subject] || subject;
 
-    // Check if admit cards have been generated for this school
+    // Check if admit cards have been generated for this school (skip for KG students)
+    if (!isKG) {
     try {
       const db = mongoose.connection.db;
       const admitCardFiles = db.collection('admitCards.files');
@@ -352,6 +391,7 @@ export const uploadResultSimple = async (req, res) => {
         error: `Admit cards have not been generated yet. Please generate admit cards before uploading results.` 
       });
     }
+    }
 
     let successCount = 0;
 
@@ -363,12 +403,12 @@ export const uploadResultSimple = async (req, res) => {
 
       if (!rollNo || isNaN(marksObtained) || isNaN(totalMarks)) continue;
 
-      const updateResult = await STUDENT_LATEST.findOneAndUpdate(
-        {
-          rollNo: rollNo,
-          class: studentClass,
-          schoolCode: Number(schoolCode),
-        },
+      const findQuery = isKG
+        ? { rollNo: rollNo, class: "KD", schoolCode: Number(schoolCode) }
+        : { rollNo: rollNo, class: studentClass, schoolCode: Number(schoolCode) };
+
+      const updateResult = await StudentModel.findOneAndUpdate(
+        findQuery,
         {
           $set: {
             [`result.${resultKey}.attendance`]: "PRESENT",
@@ -402,7 +442,8 @@ export const getResult = async (req, res) => {
       .json({ error: "Roll number and class are required" });
   }
   try {
-    const student = await STUDENT_LATEST.findOne(
+    const StudentModel = getStudentModel(studentClass);
+    const student = await StudentModel.findOne(
       {
         rollNo: rollNo,
         class: studentClass,
@@ -448,6 +489,9 @@ export const getAllResults = async (req, res) => {
       return res.status(400).json({ error: "Subject is required" });
     }
 
+    const isKG = isKGExam(subject);
+    const StudentModel = isKG ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
+
     // Check if exam config exists for this subject
     const { ResultConfig } = await import("../models/resultConfigModel.js");
     // Try universal "all" config first, then fall back to any class-specific config
@@ -470,7 +514,9 @@ export const getAllResults = async (req, res) => {
       query.schoolCode = Number(schoolCode);
     }
     
-    if (studentClass && studentClass !== 'all') {
+    if (isKG) {
+      query.class = "KD";
+    } else if (studentClass && studentClass !== 'all') {
       query.class = studentClass;
     }
     
@@ -483,14 +529,13 @@ export const getAllResults = async (req, res) => {
     }
 
     // Show only students who actually have result data uploaded
-    // Check that total.score exists — this field is ONLY set during result upload
-    // (cannot rely on attendance because the schema defaults it to 'ABSENT' for all exams)
     query[`result.${resultKey}.total.score`] = { $exists: true };
 
+    // For non-KG students, filter by admit cards
+    if (!isKG) {
     // Get list of student IDs/mobNos that have admit cards generated
-    // We need to filter results to only show students with admit cards
-    const mongoose = await import("mongoose");
-    const db = mongoose.default.connection.db;
+    const mongooseModule = await import("mongoose");
+    const db = mongooseModule.default.connection.db;
     const admitCardsCollection = db.collection("admitCards.files");
     
     // Get all mobile numbers from admit cards
@@ -520,12 +565,15 @@ export const getAllResults = async (req, res) => {
         }
       });
     }
+    }
 
     // Build the projection
     const projection = {
       rollNo: 1,
       "Student's Name": 1,
       "Father's Name": 1,
+      studentName: 1,
+      fatherName: 1,
       class: 1,
       section: 1,
       schoolCode: 1,
@@ -544,7 +592,7 @@ export const getAllResults = async (req, res) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     // Get total count for pagination
-    const totalCount = await STUDENT_LATEST.countDocuments(query);
+    const totalCount = await StudentModel.countDocuments(query);
 
     // Build sort object
     let sortField = sortBy;
@@ -558,7 +606,7 @@ export const getAllResults = async (req, res) => {
     sortObj[sortField] = sortOrder === 'asc' ? 1 : -1;
 
     // Fetch results
-    const students = await STUDENT_LATEST.find(query, projection)
+    const students = await StudentModel.find(query, projection)
       .sort(sortObj)
       .skip(skip)
       .limit(Number(limit))
@@ -573,7 +621,7 @@ export const getAllResults = async (req, res) => {
     // Helper function to calculate rank using database count (accurate global rank)
     const calculateGlobalRank = async (studentScore, additionalQuery = {}) => {
       if (studentScore <= 0) return 0;
-      const higherCount = await STUDENT_LATEST.countDocuments({
+      const higherCount = await StudentModel.countDocuments({
         ...additionalQuery,
         [`result.${resultKey}.attendance`]: "PRESENT",
         [`result.${resultKey}.total.score`]: { $gt: studentScore }
@@ -741,31 +789,110 @@ export const exportResultsToExcel = async (req, res) => {
     }
 
     const resultKey = subject ? (examFieldMap[subject] || subject) : null;
+    const isKG = isKGExam(subject);
+    const StudentModel = isKG ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
+
+    if (isKG) {
+      query.class = "KD";
+    }
 
     if (resultKey) {
       query[`result.${resultKey}.total.score`] = { $exists: true };
     }
 
-    // Fetch all matching results (no pagination for export)
-    const students = await STUDENT_LATEST.find(query).lean();
+    // Build sort object
+    let sortField = sortBy;
+    if (resultKey && sortBy.startsWith('total.')) {
+      sortField = `result.${resultKey}.${sortBy}`;
+    } else if (resultKey && ['internationalRank', 'nationalRank', 'cityRank', 'schoolRank', 'classRank', 'sectionRank'].includes(sortBy)) {
+      sortField = `result.${resultKey}.ranks.${sortBy}`;
+    }
+    const sortObj = {};
+    sortObj[sortField] = sortOrder === 'asc' ? 1 : -1;
 
-    // Transform for Excel export
-    const excelData = students.map(student => {
-      const resultData = resultKey ? student.result?.[resultKey] : null;
-      
-      return {
-        "Father's Name": student["Father's Name"] || '',
-        "City Name": student.city || '',
-        "Country": student.country || 'INDIA',
-        "Subject": subject || '',
-        "Exam Date": resultData?.examDate || '',
-        "SCORE": resultData?.total?.score ?? 0,
-        "TOTAL MARKS": resultData?.total?.totalCount ?? 0,
-        "PERCENTAGE": resultData?.total?.percentage ?? 0,
-        "PASS/FAIL": resultData?.passOrFail || '',
-        "Prize": resultData?.prize || ''
-      };
+    // Fetch all matching results (no pagination for export)
+    const students = await StudentModel.find(query).sort(sortObj).lean();
+
+    // Get all school info for city/country lookups (handle both Number and String schoolCode)
+    const rawSchoolCodes = [...new Set(students.map(s => s.schoolCode))];
+    const schoolCodeNumbers = rawSchoolCodes.map(c => Number(c));
+    const schoolCodeStrings = rawSchoolCodes.map(c => String(c));
+    const schools = await School.find({ 
+      schoolCode: { $in: [...schoolCodeNumbers, ...schoolCodeStrings] } 
+    }).lean();
+    const schoolMap = {};
+    schools.forEach(s => { 
+      schoolMap[Number(s.schoolCode)] = s; 
+      schoolMap[String(s.schoolCode)] = s; 
     });
+
+    // Helper function to calculate rank using database count
+    const calculateGlobalRank = async (studentScore, additionalQuery = {}) => {
+      if (studentScore <= 0) return 0;
+      const higherCount = await StudentModel.countDocuments({
+        ...additionalQuery,
+        [`result.${resultKey}.attendance`]: "PRESENT",
+        [`result.${resultKey}.total.score`]: { $gt: studentScore }
+      });
+      return higherCount + 1;
+    };
+
+    // Transform for Excel export with rank calculations
+    const excelData = await Promise.all(students.map(async (student) => {
+      const resultData = resultKey ? student.result?.[resultKey] : null;
+      const studentScore = resultData?.total?.score ?? 0;
+      const schoolInfo = schoolMap[student.schoolCode] || {};
+      const studentCity = schoolInfo.city || student.city || '';
+      const studentCountry = schoolInfo.country || 'INDIA';
+
+      // Get school codes for city and country for rank calculation
+      let citySchoolCodes = [];
+      let countrySchoolCodes = [];
+
+      if (studentCity) {
+        const citySchools = await School.find({ city: studentCity }).distinct('schoolCode');
+        citySchoolCodes = citySchools;
+      }
+
+      if (studentCountry) {
+        const countrySchools = await School.find({ country: studentCountry }).distinct('schoolCode');
+        countrySchoolCodes = countrySchools;
+      }
+
+      // Calculate all ranks in parallel
+      let intlRank = 0, nationalRank = 0, cityRank = 0, schRank = 0, clsRank = 0, secRank = 0;
+
+      if (resultData?.attendance === "PRESENT" && studentScore > 0) {
+        [intlRank, nationalRank, cityRank, schRank, clsRank, secRank] = await Promise.all([
+          calculateGlobalRank(studentScore, {}),
+          countrySchoolCodes.length > 0
+            ? calculateGlobalRank(studentScore, { schoolCode: { $in: countrySchoolCodes } })
+            : Promise.resolve(0),
+          citySchoolCodes.length > 0
+            ? calculateGlobalRank(studentScore, { schoolCode: { $in: citySchoolCodes } })
+            : Promise.resolve(0),
+          calculateGlobalRank(studentScore, { schoolCode: student.schoolCode }),
+          calculateGlobalRank(studentScore, { schoolCode: student.schoolCode, class: student.class }),
+          calculateGlobalRank(studentScore, { schoolCode: student.schoolCode, class: student.class, section: student.section })
+        ]);
+      }
+
+      return {
+        "fatherName": student["Father's Name"] || student.fatherName || '',
+        "city name": studentCity,
+        "country name": studentCountry,
+        "subject": subject || '',
+        "exam date": resultData?.examDate || '',
+        "SRORE": studentScore,
+        "INTERNATION RANK": intlRank,
+        "national rank": nationalRank,
+        "city rank": cityRank,
+        "school rank": schRank,
+        "class rank": clsRank,
+        "SECTION RANK": secRank,
+        "prize": resultData?.prize || ''
+      };
+    }));
 
     // Create workbook and worksheet
     const worksheet = xlsx.utils.json_to_sheet(excelData);
@@ -774,16 +901,19 @@ export const exportResultsToExcel = async (req, res) => {
 
     // Set column widths
     const colWidths = [
-      { wch: 20 }, // Father's Name
-      { wch: 15 }, // City Name
-      { wch: 10 }, // Country
-      { wch: 12 }, // Subject
-      { wch: 12 }, // Exam Date
-      { wch: 8 },  // SCORE
-      { wch: 12 }, // TOTAL MARKS
-      { wch: 12 }, // PERCENTAGE
-      { wch: 10 }, // PASS/FAIL
-      { wch: 10 }, // Prize
+      { wch: 25 }, // fatherName
+      { wch: 15 }, // city name
+      { wch: 15 }, // country name
+      { wch: 12 }, // subject
+      { wch: 12 }, // exam date
+      { wch: 10 }, // SRORE
+      { wch: 20 }, // INTERNATION RANK
+      { wch: 15 }, // national rank
+      { wch: 12 }, // city rank
+      { wch: 12 }, // school rank
+      { wch: 12 }, // class rank
+      { wch: 15 }, // SECTION RANK
+      { wch: 10 }, // prize
     ];
     worksheet['!cols'] = colWidths;
 

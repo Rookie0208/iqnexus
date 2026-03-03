@@ -4,6 +4,7 @@ import { parse } from "csv-parse";
 import XLSX from "xlsx";
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js"
 import { School } from "../models/schoolModel.js";
+import { CalendarYear } from "../models/calendarYear.model.js";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 
@@ -326,6 +327,12 @@ export async function excelToMongoDbForStudent(filePath, originalFilename = "") 
     // Check if MongoDB is connected
     if (mongoose.connection.readyState !== 1) {
       throw new Error("MongoDB is not connected");
+    }
+
+    // Fetch current calendar year and attach to all students
+    const currentCalendarYear = await CalendarYear.findOne({ isCurrent: true }).lean();
+    if (currentCalendarYear) {
+      validStudents.forEach(s => { s.calendarYear = currentCalendarYear.label; });
     }
 
     // Insert/Update data using bulkWrite with upsert to handle duplicates gracefully

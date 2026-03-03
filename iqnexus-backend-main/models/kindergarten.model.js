@@ -135,6 +135,34 @@ const KindergartenStudentSchema = new Schema(
             trim: true,
             default: "0",
         },
+        calendarYear: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        // Section-wise result schema for KG exams
+        result: {
+            IQKD1: {
+                attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
+                section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section4: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section5: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                total: { score: Number, rank: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                passOrFail: String,
+            },
+            IQKD2: {
+                attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
+                section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section4: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                section5: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                total: { score: Number, rank: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
+                passOrFail: String,
+            },
+        },
     },
     { timestamps: true }
 );

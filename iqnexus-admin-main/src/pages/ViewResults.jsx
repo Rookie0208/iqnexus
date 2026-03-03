@@ -71,28 +71,50 @@ const ViewResults = () => {
   // Class options
   const classOptions = [
     { value: 'all', label: 'All Classes' },
+    { value: 'KD', label: 'Kindergarten (KD)' },
     ...Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Class ${i + 1}` }))
   ];
 
-  // Section options
+  // Section options (includes KG sections)
   const sectionOptions = [
     { value: 'all', label: 'All Sections' },
-    ...['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(s => ({ value: s, label: `Section ${s}` }))
+    ...['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(s => ({ value: s, label: `Section ${s}` })),
+    ...['LKG', 'UKG', 'PG'].map(s => ({ value: s, label: s })),
   ];
 
-  // Subject/Exam options
-  const subjectOptions = [
-    { value: 'IQMOL1', label: 'IQMO Level 1 (Mathematics)' },
-    { value: 'IQMOL2', label: 'IQMO Level 2 (Mathematics)' },
-    { value: 'IQROL1', label: 'IQRO Level 1 (Reasoning)' },
-    { value: 'IQROL2', label: 'IQRO Level 2 (Reasoning)' },
-    { value: 'IQSOL1', label: 'IQSO Level 1 (Science)' },
-    { value: 'IQSOL2', label: 'IQSO Level 2 (Science)' },
-    { value: 'IQEOL1', label: 'IQEO Level 1 (English)' },
-    { value: 'IQEOL2', label: 'IQEO Level 2 (English)' },
-    { value: 'IQGKOL1', label: 'IQGKO Level 1 (GK)' },
-    { value: 'IQGKOL2', label: 'IQGKO Level 2 (GK)' },
-  ];
+  // Subject/Exam options - dynamically fetched
+  const [subjectOptions, setSubjectOptions] = useState([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await axios.get(`${BASE_URL}/subjects`);
+        if (res.data.success && res.data.subjects) {
+          setSubjectOptions(res.data.subjects.map(s => ({
+            value: s.code,
+            label: s.label || `${s.code} - ${s.name}`
+          })));
+        }
+      } catch (err) {
+        // Fallback to hardcoded options if API fails
+        setSubjectOptions([
+          { value: 'IQMOL1', label: 'IQMO Level 1 (Mathematics)' },
+          { value: 'IQMOL2', label: 'IQMO Level 2 (Mathematics)' },
+          { value: 'IQROL1', label: 'IQRO Level 1 (Reasoning)' },
+          { value: 'IQROL2', label: 'IQRO Level 2 (Reasoning)' },
+          { value: 'IQSOL1', label: 'IQSO Level 1 (Science)' },
+          { value: 'IQSOL2', label: 'IQSO Level 2 (Science)' },
+          { value: 'IQEOL1', label: 'IQEO Level 1 (English)' },
+          { value: 'IQEOL2', label: 'IQEO Level 2 (English)' },
+          { value: 'IQGKOL1', label: 'IQGKO Level 1 (GK)' },
+          { value: 'IQGKOL2', label: 'IQGKO Level 2 (GK)' },
+          { value: 'IQKD1', label: 'IQKD1 - Kindergarten Exam 1' },
+          { value: 'IQKD2', label: 'IQKD2 - Kindergarten Exam 2' },
+        ]);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   // Sort options
   const sortOptions = [

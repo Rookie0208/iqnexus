@@ -1,15 +1,24 @@
 import React from 'react';
+import Select from 'react-select';
 import { BASE_URL } from '../Api';
 
 const StudyMaterial = () => {
     const [formData, setFormData] = React.useState({
         name: '',
-        class: '',
+        classes: [], // Changed to array for multi-select
         kgSection: '',
         subject: '',
         fee: '',
         pdf: null,
     });
+
+    const classOptions = [
+        { value: 'kindergarten', label: 'Kindergarten' },
+        ...[...Array(12)].map((_, i) => ({
+            value: (i + 1).toString(),
+            label: `Class ${i + 1}`,
+        })),
+    ];
 
     const handleChange = (e) => {
         const { name, value, files } = e.target;
@@ -17,34 +26,20 @@ const StudyMaterial = () => {
             setFormData({ ...formData, pdf: files[0] });
         } else {
             setFormData({ ...formData, [name]: value });
-            // Reset KG section if class is changed from kindergarten
-            if (name === 'class' && value !== 'kindergarten') {
-                setFormData(prev => ({ ...prev, kgSection: '' }));
-            }
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const data = new FormData();
-        data.append('name', formData.name);
-        data.append('class', formData.class);
-        data.append('subject', formData.subject);
-        data.append('fee', formData.fee);
-        if (formData.pdf) {
-            data.append('file', formData.pdf);
-        }
-
-        try {
-            await fetch(`${BASE_URL}/addStudentStudyMaterial`, {
-                method: 'POST',
-                body: data,
-            });
-            alert('Study material uploaded successfully!');
-        } catch (error) {
-            alert('Failed to upload study material.');
-        }
+    const handleClassChange = (selectedOptions) => {
+        const classes = selectedOptions ? selectedOptions.map(opt => opt.value) : [];
+        setFormData(prev => ({
+            ...prev,
+            classes,
+            // Reset KG section if kindergarten is not selected
+            kgSection: classes.includes('kindergarten') ? prev.kgSection : '',
+        }));
     };
+
+    const hasKindergarten = formData.classes.includes('kindergarten');
 
     const [materialType, setMaterialType] = React.useState('file');
     const [link, setLink] = React.useState('');
@@ -55,47 +50,63 @@ const StudyMaterial = () => {
             <form
                 onSubmit={async (e) => {
                     e.preventDefault();
-                    const data = new FormData();
-                    data.append('name', formData.name);
-                    data.append('class', formData.class);
-                    data.append('subject', formData.subject);
-                    data.append('fee', formData.fee);
-                    data.append('materialType', materialType);
-                    if (formData.class === 'kindergarten' && formData.kgSection) {
-                        data.append('kgSection', formData.kgSection);
+                    if (formData.classes.length === 0) {
+                        alert('Please select at least one class.');
+                        return;
                     }
-                    if (materialType === 'file' && formData.pdf) {
-                        data.append('file', formData.pdf);
-                    }
-                    if (materialType === 'link' && link) {
-                        data.append('link', link);
-                    }
-                    try {
-                        const response = await fetch(`${BASE_URL}/addStudentStudyMaterial`, {
-                            method: 'POST',
-                            body: data,
-                        });
-                        const result = await response.json();
-                        
-                        if (!response.ok || result.error) {
-                            throw new Error(result.error || 'Upload failed');
+
+                    let successCount = 0;
+                    let failCount = 0;
+
+                    for (const cls of formData.classes) {
+                        const data = new FormData();
+                        data.append('name', formData.name);
+                        data.append('class', cls);
+                        data.append('subject', formData.subject);
+                        data.append('fee', formData.fee);
+                        data.append('materialType', materialType);
+                        if (cls === 'kindergarten' && formData.kgSection) {
+                            data.append('kgSection', formData.kgSection);
                         }
-                        
-                        alert('Study material uploaded successfully!');
-                        // Reset form
-                        setFormData({
-                            name: '',
-                            class: '',
-                            kgSection: '',
-                            subject: '',
-                            fee: '',
-                            pdf: null,
-                        });
-                        setLink('');
-                    } catch (error) {
-                        console.error('Upload error:', error);
-                        alert(`Failed to upload study material: ${error.message}`);
+                        if (materialType === 'file' && formData.pdf) {
+                            data.append('file', formData.pdf);
+                        }
+                        if (materialType === 'link' && link) {
+                            data.append('link', link);
+                        }
+                        try {
+                            const response = await fetch(`${BASE_URL}/addStudentStudyMaterial`, {
+                                method: 'POST',
+                                body: data,
+                            });
+                            const result = await response.json();
+
+                            if (!response.ok || result.error) {
+                                throw new Error(result.error || 'Upload failed');
+                            }
+                            successCount++;
+                        } catch (error) {
+                            console.error(`Upload error for class ${cls}:`, error);
+                            failCount++;
+                        }
                     }
+
+                    if (failCount === 0) {
+                        alert(`Study material uploaded successfully for ${successCount} class(es)!`);
+                    } else {
+                        alert(`Uploaded for ${successCount} class(es). Failed for ${failCount} class(es).`);
+                    }
+
+                    // Reset form
+                    setFormData({
+                        name: '',
+                        classes: [],
+                        kgSection: '',
+                        subject: '',
+                        fee: '',
+                        pdf: null,
+                    });
+                    setLink('');
                 }}
                 className="space-y-5"
             >
@@ -112,25 +123,29 @@ const StudyMaterial = () => {
                     />
                 </div>
                 <div>
-                    <label htmlFor="class" className="block mb-1 font-medium">Class:</label>
-                    <select
-                        id="class"
-                        name="class"
-                        value={formData.class}
-                        onChange={handleChange}
-                        required
-                        className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">Select Class</option>
-                        <option value="kindergarten">Kindergarten</option>
-                        {[...Array(12)].map((_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                                {i + 1}
-                            </option>
-                        ))}
-                    </select>
+                    <label htmlFor="class" className="block mb-1 font-medium">Class (select multiple):</label>
+                    <Select
+                        isMulti
+                        options={classOptions}
+                        value={classOptions.filter(opt => formData.classes.includes(opt.value))}
+                        onChange={handleClassChange}
+                        className="basic-multi-select"
+                        classNamePrefix="select"
+                        placeholder="Select class(es)..."
+                        styles={{
+                            control: (base) => ({
+                                ...base,
+                                borderColor: '#d1d5db',
+                                '&:hover': { borderColor: '#3b82f6' },
+                            }),
+                            menu: (base) => ({
+                                ...base,
+                                zIndex: 50,
+                            }),
+                        }}
+                    />
                 </div>
-                {formData.class === 'kindergarten' && (
+                {hasKindergarten && (
                     <div>
                         <label htmlFor="kgSection" className="block mb-1 font-medium">Kindergarten Section:</label>
                         <select

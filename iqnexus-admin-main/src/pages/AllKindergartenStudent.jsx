@@ -247,16 +247,17 @@ const AllKindergartenStudents = () => {
 
     // Clear search filters
     const handleClearFilters = () => {
-        setSearchData({
+        const emptyFilters = {
             studentName: "",
             schoolCode: null,
             rollNo: "",
             sections: [],
             IQKG: "",
-        });
+        };
+        setSearchData(emptyFilters);
         setSearched(false);
         setCurrentPage(1);
-        fetchStudents(1);
+        fetchStudents(1, emptyFilters);
     };
 
     // Handle student deletion
@@ -623,9 +624,9 @@ const AllKindergartenStudents = () => {
         return rangeWithDots;
     };
 
-    // Fetch students on page change
+    // Fetch students on page change - pass current searchData filters
     useEffect(() => {
-        fetchStudents(currentPage);
+        fetchStudents(currentPage, searchData);
     }, [currentPage, fetchStudents]);
 
     return (

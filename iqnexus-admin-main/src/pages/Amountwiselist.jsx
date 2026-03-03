@@ -2,9 +2,8 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { BASE_URL } from "../Api";
-import html2pdf from "html2pdf.js";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import logo from "../assets/main_logo.png";
 
@@ -209,247 +208,318 @@ const Amountwiselist = () => {
   };
 
   const handleDownloadPDF = async () => {
-    const element = attendanceRef.current;
-
-    if (!element) {
-      alert("Nothing to export!");
+    if (!studentsData.length) {
+      alert("No student data to export!");
       return;
     }
 
     try {
       setIsDownloading(true);
-      // Store original styles
-      const originalStyles = new Map();
-      const saveStyles = (node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const style = window.getComputedStyle(node);
-          originalStyles.set(node, {
-            
-            color: style.color,
-            backgroundColor: style.backgroundColor,
-            borderColor: style.borderColor,
-            fontSize: style.fontSize,
-            lineHeight: style.lineHeight,
-            padding: style.padding,
-            margin: style.margin,
-            fontWeight: style.fontWeight,
-            textAlign: style.textAlign,
-            width: style.width,
-          });
 
-          // Apply PDF-safe styles
-          node.style.color = "#000000";
-          node.style.backgroundColor = "transparent";
-          node.style.borderColor = "#000000";
-          node.style.fontFamily = "Arial, sans-serif";
-          node.style.fontSize = "12px";
-          node.style.lineHeight = "1.5";
-
-          // Center content
-          if (node.tagName === "H1" || node.tagName === "H2") {
-            node.style.textAlign = "center";
-            node.style.textTransform = "uppercase";
-            node.style.marginBottom = "6px";
-            node.style.fontSize = "14px";
-          }
-
-          if (node.tagName === "P") {
-            node.style.textAlign = "left";
-            node.style.textTransform = "uppercase";
-            node.style.marginBottom = "6px";
-          }
-
-          if (node.id == "exam-name") {
-            node.style.textAlign = "center";
-          }
-
-          // Image (logo)
-          if (node.tagName === "IMG") {
-            node.style.display = "block";
-            node.style.marginLeft = "auto";
-            node.style.marginRight = "auto";
-            node.style.height = "45px";
-            node.style.marginBottom = "10px";
-          }
-
-          // Center grids and tables
-          if (node.classList.contains("grid") || node.tagName === "TABLE") {
-            node.style.width = "85%";
-            node.style.marginLeft = "auto";
-            node.style.marginRight = "auto";
-            node.style.fontSize = "10px";
-          }
-
-          if (node.tagName === "TABLE") {
-            node.style.borderCollapse = "collapse";
-          }
-
-          if (node.tagName === "TH") {
-            node.style.border = "0.5px solid rgb(184, 178, 178)";
-            node.style.textAlign = "center";
-            node.style.padding = "3px 5px";
-          }
-
-          if (node.tagName === "TD") {
-            node.style.textAlign = "center";
-            node.style.padding = "3px 5px";
-            node.style.boxSizing = "border-box";
-          }
-
-          if (node.tagName === "TH") {
-            node.style.backgroundColor = "#e5e7eb";
-            node.style.fontWeight = "600";
-          }
-
-          // Note section
-          if (node.classList.contains("border-t")) {
-            node.style.borderTop = "1px solid #000000";
-            node.style.paddingTop = "10px";
-            node.style.marginTop = "10px";
-            node.style.width = "85%";
-            node.style.marginLeft = "auto";
-            node.style.marginRight = "auto";
-            node.style.fontSize = "9px";
-          }
-
-          // Root div
-          if (node.id === "download") {
-            node.style.padding = "20px";
-            node.style.border = "1px solid #000000";
-            node.style.backgroundColor = "#ffffff";
-            node.style.width = "100%";
-          }
-
-          node.childNodes.forEach(saveStyles);
-        }
-      };
-
-      // Apply styles
-      saveStyles(element);
-
-      // Ensure element is fully visible for capture
-      const originalPosition = element.style.position;
-      const originalTop = element.style.top;
-      const originalLeft = element.style.left;
-      const originalWidth = element.style.width;
-      element.style.position = "static";
-      element.style.top = "0";
-      element.style.left = "0";
-      element.style.width = "100%";
-
-      // Capture with html2canvas
-      const canvas = await html2canvas(element, {
-        scale: 1.5,
-        useCORS: true,
-        logging: true,
-        windowWidth: element.scrollWidth + 50,
-        windowHeight: element.scrollHeight + 50,
-      });
-
-      // Restore original styles and positioning
-      originalStyles.forEach((styles, node) => {
-        node.style.color = styles.color;
-        node.style.backgroundColor = styles.backgroundColor;
-        node.style.borderColor = styles.borderColor;
-        node.style.fontSize = styles.fontSize;
-        node.style.lineHeight = styles.lineHeight;
-        node.style.padding = styles.padding;
-        node.style.margin = styles.margin;
-        node.style.fontWeight = styles.fontWeight;
-        node.style.textAlign = styles.textAlign;
-        node.style.width = styles.width;
-      });
-      element.style.position = originalPosition;
-      element.style.top = originalTop;
-      element.style.left = originalLeft;
-      element.style.width = originalWidth;
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "landscape",
-        unit: "mm",
-        format: "a4",
-      });
-
+      const pdf = new jsPDF("l", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 15;
-      const contentWidth = pageWidth - 2 * margin;
-      const imgWidth = contentWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const sideMargin = 14;
+      const topMargin = 74;
+      const bottomMargin = 24;
+      const usableWidth = pageWidth - sideMargin * 2;
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) + " " + now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+      const academicYear = now.getMonth() >= 3
+        ? `${now.getFullYear()}-${now.getFullYear() + 1}`
+        : `${now.getFullYear() - 1}-${now.getFullYear()}`;
 
-      // Calculate available content height per page
-      const maxContentHeight = pageHeight - 2 * margin;
+      const getExamLevelText = () => {
+        if (selectedExamLevel === "L2") return "Advance Level";
+        if (selectedExamLevel === "L1") return "Basic Level";
+        return "All Levels";
+      };
 
-      // Simplified pagination logic
-      if (imgHeight <= maxContentHeight) {
-        pdf.addImage(
-          imgData,
-          "PNG",
-          margin,
-          margin,
-          imgWidth,
-          imgHeight,
-          undefined,
-          "SLOW"
-        );
-      } else {
-        let position = 0;
-        while (position < imgHeight) {
-          const tempCanvas = document.createElement("canvas");
-          const tempCtx = tempCanvas.getContext("2d");
-          tempCanvas.width = canvas.width;
-          tempCanvas.height = Math.min(
-            canvas.height - (position * canvas.width) / imgWidth,
-            (maxContentHeight * canvas.width) / imgWidth
-          );
+      const codeToField = {
+        IQKDL1: "IQKD1",
+        IQKDL2: "IQKD2",
+        IQEOL1: "IENGOL1",
+        IQEOL2: "IENGOL2",
+        IQROL1: "IAOL1",
+        IQROL2: "IAOL2",
+        IQSOL1: "ITSTL1",
+        IQSOL2: "ITSTL2",
+        IQMOL1: "IMOL1",
+        IQMOL2: "IMOL2",
+        IQGKOL1: "IGKOL1",
+      };
 
-          tempCtx.drawImage(
-            canvas,
-            0,
-            (position * canvas.width) / imgWidth,
-            canvas.width,
-            tempCanvas.height,
-            0,
-            0,
-            canvas.width,
-            tempCanvas.height
-          );
+      const baseExamSets = {
+        L1: ["IQKDL1", "IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"],
+        L2: ["IQKDL2", "IQEOL2", "IQROL2", "IQSOL2", "IQMOL2"],
+      };
 
-          pdf.addImage(
-            tempCanvas.toDataURL("image/png"),
-            "PNG",
-            margin,
-            margin,
-            imgWidth,
-            Math.min(maxContentHeight, imgHeight - position),
-            undefined,
-            "SLOW"
-          );
+      const levelKey = selectedExamLevel === "L2" ? "L2" : "L1";
+      const baseCodes = baseExamSets[levelKey];
+      const allowedCodes = baseCodes.filter(
+        (code) =>
+          selectedExam.length === 0 ||
+          examListPlainArray.includes(code)
+      );
 
-          position += maxContentHeight;
-          if (position < imgHeight) {
-            pdf.addPage();
-          }
-        }
+      const examColumns = allowedCodes.map((code) => {
+        const labelFromMap = examFullNames[code]?.code;
+        const shortLabel = code
+          .replace(/L[12]/g, "")
+          .replace(/[12]$/, "");
+        return {
+          code,
+          field: codeToField[code],
+          label: labelFromMap || shortLabel,
+        };
+      });
+
+      const drawHeader = () => {
+        // Page border
+        pdf.setDrawColor(26, 35, 126);
+        pdf.setLineWidth(0.7);
+        pdf.rect(6, 6, pageWidth - 12, pageHeight - 12);
+
+        const centerX = pageWidth / 2;
+        const logoSize = 18;
+
+        // Logo
+        pdf.addImage(logo, "PNG", centerX - logoSize / 2, 10, logoSize, logoSize);
+
+        // Organization name
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(15);
+        pdf.setTextColor(26, 35, 126);
+        pdf.text("IQ NEXUS", centerX, 33, { align: "center" });
+
+        // Subtitle
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(100, 100, 100);
+        pdf.text("INTERNATIONAL OLYMPIAD EXAMINATIONS", centerX, 39, { align: "center" });
+
+        // Title
+        const participationTitle = selectedExamLevel === "L2"
+          ? "PARTICIPATION LIST — COST WISE (ADVANCE LEVEL)"
+          : "PARTICIPATION LIST — COST WISE (BASIC LEVEL)";
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(11);
+        pdf.setTextColor(26, 35, 126);
+        pdf.text(participationTitle, centerX, 47, { align: "center" });
+
+        // Horizontal rule
+        pdf.setDrawColor(26, 35, 126);
+        pdf.setLineWidth(0.5);
+        pdf.line(sideMargin, 50, pageWidth - sideMargin, 50);
+
+        // Info section
+        const infoY = 54;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(8);
+        pdf.setTextColor(50, 50, 50);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text("School:", sideMargin, infoY);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(school?.schoolName || "ALL SCHOOLS", sideMargin + 18, infoY);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Code:", sideMargin, infoY + 5);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(String(school?.schoolCode || selectedSchoolCode || "ALL"), sideMargin + 14, infoY + 5);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text("City / Area:", sideMargin, infoY + 10);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`${school?.city || "ALL"} / ${school?.area || "ALL"}`, sideMargin + 24, infoY + 10);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Exam Incharge:", sideMargin, infoY + 15);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(school?.incharge || "N/A", sideMargin + 30, infoY + 15);
+
+        // Right side info
+        const examText = selectedExam.length
+          ? examListPlainArray.join(", ")
+          : "All Exams";
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Exam Level: `, pageWidth - sideMargin - 60, infoY, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(getExamLevelText(), pageWidth - sideMargin - 38, infoY);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Exam(s): `, pageWidth - sideMargin - 60, infoY + 5, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(examText, pageWidth - sideMargin - 42, infoY + 5);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Generated: `, pageWidth - sideMargin - 60, infoY + 10, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(formattedDate, pageWidth - sideMargin - 38, infoY + 10);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Year: `, pageWidth - sideMargin - 60, infoY + 15, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(academicYear, pageWidth - sideMargin - 46, infoY + 15);
+      };
+
+      const drawFooter = (pageNumber, totalPages) => {
+        const footerY = pageHeight - 16;
+        pdf.setDrawColor(26, 35, 126);
+        pdf.setLineWidth(0.3);
+        pdf.line(sideMargin, footerY - 4, pageWidth - sideMargin, footerY - 4);
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "italic");
+        pdf.setTextColor(100, 100, 100);
+        pdf.text("Confidential — For Official School Use Only", sideMargin, footerY);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, footerY, { align: "center" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`\u00A9 ${now.getFullYear()} IQ NEXUS`, pageWidth - sideMargin, footerY, { align: "right" });
+      };
+
+      drawHeader();
+
+      const headRow = [
+        "S.No",
+        "Roll No",
+        "Student Name",
+        "Father",
+        "Mother",
+        "Class",
+        "Sec",
+        ...examColumns.map((col) => col.label),
+        "Amount",
+      ];
+
+      const bodyRows = studentsData.map((student, index) => {
+        const baseCells = [
+          index + 1,
+          student.rollNo || "",
+          student.studentName || "",
+          student.fatherName || "",
+          student.motherName || "",
+          student.class || "",
+          student.section || "",
+        ];
+
+        examColumns.forEach(({ field }) => {
+          const value = student[field];
+          baseCells.push(value === "1" || value === 1 ? "YES" : "NO");
+        });
+
+        // Amount column
+        const amount = (selectedExamLevel === "" || selectedExamLevel === "L1")
+          ? (student.basicLevelFullAmount || "")
+          : (student.advanceLevelAmountPaid || "");
+        baseCells.push(amount);
+
+        return baseCells;
+      });
+
+      autoTable(pdf, {
+        startY: topMargin,
+        margin: { left: sideMargin, right: sideMargin, top: topMargin, bottom: bottomMargin },
+        head: [headRow],
+        body: bodyRows,
+        tableWidth: usableWidth,
+        styles: {
+          fontSize: 7.5,
+          font: "helvetica",
+          textColor: [30, 30, 30],
+          cellPadding: { top: 2, right: 3, bottom: 2, left: 3 },
+          valign: "middle",
+          halign: "left",
+          lineWidth: 0.25,
+          lineColor: [180, 180, 180],
+          minCellHeight: 8,
+          overflow: "ellipsize",
+        },
+        headStyles: {
+          fillColor: [26, 35, 126],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "center",
+          valign: "middle",
+          fontSize: 7.5,
+          cellPadding: { top: 3, right: 3, bottom: 3, left: 3 },
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 250],
+        },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 10 },
+          1: { halign: "center", cellWidth: 18 },
+          2: { halign: "left", cellWidth: 38 },
+          3: { halign: "left", cellWidth: 32 },
+          4: { halign: "left", cellWidth: 32 },
+          5: { halign: "center", cellWidth: 14 },
+          6: { halign: "center", cellWidth: 12 },
+        },
+        didDrawPage: (data) => {
+          drawHeader();
+          drawFooter(data.pageNumber, pdf.internal.getNumberOfPages());
+        },
+      });
+
+      const finalY = pdf.lastAutoTable.finalY || topMargin;
+
+      // Signature section
+      if (finalY + 30 < pageHeight - bottomMargin) {
+        const sigSectionY = finalY + 14;
+        pdf.setDrawColor(180, 180, 180);
+        pdf.setLineWidth(0.3);
+        pdf.line(sideMargin, sigSectionY - 4, pageWidth - sideMargin, sigSectionY - 4);
+
+        pdf.setFontSize(7.5);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(50, 50, 50);
+        pdf.text("Exam Incharge / Coordinator:", sideMargin, sigSectionY + 2);
+        pdf.setLineWidth(0.3);
+        pdf.setDrawColor(80, 80, 80);
+        pdf.line(sideMargin + 52, sigSectionY + 3, sideMargin + 120, sigSectionY + 3);
+
+        pdf.text("Principal / Head of Institution:", pageWidth - sideMargin - 120, sigSectionY + 2);
+        pdf.line(pageWidth - sideMargin - 60, sigSectionY + 3, pageWidth - sideMargin, sigSectionY + 3);
+
+        pdf.text(`Total Students: ${studentsData.length}`, sideMargin, sigSectionY + 12);
+
+        // Calculate total amount
+        const totalAmount = studentsData.reduce((sum, student) => {
+          const amt = (selectedExamLevel === "" || selectedExamLevel === "L1")
+            ? parseFloat(student.basicLevelFullAmount || 0)
+            : parseFloat(student.advanceLevelAmountPaid || 0);
+          return sum + (isNaN(amt) ? 0 : amt);
+        }, 0);
+        pdf.text(`Total Amount: ${totalAmount}`, sideMargin + 50, sigSectionY + 12);
       }
 
-      // Generate filename with multiple classes and sections
+      pdf.setFontSize(7);
+      pdf.setFont("helvetica", "italic");
+      pdf.setTextColor(110, 110, 110);
+      const noteY = Math.min((pdf.lastAutoTable.finalY || topMargin) + 38, pageHeight - bottomMargin - 5);
+      pdf.text(
+        "IMPORTANT: Certificates will be printed as per the above details. Kindly verify all spellings and details before signing. Re-printing will not be done.",
+        sideMargin,
+        noteY,
+        { maxWidth: usableWidth }
+      );
+
       const classString = selectedClasses.map((opt) => opt.value).join("-");
       const sectionString = selectedSections.map((opt) => opt.value).join("-");
-      const filename = `Attendance_${classString}_${sectionString}${
-        selectedExam ? `_${selectedExam}` : ""
-      }${selectedSchoolCode ? `_${selectedSchoolCode}` : ""}.pdf`;
+      const fileNameParts = [
+        "CostWise_Participation",
+        selectedExamLevel || "AllLevels",
+        examColumns.length ? examColumns.map((col) => col.code).join("-") : "AllExams",
+        selectedSchoolCode || school?.schoolCode || "AllSchools",
+      ];
 
-      // Save PDF
-      // pdf.save(filename);
-      // alert("Attendance downloaded successfully!!");
-      const pdfBlob = pdf.output("blob");
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      window.open(blobUrl, "_blank");
+      pdf.save(`${fileNameParts.filter(Boolean).join("_")}.pdf`);
+      alert("PDF downloaded successfully!");
     } catch (err) {
       console.error("PDF generation failed:", err);
-      alert("Failed to generate PDF. Check console for details.");
+      alert("Failed to generate PDF. Error: " + err.message);
     } finally {
       setIsDownloading(false);
     }

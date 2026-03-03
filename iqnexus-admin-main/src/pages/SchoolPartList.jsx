@@ -28,6 +28,16 @@ const booleanFields = [
 
 // Map exam codes to full names
 const examFullNames = {
+  IQKDL1: {
+    fullName: "IQNEXUS KINDERGARTEN OLYMPIAD",
+    code: "IQKD",
+    level: "Level 1",
+  },
+  IQKDL2: {
+    fullName: "IQNEXUS KINDERGARTEN OLYMPIAD",
+    code: "IQKD",
+    level: "Level 2",
+  },
   IQEOL1: {
     fullName: "IQNEXUS ENGLISH OLYMPIAD",
     code: "IQEO",
@@ -233,12 +243,12 @@ const SchoolPartList = () => {
       const pdf = new jsPDF("l", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const sideMargin = 16;
-      const topMargin = 72;
-      const bottomMargin = 22;
+      const sideMargin = 14;
+      const topMargin = 74;
+      const bottomMargin = 24;
       const usableWidth = pageWidth - sideMargin * 2;
       const now = new Date();
-      const formattedDate = now.toLocaleString();
+      const formattedDate = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) + " " + now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
       const academicYear = now.getMonth() >= 3
         ? `${now.getFullYear()}-${now.getFullYear() + 1}`
         : `${now.getFullYear() - 1}-${now.getFullYear()}`;
@@ -289,56 +299,108 @@ const SchoolPartList = () => {
       });
 
       const drawHeader = () => {
+        // Page border
+        pdf.setDrawColor(26, 35, 126);
+        pdf.setLineWidth(0.7);
+        pdf.rect(6, 6, pageWidth - 12, pageHeight - 12);
+
         const centerX = pageWidth / 2;
-        const logoSize = 20;
-        const infoStartY = 40;
+        const logoSize = 18;
+
+        // Logo
+        pdf.addImage(logo, "PNG", centerX - logoSize / 2, 10, logoSize, logoSize);
+
+        // Organization name
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(15);
+        pdf.setTextColor(26, 35, 126);
+        pdf.text("IQ NEXUS", centerX, 33, { align: "center" });
+
+        // Subtitle
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(100, 100, 100);
+        pdf.text("INTERNATIONAL OLYMPIAD EXAMINATIONS", centerX, 39, { align: "center" });
+
+        // Title
         const participationTitle = selectedExamLevel === "L2"
-          ? "Participation List Advance"
-          : "Participation List Basic";
-        const levelSubtitle = selectedExamLevel
-          ? selectedExamLevel === "L2" ? "ADVANCE LEVEL" : "BASIC LEVEL"
-          : "EXAM LEVEL NOT SELECTED";
-
-        pdf.addImage(logo, "PNG", centerX - logoSize / 2, 12, logoSize, logoSize);
+          ? "PARTICIPATION LIST — ADVANCE LEVEL"
+          : "PARTICIPATION LIST — BASIC LEVEL";
         pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(16);
-        pdf.setTextColor(22, 27, 35);
-        pdf.text("IQ Nexus", centerX, 36, { align: "center" });
-
         pdf.setFontSize(11);
+        pdf.setTextColor(26, 35, 126);
+        pdf.text(participationTitle, centerX, 47, { align: "center" });
+
+        // Horizontal rule
+        pdf.setDrawColor(26, 35, 126);
+        pdf.setLineWidth(0.5);
+        pdf.line(sideMargin, 50, pageWidth - sideMargin, 50);
+
+        // Info section
+        const infoY = 54;
         pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(80, 80, 80);
-        pdf.text(participationTitle, centerX, 44, { align: "center" });
+        pdf.setFontSize(8);
+        pdf.setTextColor(50, 50, 50);
+
         pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(10);
-        pdf.text(levelSubtitle, centerX, 50, { align: "center" });
+        pdf.text("School:", sideMargin, infoY);
         pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(9.5);
-        pdf.setTextColor(60, 60, 60);
+        pdf.text(school?.schoolName || "ALL SCHOOLS", sideMargin + 18, infoY);
 
-        pdf.text(`School Name: ${school?.schoolName || "ALL"}`, sideMargin, infoStartY);
-        pdf.text(`School Code: ${school?.schoolCode || selectedSchoolCode || "ALL"}`, sideMargin, infoStartY + 6);
-        pdf.text(`City / Area: ${school?.city || "ALL"} / ${school?.area || "ALL"}`, sideMargin, infoStartY + 12);
-        pdf.text(`Exam Incharge: ${school?.incharge || "ALL"}`, sideMargin, infoStartY + 18);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Code:", sideMargin, infoY + 5);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(String(school?.schoolCode || selectedSchoolCode || "ALL"), sideMargin + 14, infoY + 5);
 
+        pdf.setFont("helvetica", "bold");
+        pdf.text("City / Area:", sideMargin, infoY + 10);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`${school?.city || "ALL"} / ${school?.area || "ALL"}`, sideMargin + 24, infoY + 10);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Exam Incharge:", sideMargin, infoY + 15);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(school?.incharge || "N/A", sideMargin + 30, infoY + 15);
+
+        // Right side info
         const examText = selectedExam.length
           ? examListPlainArray.join(", ")
           : "All Exams";
-        pdf.text(`Exam Level: ${getExamLevelText()}`, pageWidth - sideMargin, infoStartY, { align: "right" });
-        pdf.text(`Exam(s): ${examText}`, pageWidth - sideMargin, infoStartY + 6, { align: "right" });
-        pdf.text(`Generated: ${formattedDate}`, pageWidth - sideMargin, infoStartY + 12, { align: "right" });
-        pdf.text(`Academic Year: ${academicYear}`, pageWidth - sideMargin, infoStartY + 18, { align: "right" });
 
-        pdf.setDrawColor(185, 185, 185);
-        pdf.line(sideMargin, infoStartY + 22, pageWidth - sideMargin, infoStartY + 22);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Exam Level: `, pageWidth - sideMargin - 60, infoY, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(getExamLevelText(), pageWidth - sideMargin - 38, infoY);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Exam(s): `, pageWidth - sideMargin - 60, infoY + 5, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(examText, pageWidth - sideMargin - 42, infoY + 5);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Generated: `, pageWidth - sideMargin - 60, infoY + 10, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(formattedDate, pageWidth - sideMargin - 38, infoY + 10);
+
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Year: `, pageWidth - sideMargin - 60, infoY + 15, { align: "left" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(academicYear, pageWidth - sideMargin - 46, infoY + 15);
       };
 
       const drawFooter = (pageNumber, totalPages) => {
-        pdf.setFontSize(8);
+        const footerY = pageHeight - 16;
+        pdf.setDrawColor(26, 35, 126);
+        pdf.setLineWidth(0.3);
+        pdf.line(sideMargin, footerY - 4, pageWidth - sideMargin, footerY - 4);
+        pdf.setFontSize(7);
+        pdf.setFont("helvetica", "italic");
+        pdf.setTextColor(100, 100, 100);
+        pdf.text("Confidential — For Official School Use Only", sideMargin, footerY);
         pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(90, 90, 90);
-        pdf.text("Confidential - School Copy", pageWidth / 2, pageHeight - 12, { align: "center" });
-        pdf.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: "center" });
+        pdf.text(`Page ${pageNumber} of ${totalPages}`, pageWidth / 2, footerY, { align: "center" });
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`\u00A9 ${now.getFullYear()} IQ NEXUS`, pageWidth - sideMargin, footerY, { align: "right" });
       };
 
       drawHeader();
@@ -380,34 +442,37 @@ const SchoolPartList = () => {
         body: bodyRows,
         tableWidth: usableWidth,
         styles: {
-          fontSize: 8,
+          fontSize: 7.5,
           font: "helvetica",
           textColor: [30, 30, 30],
-          cellPadding: { top: 2, right: 2, bottom: 2, left: 2 },
+          cellPadding: { top: 2, right: 3, bottom: 2, left: 3 },
           valign: "middle",
           halign: "left",
-          lineWidth: 0.3,
-          lineColor: [160, 160, 160],
-          minCellHeight: 9,
+          lineWidth: 0.25,
+          lineColor: [180, 180, 180],
+          minCellHeight: 8,
+          overflow: "ellipsize",
         },
         headStyles: {
-          fillColor: [235, 235, 235],
-          textColor: [30, 30, 30],
+          fillColor: [26, 35, 126],
+          textColor: [255, 255, 255],
           fontStyle: "bold",
           halign: "center",
           valign: "middle",
+          fontSize: 7.5,
+          cellPadding: { top: 3, right: 3, bottom: 3, left: 3 },
         },
         alternateRowStyles: {
-          fillColor: [250, 250, 250],
+          fillColor: [245, 245, 250],
         },
         columnStyles: {
-          0: { halign: "center", cellWidth: 12 },
-          1: { halign: "center", cellWidth: 20 },
-          2: { halign: "left", cellWidth: 38 },
-          3: { halign: "left", cellWidth: 32 },
-          4: { halign: "left", cellWidth: 32 },
-          5: { halign: "center", cellWidth: 16 },
-          6: { halign: "center", cellWidth: 14 },
+          0: { halign: "center", cellWidth: 10 },
+          1: { halign: "center", cellWidth: 18 },
+          2: { halign: "left", cellWidth: 40 },
+          3: { halign: "left", cellWidth: 34 },
+          4: { halign: "left", cellWidth: 34 },
+          5: { halign: "center", cellWidth: 14 },
+          6: { halign: "center", cellWidth: 12 },
         },
         didDrawPage: (data) => {
           drawHeader();
@@ -416,21 +481,37 @@ const SchoolPartList = () => {
       });
 
       const finalY = pdf.lastAutoTable.finalY || topMargin;
-      pdf.setFontSize(8.5);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(70, 70, 70);
-      pdf.text("Teacher / Invigilator Signature:", sideMargin, finalY + 10);
-      pdf.line(sideMargin, finalY + 12, sideMargin + 55, finalY + 12);
-      pdf.text("Principal / Coordinator Signature:", pageWidth - sideMargin, finalY + 10, { align: "right" });
-      pdf.line(pageWidth - sideMargin - 55, finalY + 12, pageWidth - sideMargin, finalY + 12);
 
-      pdf.setFontSize(8);
+      // Signature section
+      if (finalY + 30 < pageHeight - bottomMargin) {
+        const sigSectionY = finalY + 14;
+        pdf.setDrawColor(180, 180, 180);
+        pdf.setLineWidth(0.3);
+        pdf.line(sideMargin, sigSectionY - 4, pageWidth - sideMargin, sigSectionY - 4);
+
+        pdf.setFontSize(7.5);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(50, 50, 50);
+        pdf.text("Exam Incharge / Coordinator:", sideMargin, sigSectionY + 2);
+        pdf.setLineWidth(0.3);
+        pdf.setDrawColor(80, 80, 80);
+        pdf.line(sideMargin + 52, sigSectionY + 3, sideMargin + 120, sigSectionY + 3);
+
+        pdf.text("Principal / Head of Institution:", pageWidth - sideMargin - 120, sigSectionY + 2);
+        pdf.line(pageWidth - sideMargin - 60, sigSectionY + 3, pageWidth - sideMargin, sigSectionY + 3);
+
+        pdf.text(`Total Students: ${studentsData.length}`, sideMargin, sigSectionY + 12);
+      }
+
+      pdf.setFontSize(7);
       pdf.setFont("helvetica", "italic");
       pdf.setTextColor(110, 110, 110);
+      const noteY = Math.min((pdf.lastAutoTable.finalY || topMargin) + 38, pageHeight - bottomMargin - 5);
       pdf.text(
-        "IMPORTANT NOTE: Certificates will be printed as per the above details. Kindly verify spellings before signing.",
+        "IMPORTANT: Certificates will be printed as per the above details. Kindly verify all spellings and details before signing. Re-printing will not be done.",
         sideMargin,
-        finalY + 20
+        noteY,
+        { maxWidth: usableWidth }
       );
 
       const fileNameParts = [

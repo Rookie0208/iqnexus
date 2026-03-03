@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import * as XLSX from "xlsx";
 import { BASE_URL } from "../Api";
 
 const AllSchools = () => {
@@ -14,19 +15,40 @@ const AllSchools = () => {
   const [totalSchools, setTotalSchools] = useState(0);
   const [limit] = useState(10);
 
+  // Search & Filter state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [cities, setCities] = useState([]);
+  const [sortBy, setSortBy] = useState("");
+  const [sortOrder, setSortOrder] = useState("asc");
+
   useEffect(() => {
     fetchSchools(currentPage);
-  }, [currentPage]);
+  }, [currentPage, searchTerm, selectedCity, sortBy, sortOrder]);
 
   const fetchSchools = async (page) => {
     try {
-      const res = await axios.get(
-        `${BASE_URL}/all-schools?page=${page}&limit=${limit}`
-      );
+      setLoading(true);
+      const params = new URLSearchParams({
+        page,
+        limit,
+      });
+      if (searchTerm) params.append("search", searchTerm);
+      if (selectedCity) params.append("city", selectedCity);
+      if (sortBy) {
+        params.append("sortBy", sortBy);
+        params.append("sortOrder", sortOrder);
+      }
+
+      const res = await axios.get(`${BASE_URL}/all-schools?${params.toString()}`);
       if (res.data.success) {
         setSchools(res.data.schools);
         setTotalPages(res.data.totalPages || 1);
         setTotalSchools(res.data.totalSchools || res.data.schools.length);
+        if (res.data.cities) {
+          setCities(res.data.cities.filter(Boolean).sort());
+        }
+        setError(null);
       } else {
         setSchools([]);
         setTotalPages(1);
@@ -42,6 +64,78 @@ const AllSchools = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadXLS = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      if (selectedCity) params.append("city", selectedCity);
+      if (sortBy) {
+        params.append("sortBy", sortBy);
+        params.append("sortOrder", sortOrder);
+      }
+
+      const res = await axios.get(`${BASE_URL}/all-schools-no-pagination?${params.toString()}`);
+      if (res.data.success && res.data.schools.length > 0) {
+        const excelData = res.data.schools.map((school, index) => ({
+          "S.No": index + 1,
+          "School Code": school.schoolCode || "N/A",
+          "School Name": school.schoolName || "N/A",
+          "Email": school.schoolEmail || "N/A",
+          "City": school.city || "N/A",
+          "Area": school.area || "N/A",
+          "Country": school.country || "N/A",
+          "Principal Name": school.principalName || "N/A",
+          "Principal DOB": school.principalDob || "N/A",
+          "Principal Mobile": school.principalMobNo || "N/A",
+          "Incharge": school.incharge || "N/A",
+          "Incharge DOB": school.inchargeDob || "N/A",
+          "School Mobile": school.schoolMobNo || "N/A",
+          "Fax": school.fax || "N/A",
+          "Remark": school.remark || "N/A",
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Schools");
+        const filename = `Schools${selectedCity ? `_${selectedCity}` : ""}${searchTerm ? `_${searchTerm}` : ""}.xlsx`;
+        XLSX.writeFile(wb, filename);
+      } else {
+        alert("No school data to export!");
+      }
+    } catch (err) {
+      console.error("Error downloading schools:", err);
+      alert("Failed to download schools data.");
+    }
+  };
+
+  const handleSortToggle = () => {
+    if (sortBy === "schoolCode") {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy("schoolCode");
+      setSortOrder("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleCityChange = (e) => {
+    setSelectedCity(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSelectedCity("");
+    setSortBy("");
+    setSortOrder("asc");
+    setCurrentPage(1);
   };
 
   const handleDelete = async (schoolCode) => {
@@ -150,7 +244,59 @@ const AllSchools = () => {
   return (
     <div className="min-h-screen p-6 bg-gray-50">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">All Schools</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">All Schools</h1>
+          <button
+            onClick={handleDownloadXLS}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-150 text-sm"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Download XLS
+          </button>
+        </div>
+
+        {/* Search & Filter Bar */}
+        <div className="bg-white shadow-md rounded-lg p-4 mb-6">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Search (Name or Code)
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder="Search by school name or code..."
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm"
+              />
+            </div>
+            <div className="min-w-[150px]">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                City
+              </label>
+              <select
+                value={selectedCity}
+                onChange={handleCityChange}
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm"
+              >
+                <option value="">All Cities</option>
+                {cities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleClearFilters}
+              className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-600 text-sm hover:bg-gray-100 transition duration-150"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
 
         {loading && (
           <div className="text-center">
@@ -197,7 +343,17 @@ const AllSchools = () => {
                 <thead className="bg-gray-100 text-xs uppercase font-semibold">
                   <tr>
                     <th className="px-6 py-3 text-left">School Name</th>
-                    <th className="px-6 py-3 text-left">School Code</th>
+                    <th
+                      className="px-6 py-3 text-left cursor-pointer select-none hover:text-indigo-600"
+                      onClick={handleSortToggle}
+                    >
+                      School Code
+                      {sortBy === "schoolCode" && (
+                        <span className="ml-1">
+                          {sortOrder === "asc" ? "▲" : "▼"}
+                        </span>
+                      )}
+                    </th>
                     <th className="px-6 py-3 text-left">City</th>
                     <th className="px-6 py-3 text-right">Actions</th>
                   </tr>

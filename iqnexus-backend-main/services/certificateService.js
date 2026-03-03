@@ -2,6 +2,11 @@ import { MongoClient, GridFSBucket } from "mongodb";
 import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const mongoURI = process.env.MONGO_URI;
 
@@ -22,85 +27,136 @@ async function generatePDF(info, outputPath, type) {
     const stream = fs.createWriteStream(outputPath);
     doc.pipe(stream);
 
-    doc.rect(0, 0, doc.page.width, doc.page.height).fill("#ffffff");
+    const W = doc.page.width;   // 841.89
+    const H = doc.page.height;  // 595.28
+    const margin = 30;
+    const contentWidth = W - 2 * margin;
 
-    const margin = 20;
-    const contentWidth = doc.page.width - 2 * margin;
+    // Colors
+    const navy = "#1a237e";
+    const gold = "#c49b2f";
+    const darkGray = "#222222";
+    const medGray = "#555555";
+    const lightGold = "#fdf6e3";
 
-    doc.lineWidth(20)
-      .strokeColor("#0e8cc3")
-      .rect(margin, margin, contentWidth, doc.page.height - 2 * margin)
-      .stroke();
+    // ─── Background ───
+    doc.rect(0, 0, W, H).fill("#ffffff");
 
-    const maxWidth = 120;
-    const maxHeight = 90;
-    const logoPath = path.join(__dirname, "assets", "logo.png");
+    // ─── Outer decorative border (double line) ───
+    doc.lineWidth(3).strokeColor(navy);
+    doc.rect(margin, margin, contentWidth, H - 2 * margin).stroke();
+    doc.lineWidth(1).strokeColor(gold);
+    doc.rect(margin + 5, margin + 5, contentWidth - 10, H - 2 * margin - 10).stroke();
+
+    // ─── Gold accent lines at top and bottom ───
+    doc.lineWidth(2).strokeColor(gold);
+    doc.moveTo(margin + 20, margin + 15).lineTo(W - margin - 20, margin + 15).stroke();
+    doc.moveTo(margin + 20, H - margin - 15).lineTo(W - margin - 20, H - margin - 15).stroke();
+
+    // ─── Logo ───
+    let headerY = margin + 25;
+    const logoPath = path.join(__dirname, "..", "assets", "logo.png");
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, doc.page.width / 2 - maxWidth / 2, 50, {
-        fit: [maxWidth, maxHeight],
-        align: "center",
-      });
+      doc.image(logoPath, W / 2 - 55, headerY, { width: 110 });
+      headerY += 65;
+    } else {
+      headerY += 10;
     }
 
-    doc.fillColor("#000000").fontSize(22).text("CERTIFICATE", {
-      align: "center",
-    });
+    // ─── Organization Name ───
+    doc.font("Helvetica-Bold").fontSize(14).fillColor(navy);
+    doc.text("IQ NEXUS", margin, headerY, { width: contentWidth, align: "center" });
+    headerY += 18;
 
-    doc.moveDown(0.5);
+    doc.font("Helvetica").fontSize(9).fillColor(medGray);
+    doc.text("INTERNATIONAL OLYMPIAD EXAMINATIONS", margin, headerY, { width: contentWidth, align: "center" });
+    headerY += 20;
 
-    doc.fontSize(12).text("Presented to", { align: "center" });
-    doc.moveDown(0.5);
+    // ─── Certificate Title ───
+    doc.font("Helvetica-Bold").fontSize(28).fillColor(navy);
+    doc.text("CERTIFICATE", margin, headerY, { width: contentWidth, align: "center" });
+    headerY += 36;
 
-    doc.fontSize(28).font("Helvetica-Bold").text(info["Student's Name"], {
-      align: "center",
-    });
+    doc.font("Helvetica").fontSize(11).fillColor(medGray);
+    doc.text("OF PARTICIPATION", margin, headerY, { width: contentWidth, align: "center" });
+    headerY += 22;
 
-    doc.moveDown(0.8);
+    // ─── Decorative line under title ───
+    const lineCenter = W / 2;
+    doc.lineWidth(1.5).strokeColor(gold);
+    doc.moveTo(lineCenter - 80, headerY).lineTo(lineCenter + 80, headerY).stroke();
+    headerY += 18;
 
-    doc.fontSize(12).font("Helvetica").text(
-      `Successfully completed the course at ${info["School"]}.`,
-      { align: "center" }
+    // ─── Presented to ───
+    doc.font("Helvetica").fontSize(12).fillColor(medGray);
+    doc.text("This certificate is proudly presented to", margin, headerY, { width: contentWidth, align: "center" });
+    headerY += 24;
+
+    // ─── Student Name ───
+    const studentName = info["Student's Name"] || "Student";
+    doc.font("Helvetica-Bold").fontSize(26).fillColor(navy);
+    doc.text(studentName.toUpperCase(), margin, headerY, { width: contentWidth, align: "center" });
+    headerY += 34;
+
+    // ─── Line under name ───
+    doc.lineWidth(0.5).strokeColor(gold);
+    doc.moveTo(lineCenter - 120, headerY).lineTo(lineCenter + 120, headerY).stroke();
+    headerY += 18;
+
+    // ─── Description ───
+    const schoolName = info["School"] || "their school";
+    doc.font("Helvetica").fontSize(11).fillColor(darkGray);
+    doc.text(
+      `for successful participation in the International Olympiad Examinations`,
+      margin + 40, headerY, { width: contentWidth - 80, align: "center" }
     );
+    headerY += 16;
+    doc.text(
+      `conducted by IQ Nexus at ${schoolName}.`,
+      margin + 40, headerY, { width: contentWidth - 80, align: "center" }
+    );
+    headerY += 30;
 
-    doc.moveDown(3);
+    // ─── Date ───
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    doc.font("Helvetica").fontSize(9).fillColor(medGray);
+    doc.text(`Date: ${dateStr}`, margin, headerY, { width: contentWidth, align: "center" });
+    headerY += 30;
 
-    const lineSize = 180;
-    const signatureY = doc.page.height - 120;
+    // ─── Signature Section ───
+    const sigLineW = 160;
+    const sigY = H - margin - 70;
 
-    const signatureDetails = [
-      { x: margin + 50, name: "Mr. Professor", title: "Professor" },
-      {
-        x: doc.page.width / 2 - lineSize / 2,
-        name: info["Student's Name"],
-        title: "Student",
-      },
-      {
-        x: doc.page.width - margin - lineSize - 50,
-        name: "Jane Doe",
-        title: "Director",
-      },
-    ];
+    doc.lineWidth(0.5).strokeColor(darkGray);
 
-    doc.strokeColor("#021c27").lineWidth(1).strokeOpacity(0.4);
+    // Left signature
+    const leftSigX = margin + 60;
+    doc.moveTo(leftSigX, sigY).lineTo(leftSigX + sigLineW, sigY).stroke();
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(darkGray);
+    doc.text("Exam Incharge", leftSigX, sigY + 5, { width: sigLineW, align: "center" });
+    doc.font("Helvetica").fontSize(7.5).fillColor(medGray);
+    doc.text("(Signature & Stamp)", leftSigX, sigY + 16, { width: sigLineW, align: "center" });
 
-    signatureDetails.forEach(({ x }) => {
-      doc.moveTo(x, signatureY)
-        .lineTo(x + lineSize, signatureY)
-        .stroke();
-    });
+    // Center signature
+    const centerSigX = W / 2 - sigLineW / 2;
+    doc.moveTo(centerSigX, sigY).lineTo(centerSigX + sigLineW, sigY).stroke();
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(darkGray);
+    doc.text(studentName, centerSigX, sigY + 5, { width: sigLineW, align: "center" });
+    doc.font("Helvetica").fontSize(7.5).fillColor(medGray);
+    doc.text("(Student)", centerSigX, sigY + 16, { width: sigLineW, align: "center" });
 
-    doc.fillOpacity(1).strokeOpacity(1);
+    // Right signature
+    const rightSigX = W - margin - 60 - sigLineW;
+    doc.moveTo(rightSigX, sigY).lineTo(rightSigX + sigLineW, sigY).stroke();
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(darkGray);
+    doc.text("Director", rightSigX, sigY + 5, { width: sigLineW, align: "center" });
+    doc.font("Helvetica").fontSize(7.5).fillColor(medGray);
+    doc.text("(IQ Nexus)", rightSigX, sigY + 16, { width: sigLineW, align: "center" });
 
-    signatureDetails.forEach(({ x, name, title }) => {
-      doc.fontSize(10).fillColor("#021c27").text(name, x, signatureY + 8, {
-        width: lineSize,
-        align: "center",
-      });
-      doc.fontSize(10).text(title, x, signatureY + 22, {
-        width: lineSize,
-        align: "center",
-      });
-    });
+    // ─── Footer ───
+    doc.font("Helvetica").fontSize(7).fillColor(medGray);
+    doc.text(`© ${now.getFullYear()} IQ NEXUS — International Olympiad Examinations. All Rights Reserved.`, margin, H - margin - 25, { width: contentWidth, align: "center" });
 
     doc.end();
 

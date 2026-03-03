@@ -7,27 +7,29 @@ import mongoose from "mongoose";
 
 export const getAdmitCardStudents = async (req, res) => {
   try {
-    const { schoolCode, examLevel } = req.body;
+    const { schoolCode, examLevel, allSchools } = req.body;
     const { page = 1, limit = 10 } = req.query;
-
-    // Validate required fields
-    if (!schoolCode) {
-      return res.status(400).json({ error: "School code is required" });
-    }
 
     if (!examLevel) {
       return res.status(400).json({ error: "Exam level is required" });
     }
 
-    if (isNaN(parseInt(schoolCode))) {
-      return res.status(400).json({ error: "Invalid school code: must be a number" });
+    if (!allSchools && !schoolCode) {
+      return res.status(400).json({ error: "School code is required" });
     }
 
     if (!["L1", "L2"].includes(examLevel)) {
       return res.status(400).json({ error: "Invalid exam level: must be L1 or L2" });
     }
 
-    const query = { schoolCode: parseInt(schoolCode) };
+    if (!allSchools && isNaN(parseInt(schoolCode))) {
+      return res.status(400).json({ error: "Invalid school code: must be a number" });
+    }
+
+    const query = {};
+    if (!allSchools) {
+      query.schoolCode = parseInt(schoolCode);
+    }
     if (examLevel === "L1") {
       query.$or = [
         { IAOL1: "1" }, { ITSTL1: "1" }, { IMOL1: "1" },
@@ -43,7 +45,10 @@ export const getAdmitCardStudents = async (req, res) => {
     console.log("🔍 Query for admit card students:", JSON.stringify(query, null, 2));
 
     // Build KG query
-    const kgQuery = { schoolCode: parseInt(schoolCode) };
+    const kgQuery = {};
+    if (!allSchools) {
+      kgQuery.schoolCode = parseInt(schoolCode);
+    }
     if (examLevel === "L1") {
       kgQuery.IQKD1 = "1";
     } else if (examLevel === "L2") {
@@ -162,17 +167,24 @@ export const generateAdmitCards = async (req, res) => {
     const generateResults = await generateAdmitCard(uniqueStudents, level, examDate, school);
     const uploadResults = await uploadAdmitCard(uniqueStudents, level, db, examDate);
 
-    const results = generateResults.map((gen, index) => ({
-      mobNo: gen.mobNo,
-      success: gen.success && uploadResults[index].success,
-      path: gen.path,
-      fileId: uploadResults[index].fileId,
-      error: gen.error || uploadResults[index].error,
-      message: uploadResults[index].message,
-    }));
+    // Merge results by mobNo for robustness (avoid index mismatch issues)
+    const uploadMap = new Map(uploadResults.map(r => [r.mobNo, r]));
+    const results = generateResults.map((gen) => {
+      const upload = uploadMap.get(gen.mobNo) || {};
+      return {
+        mobNo: gen.mobNo,
+        success: !!(gen.success && upload.success),
+        path: gen.path,
+        fileId: gen.fileId || upload.fileId,
+        error: gen.error || upload.error || undefined,
+        message: gen.message || upload.message || undefined,
+      };
+    });
 
-    const failed = results.filter((r) => r.error);
-    const alreadyGenerated = results.filter((r) => r.message === "Admit card already generated");
+    const failed = results.filter((r) => !r.success);
+    const alreadyGenerated = results.filter((r) =>
+      r.message === "Admit card already generated" || r.message === "Admit card already exists in storage"
+    );
 
     if (failed.length > 0) {
       return res.status(207).json({ message: "Some admit cards failed", results });

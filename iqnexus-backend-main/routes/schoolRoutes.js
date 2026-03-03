@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getAllSchools,
+  getAllSchoolsNoPagination,
   getSchoolById,
   getAllSchoolAdmitCards,
   addSchool,
@@ -13,6 +14,7 @@ import {
 const router = express.Router();
 
 router.get("/all-schools", getAllSchools);
+router.get("/all-schools-no-pagination", getAllSchoolsNoPagination);
 router.get("/get-school/:id", getSchoolById);
 router.get("/all-school-admit-card", getAllSchoolAdmitCards);
 router.post("/add-school", addSchool);

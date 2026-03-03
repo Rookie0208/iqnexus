@@ -1,5 +1,6 @@
 import { ResultConfig } from "../models/resultConfigModel.js";
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
+import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
 
 // Exam code mapping
@@ -14,6 +15,16 @@ const examFieldMap = {
   IQMOL2: "IMOL2",
   IQGKOL1: "IGKOL1",
   IQGKOL2: "IGKOL2",
+  IQKD1: "IQKD1",
+  IQKD2: "IQKD2",
+};
+
+// Check if an exam code is a kindergarten exam
+const isKGExam = (subject) => ["IQKD1", "IQKD2"].includes(subject);
+
+// Get the appropriate model
+const getStudentModel = (subject) => {
+  return isKGExam(subject) ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
 };
 
 // Get rating based on percentage
@@ -134,12 +145,13 @@ export const publishResults = async (req, res) => {
  * @param {Number} studentScore - The student's score
  * @param {Object} matchQuery - MongoDB match query for the group
  * @param {String} resultKey - The result field key (e.g., 'IAOL1')
+ * @param {Object} Model - The mongoose model to use
  * @returns {Number} - The rank (1-based)
  */
-const calculateRank = async (studentScore, matchQuery, resultKey) => {
+const calculateRank = async (studentScore, matchQuery, resultKey, Model = STUDENT_LATEST) => {
   try {
     // Count students with higher scores (present students only)
-    const higherCount = await STUDENT_LATEST.countDocuments({
+    const higherCount = await Model.countDocuments({
       ...matchQuery,
       [`result.${resultKey}.attendance`]: "PRESENT",
       [`result.${resultKey}.total.score`]: { $gt: studentScore }
@@ -163,9 +175,16 @@ export const getSingleStudentResult = async (req, res) => {
     }
 
     const resultKey = examFieldMap[subject] || subject;
+    const StudentModel = getStudentModel(subject);
 
-    // Find student
-    const student = await STUDENT_LATEST.findOne({ rollNo }).lean();
+    // Find student (search in KG model first if KG exam, otherwise regular model)
+    let student = await StudentModel.findOne({ rollNo }).lean();
+    
+    // If not found in the primary model and it's a KG exam, don't fall back
+    // If not a KG exam and not found, also try KG model (in case of cross-reference)
+    if (!student && !isKGExam(subject)) {
+      student = await STUDENT_LATEST.findOne({ rollNo }).lean();
+    }
     
     if (!student) {
       return res.status(404).json({ error: "Student not found" });
@@ -258,33 +277,33 @@ export const getSingleStudentResult = async (req, res) => {
       // Calculate all ranks in parallel for better performance
       const [intlRank, nationalRank, cityRank, schoolRank, classRank, sectionRank] = await Promise.all([
         // International Rank - All students globally
-        calculateRank(studentScore, {}, resultKey),
+        calculateRank(studentScore, {}, resultKey, StudentModel),
         
         // National Rank - Students in the same country
         countrySchools.length > 0 
-          ? calculateRank(studentScore, { schoolCode: { $in: countrySchools } }, resultKey)
+          ? calculateRank(studentScore, { schoolCode: { $in: countrySchools } }, resultKey, StudentModel)
           : Promise.resolve(0),
         
         // City/Zonal Rank - Students in the same city
         citySchools.length > 0 
-          ? calculateRank(studentScore, { schoolCode: { $in: citySchools } }, resultKey)
+          ? calculateRank(studentScore, { schoolCode: { $in: citySchools } }, resultKey, StudentModel)
           : Promise.resolve(0),
         
         // School Rank - Students in the same school
-        calculateRank(studentScore, { schoolCode: student.schoolCode }, resultKey),
+        calculateRank(studentScore, { schoolCode: student.schoolCode }, resultKey, StudentModel),
         
         // Class Rank - Students in the same school and class
         calculateRank(studentScore, { 
           schoolCode: student.schoolCode, 
           class: student.class 
-        }, resultKey),
+        }, resultKey, StudentModel),
         
         // Section Rank - Students in the same school, class, and section
         calculateRank(studentScore, { 
           schoolCode: student.schoolCode, 
           class: student.class,
           section: student.section 
-        }, resultKey)
+        }, resultKey, StudentModel)
       ]);
 
       ranks = {

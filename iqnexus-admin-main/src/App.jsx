@@ -28,6 +28,12 @@ import Uploadresults from "./pages/uploadResults";
 import ViewResults from "./pages/ViewResults";
 import UpdateAdvanceList from "./pages/updateAdvanceList";
 import ExamManagement from "./pages/ExamManagement";
+import CalendarYearManagement from "./pages/CalendarYearManagement";
+import PrizeConfiguration from "./pages/PrizeConfiguration";
+import PrizeTag from "./pages/PrizeTag";
+import SubjectManagement from "./pages/SubjectManagement";
+import RankingManagement from "./pages/RankingManagement";
+import PrizeOverride from "./pages/PrizeOverride";
 
 
 const App = () => {
@@ -63,6 +69,12 @@ const App = () => {
             <Route path="/allkindargartenStudents" element={< AllKindergartenStudents />} />
             <Route path="/kindargartenStudent" element={< KinderGartenStudentForm />} />
             <Route path="/uploadKindergartenStudentData" element={< UploadBulkKindergartenStudentData />} />
+            <Route path="/calendar-year" element={<CalendarYearManagement />} />
+            <Route path="/prize-config" element={<PrizeConfiguration />} />
+            <Route path="/prize-tag" element={<PrizeTag />} />
+            <Route path="/subject-management" element={<SubjectManagement />} />
+            <Route path="/ranking-management" element={<RankingManagement />} />
+            <Route path="/prize-override" element={<PrizeOverride />} />
           </Route>
         </Routes>
       </Router>

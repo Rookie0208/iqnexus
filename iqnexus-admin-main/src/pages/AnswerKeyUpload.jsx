@@ -8,6 +8,7 @@ const AnswerKeyUpload = () => {
     const [uploading, setUploading] = useState(false);
       const [selectedExam, setSelectedExam] = useState([]);
       const [selectedExamLevel, setSelectedExamLevel] = useState("");
+      const [isKGExam, setIsKGExam] = useState(false);
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -31,6 +32,8 @@ const AnswerKeyUpload = () => {
     { name: "IQMOL2", level: "L2" },
     { name: "IQGKOL1", level: "L1" },
     // { name: "IQGKOL2", level: "L2" },
+    { name: "IQKDL1", level: "L1", isKG: true },
+    { name: "IQKDL2", level: "L2", isKG: true },
   ];
 
     const [selectedClass, setSelectedClass] = useState("");
@@ -125,9 +128,15 @@ const AnswerKeyUpload = () => {
                         .map((exam) => ({
                             value: exam.name,
                             label: exam.name,
+                            isKG: exam.isKG || false,
                         }))}
                     value={selectedExam}
-                    onChange={(selected) => setSelectedExam(selected)}
+                    onChange={(selected) => {
+                        setSelectedExam(selected);
+                        setIsKGExam(selected?.isKG || false);
+                        setSelectedClass("");
+                        setAnswers({});
+                    }}
                     className="basic-select w-90 mb-4"
                     classNamePrefix="select"
                     placeholder="Select exam..."
@@ -146,10 +155,17 @@ const AnswerKeyUpload = () => {
                 />
                 <label className="block text-sm font-medium text-gray-700 mt-7">Class</label>
                 <Select
-                    options={[...Array(12)].map((_, i) => ({
-                        value: (i + 1).toString(),
-                        label: `Class ${i + 1}`,
-                    }))}
+                    options={isKGExam
+                        ? [
+                            { value: "LKG", label: "LKG" },
+                            { value: "UKG", label: "UKG" },
+                            { value: "PG", label: "PG (Pre-Primary)" },
+                        ]
+                        : [...Array(12)].map((_, i) => ({
+                            value: (i + 1).toString(),
+                            label: `Class ${i + 1}`,
+                        }))
+                    }
                     value={selectedClass ? { value: selectedClass, label: `Class ${selectedClass}` } : null}
                     onChange={(selected) => setSelectedClass(selected?.value || "")}
                     className="basic-select w-90 mb-4"
@@ -176,7 +192,7 @@ const AnswerKeyUpload = () => {
                                 Question {index + 1}
                             </label>
                             <div className="flex gap-4">
-                                {['A', 'B', 'C', 'D'].map((option) => (
+                                {(isKGExam ? ['A', 'B'] : ['A', 'B', 'C', 'D']).map((option) => (
                                     <label key={option} className="flex items-center">
                                         <input
                                             type="radio"

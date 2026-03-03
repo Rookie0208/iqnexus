@@ -77,11 +77,11 @@ const AdmitCard = () => {
       const res = await axios.post(
         `${BASE_URL}/admit-card-students?page=${page}&limit=${limit}`,
         {
-          schoolCode: filters.schoolCode
+          schoolCode: filters.schoolCode && filters.schoolCode !== "ALL"
             ? Number(filters.schoolCode)
             : undefined,
           examLevel: filters.examLevel || undefined,
-          // session: filters.session || undefined,
+          allSchools: filters.schoolCode === "ALL" ? true : undefined,
         }
       );
 
@@ -171,15 +171,36 @@ const AdmitCard = () => {
     setMessage("");
 
     try {
-      const res = await axios.post(`${BASE_URL}/admit-card`, {
-        schoolCode: Number(searchData.schoolCode),
-        level: searchData.examLevel,
-        // session: searchData.session,
-        examDate: examDate,
-      });
+      if (searchData.schoolCode === "ALL") {
+        // Generate for all schools
+        let successCount = 0;
+        let failCount = 0;
+        for (const school of schools) {
+          try {
+            await axios.post(`${BASE_URL}/admit-card`, {
+              schoolCode: Number(school.schoolCode),
+              level: searchData.examLevel,
+              examDate: examDate,
+            });
+            successCount++;
+          } catch (err) {
+            console.error(`Failed for school ${school.schoolCode}:`, err);
+            failCount++;
+          }
+        }
+        const msg = `Admit cards generated for ${successCount} schools.${failCount > 0 ? ` Failed for ${failCount} schools.` : ""}`;
+        setMessage(msg);
+        alert(msg);
+      } else {
+        const res = await axios.post(`${BASE_URL}/admit-card`, {
+          schoolCode: Number(searchData.schoolCode),
+          level: searchData.examLevel,
+          examDate: examDate,
+        });
 
-      setMessage(res.data.message);
-      alert(res.data.message);
+        setMessage(res.data.message);
+        alert(res.data.message);
+      }
     } catch (error) {
       console.error("Error generating admit cards:", error);
       setMessage("Failed to generate admit cards. Please try again.");
@@ -365,7 +386,12 @@ const AdmitCard = () => {
     searchData.schoolCode
   );
 
-  const isGenerateDisabled = isSearchDisabled || !students.length || !examDate;
+  const isGenerateDisabled = !(
+    searchData.examLevel &&
+    searchData.schoolCode &&
+    examDate &&
+    (searchData.schoolCode === "ALL" || students.length > 0)
+  );
 
   return (
     <div className="min-h-screen p-6 bg-gray-50">
@@ -451,21 +477,57 @@ const AdmitCard = () => {
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 School
               </label>
-              <select
+              <Select
                 name="schoolCode"
-                value={searchData.schoolCode}
-                onChange={handleSearchChange}
-                className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm transition duration-150"
-              >
-                <option value="" disabled>
-                  Select a school
-                </option>
-                {schools.map((school) => (
-                  <option key={school.schoolCode} value={school.schoolCode}>
-                    {school.schoolName}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: "ALL", label: "All Schools" },
+                  ...schools.map((school) => ({
+                    value: school.schoolCode,
+                    label: `${school.schoolCode} - ${school.schoolName}`,
+                  })),
+                ]}
+                value={
+                  searchData.schoolCode
+                    ? searchData.schoolCode === "ALL"
+                      ? { value: "ALL", label: "All Schools" }
+                      : {
+                          value: searchData.schoolCode,
+                          label: `${searchData.schoolCode} - ${
+                            schools.find(
+                              (s) =>
+                                String(s.schoolCode) ===
+                                String(searchData.schoolCode)
+                            )?.schoolName || ""
+                          }`,
+                        }
+                    : null
+                }
+                onChange={(selected) => {
+                  setSearchData({
+                    ...searchData,
+                    schoolCode: selected ? String(selected.value) : "",
+                  });
+                  setMessage("");
+                }}
+                isClearable
+                isSearchable
+                placeholder="Search & select school..."
+                className="basic-select"
+                classNamePrefix="select"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    padding: "0",
+                    fontSize: "0.875rem",
+                    borderColor: "#d1d5db",
+                    minHeight: "34px",
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    zIndex: 50,
+                  }),
+                }}
+              />
             </div>
 
             <div className="flex gap-2">

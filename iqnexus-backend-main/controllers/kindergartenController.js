@@ -134,6 +134,12 @@ export const addKindergartenStudent = async (req, res) => {
       req.body.class = req.body.Class;
       delete req.body.Class;
     }
+    // Auto-assign current calendar year if not provided
+    if (!req.body.calendarYear) {
+      const { CalendarYear } = await import("../models/calendarYear.model.js");
+      const currentCY = await CalendarYear.findOne({ isCurrent: true }).lean();
+      if (currentCY) req.body.calendarYear = currentCY.label;
+    }
     const newStudent = new KINDERGARTEN_STUDENT(req.body);
     const savedStudent = await newStudent.save();
     res.status(201).json({

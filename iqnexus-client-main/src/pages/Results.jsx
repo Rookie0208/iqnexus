@@ -3,8 +3,8 @@ import { Download, FileText, Loader2 } from "lucide-react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import { BASE_API_URL } from "../Api";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const Results = () => {
   const student = useSelector((state) => state.auth.user);
@@ -112,52 +112,238 @@ const Results = () => {
 
   // Download as PDF
   const handleDownloadPDF = async () => {
-    if (!resultCardRef.current || !result) return;
+    if (!result) return;
 
     setIsDownloading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 14;
+      let y = margin;
 
-      const element = resultCardRef.current;
-      
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: element.scrollWidth,
-        height: element.scrollHeight,
+      // ── Decorative border ──
+      pdf.setDrawColor(26, 54, 93);
+      pdf.setLineWidth(0.8);
+      pdf.rect(7, 7, pageWidth - 14, pageHeight - 14);
+      pdf.setDrawColor(44, 82, 130);
+      pdf.setLineWidth(0.3);
+      pdf.rect(9, 9, pageWidth - 18, pageHeight - 18);
+
+      // ── Load logo ──
+      let logoBase64 = null;
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = "/main_logo.png"; });
+        const cvs = document.createElement("canvas");
+        cvs.width = img.naturalWidth; cvs.height = img.naturalHeight;
+        cvs.getContext("2d").drawImage(img, 0, 0);
+        logoBase64 = cvs.toDataURL("image/png");
+      } catch { /* skip logo */ }
+
+      // ── Header ──
+      if (logoBase64) {
+        pdf.addImage(logoBase64, "PNG", pageWidth - margin - 32, y, 30, 10);
+      }
+      const examLabel = subjectOptions.find(s => s.value === selectedSubject)?.label.split(" (")[0] || "EXAM";
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(16);
+      pdf.setTextColor(26, 54, 93);
+      pdf.text(examLabel.toUpperCase(), margin, y + 5);
+      pdf.setFontSize(11);
+      pdf.setTextColor(44, 82, 130);
+      pdf.text(`${getLevel()} RESULT`, margin, y + 11);
+      y += 15;
+
+      // Decorative line
+      pdf.setDrawColor(201, 168, 76);
+      pdf.setLineWidth(0.6);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 6;
+
+      // ── Absent / Disqualified banner ──
+      if (isNotPresent()) {
+        pdf.setFillColor(240, 240, 240);
+        pdf.rect(margin, y, pageWidth - 2 * margin, 12, "F");
+        pdf.setDrawColor(0); pdf.setLineWidth(0.5);
+        pdf.rect(margin, y, pageWidth - 2 * margin, 12, "S");
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(14);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(isAbsent() ? "ABSENT" : "DISQUALIFIED", pageWidth / 2, y + 6, { align: "center" });
+        pdf.setFontSize(8); pdf.setFont("helvetica", "normal"); pdf.setTextColor(80, 80, 80);
+        pdf.text(
+          isAbsent() ? "You were absent for this examination." : "You have been disqualified from this examination.",
+          pageWidth / 2, y + 10, { align: "center" }
+        );
+        y += 16;
+      }
+
+      // ── Student Details Table ──
+      const studentRows = [
+        ["STUDENT NAME", studentData.studentName?.toUpperCase() || "N/A", "ROLL NO", String(studentData.rollNo || "N/A")],
+        ["CLASS", String(studentData.studentClass || "N/A"), "SECTION", String(studentData.section || "N/A")],
+        ["SCHOOL", studentData.schoolName?.toUpperCase() || "N/A", "", ""],
+      ];
+      if (!isNotPresent()) {
+        studentRows.push(
+          ["MARK SCORED", `${resultData.totalScore ?? 0} / ${resultData.totalMaxScore || resultData.totalMarks || 100}`, "PERCENTAGE", `${resultData.percentage?.toFixed(1) || 0}%`],
+          ["PERCENTILE", String(resultData.percentile?.toFixed(1) || 0), "OVERALL RATING", String(result.overallRating || "N/A")]
+        );
+      }
+
+      autoTable(pdf, {
+        startY: y,
+        body: studentRows,
+        theme: "grid",
+        styles: { fontSize: 8.5, cellPadding: 2.5, lineColor: [44, 82, 130], lineWidth: 0.2, textColor: [0, 0, 0] },
+        columnStyles: {
+          0: { fontStyle: "bold", fillColor: [235, 240, 250], cellWidth: 38 },
+          1: { cellWidth: 55 },
+          2: { fontStyle: "bold", fillColor: [235, 240, 250], cellWidth: 38 },
+          3: { cellWidth: 55 },
+        },
+        didParseCell: (data) => {
+          // School row spans 2 cols
+          if (data.row.index === 2 && data.column.index === 1) {
+            data.cell.colSpan = 3;
+          }
+        },
+        margin: { left: margin, right: margin },
       });
+      y = pdf.lastAutoTable.finalY + 6;
 
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
+      // ── Rankings section ──
+      if (!isNotPresent()) {
+        const rankItems = [];
+        if (rankVisibility.schoolRank && resultData.schoolRank > 0) rankItems.push(["SCHOOL", String(resultData.schoolRank)]);
+        if (rankVisibility.classRank && resultData.classRank > 0) rankItems.push(["CLASS", String(resultData.classRank)]);
+        if (rankVisibility.sectionRank && resultData.sectionRank > 0) rankItems.push(["SECTION", String(resultData.sectionRank)]);
+        if (rankVisibility.zonalRank && resultData.cityRank > 0) rankItems.push(["ZONAL", String(resultData.cityRank)]);
+        if (rankVisibility.nationalRank && resultData.nationalRank > 0) rankItems.push(["NATIONAL", String(resultData.nationalRank)]);
+        if (rankVisibility.internationalRank && resultData.internationalRank > 0) rankItems.push(["INT'L", String(resultData.internationalRank)]);
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      
-      const margin = 10;
-      const maxWidth = pdfWidth - (margin * 2);
-      const maxHeight = pdfHeight - (margin * 2);
-      
-      const ratio = Math.min(maxWidth / imgWidth, maxHeight / imgHeight);
-      const finalWidth = imgWidth * ratio;
-      const finalHeight = imgHeight * ratio;
-      
-      const imgX = (pdfWidth - finalWidth) / 2;
-      const imgY = margin;
+        if (rankItems.length > 0) {
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(10);
+          pdf.setTextColor(26, 54, 93);
+          pdf.text("RANKINGS", margin, y);
+          y += 1;
+          pdf.setDrawColor(0); pdf.setLineWidth(0.3);
+          pdf.line(margin, y, pageWidth - margin, y);
+          y += 3;
 
-      pdf.addImage(imgData, 'PNG', imgX, imgY, finalWidth, finalHeight);
-      pdf.save(`Result_${studentData.rollNo || 'Student'}_${selectedSubject || 'Exam'}.pdf`);
+          const boxW = (pageWidth - 2 * margin) / Math.min(rankItems.length, 6);
+          rankItems.forEach(([label, value], idx) => {
+            const bx = margin + idx * boxW;
+            pdf.setDrawColor(44, 82, 130); pdf.setLineWidth(0.3);
+            pdf.rect(bx, y, boxW, 14, "S");
+            pdf.setFontSize(7); pdf.setFont("helvetica", "normal"); pdf.setTextColor(100, 100, 100);
+            pdf.text(label, bx + boxW / 2, y + 4, { align: "center" });
+            pdf.setFontSize(13); pdf.setFont("helvetica", "bold"); pdf.setTextColor(0, 0, 0);
+            pdf.text(value, bx + boxW / 2, y + 11, { align: "center" });
+          });
+          y += 18;
+        }
+
+        // ── Qualified status ──
+        if (resultData.qualifiedForLevel2 !== undefined) {
+          pdf.setFillColor(resultData.qualifiedForLevel2 ? 235 : 250, resultData.qualifiedForLevel2 ? 245 : 235, resultData.qualifiedForLevel2 ? 235 : 235);
+          pdf.rect(margin, y, pageWidth - 2 * margin, 8, "F");
+          pdf.setDrawColor(0); pdf.setLineWidth(0.4);
+          pdf.rect(margin, y, pageWidth - 2 * margin, 8, "S");
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(0, 0, 0);
+          const qualText = resultData.qualifiedForLevel2 ? "\u2713 QUALIFIED FOR LEVEL 2" : "\u2717 NOT QUALIFIED FOR LEVEL 2";
+          pdf.text(qualText, pageWidth / 2, y + 5.5, { align: "center" });
+          y += 12;
+        }
+
+        // ── Topic Performance Table ──
+        if (topicPerformance && topicPerformance.length > 0) {
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(10);
+          pdf.setTextColor(26, 54, 93);
+          pdf.text("SUBJECT PERFORMANCE REPORT (SPR)", margin, y);
+          y += 1;
+          pdf.setDrawColor(0); pdf.setLineWidth(0.3);
+          pdf.line(margin, y, pageWidth - margin, y);
+          y += 2;
+
+          const topicHead = [["TOPIC", "RATING", "AI CHART"]];
+          const topicBody = topicPerformance.map((topic, i) => [
+            `${i + 1}. ${(topic.topicName || `SECTION ${i + 1}`).toUpperCase()}`,
+            topic.rating || "N/A",
+            getAIChartRange(topic.percentage || 0),
+          ]);
+          topicBody.push([
+            "TOTAL",
+            result.overallRating || "N/A",
+            getAIChartRange(resultData.percentage || 0),
+          ]);
+
+          const ratingColors = {
+            EXCELLENT: [22, 163, 74],
+            GOOD: [37, 99, 235],
+            AVERAGE: [202, 138, 4],
+            IMPROVE: [234, 88, 12],
+            BAD: [220, 38, 38],
+          };
+
+          autoTable(pdf, {
+            startY: y,
+            head: topicHead,
+            body: topicBody,
+            theme: "grid",
+            styles: { fontSize: 8, cellPadding: 2.5, lineColor: [44, 82, 130], lineWidth: 0.2, valign: "middle" },
+            headStyles: { fillColor: [26, 54, 93], textColor: [255, 255, 255], fontStyle: "bold" },
+            columnStyles: {
+              0: { cellWidth: 90, fontStyle: "bold" },
+              1: { halign: "center", cellWidth: 35 },
+              2: { halign: "center", cellWidth: 35, textColor: [100, 100, 100] },
+            },
+            didParseCell: (data) => {
+              if (data.section === "body" && data.column.index === 1) {
+                const rating = data.cell.raw;
+                if (ratingColors[rating]) {
+                  data.cell.styles.textColor = ratingColors[rating];
+                  data.cell.styles.fontStyle = "bold";
+                }
+              }
+              // Total row styling
+              if (data.section === "body" && data.row.index === topicBody.length - 1) {
+                data.cell.styles.fillColor = [240, 240, 240];
+                data.cell.styles.fontStyle = "bold";
+              }
+            },
+            margin: { left: margin, right: margin },
+          });
+          y = pdf.lastAutoTable.finalY + 5;
+        }
+      }
+
+      // ── Rating Legend ──
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.5); pdf.setTextColor(0, 0, 0);
+      pdf.text("RATING SCALE:", margin, y);
+      pdf.setFont("helvetica", "normal"); pdf.setTextColor(80, 80, 80);
+      pdf.text("EXCELLENT (80-100%)  |  GOOD (70-80%)  |  AVERAGE (60-70%)  |  IMPROVE (45-60%)  |  BAD (0-45%)", margin + 22, y);
+      y += 6;
+
+      // ── Footer ──
+      pdf.setDrawColor(0); pdf.setLineWidth(0.3);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 4;
+      pdf.setFontSize(7); pdf.setTextColor(100, 100, 100);
+      pdf.text("This is a computer-generated result. For any queries, please contact the school coordinator.", pageWidth / 2, y, { align: "center" });
+      y += 3;
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(7);
+      pdf.text(`\u00A9 ${new Date().getFullYear()} IQ NEXUS - All Rights Reserved`, pageWidth / 2, y, { align: "center" });
+
+      // Page number bottom
+      pdf.setFontSize(6); pdf.setTextColor(150, 150, 150);
+      pdf.text("CONFIDENTIAL - IQ Nexus Academy", pageWidth / 2, pageHeight - 10, { align: "center" });
+
+      pdf.save(`Result_${studentData.rollNo || "Student"}_${selectedSubject || "Exam"}.pdf`);
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
     } finally {
       setIsDownloading(false);
     }

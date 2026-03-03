@@ -285,6 +285,11 @@ const StudentSchema = new Schema(
       trim: true,
       default: "",
     },
+    calendarYear: {
+      type: String,
+      trim: true,
+      default: "",
+    },
   },
   { timestamps: true }
 );

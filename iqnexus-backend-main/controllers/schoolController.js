@@ -6,16 +6,79 @@ import { Int32 } from "mongodb";
 
 export const getAllSchools = async (req, res) => {
   try {
-    const { page, limit } = req.query;
-    const schools = await School.find()
+    const { page, limit, search, city, sortBy, sortOrder } = req.query;
+    
+    // Build filter query
+    const query = {};
+    if (search) {
+      query.$or = [
+        { schoolName: { $regex: search, $options: "i" } },
+        { schoolCode: isNaN(Number(search)) ? undefined : Number(search) },
+      ].filter(Boolean);
+      // If search is a number, also match schoolCode exactly
+      if (!isNaN(Number(search))) {
+        query.$or = [
+          { schoolName: { $regex: search, $options: "i" } },
+          { schoolCode: Number(search) },
+        ];
+      }
+    }
+    if (city) {
+      query.city = { $regex: `^${city}$`, $options: "i" };
+    }
+
+    // Build sort options
+    const sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
+    }
+
+    const totalSchools = await School.countDocuments(query);
+    const totalPages = Math.ceil(totalSchools / limit);
+    const schools = await School.find(query)
+      .sort(sortOptions)
       .skip((page - 1) * limit)
       .limit(limit);
 
-    const totalPages = Math.ceil((await School.countDocuments()) / limit);
+    // Get distinct cities for dropdown filter
+    const cities = await School.distinct("city");
 
-    return res.status(200).json({ schools, totalPages, success: true });
+    return res.status(200).json({ schools, totalPages, totalSchools, cities, success: true });
   } catch (error) {
     console.error("❌ Error fetching schools:", error);
+    res.status(500).json({ message: "Error fetching schools", error });
+  }
+};
+
+// Get all schools without pagination (for XLS download)
+export const getAllSchoolsNoPagination = async (req, res) => {
+  try {
+    const { search, city, sortBy, sortOrder } = req.query;
+    
+    const query = {};
+    if (search) {
+      if (!isNaN(Number(search))) {
+        query.$or = [
+          { schoolName: { $regex: search, $options: "i" } },
+          { schoolCode: Number(search) },
+        ];
+      } else {
+        query.schoolName = { $regex: search, $options: "i" };
+      }
+    }
+    if (city) {
+      query.city = { $regex: `^${city}$`, $options: "i" };
+    }
+
+    const sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
+    }
+
+    const schools = await School.find(query).sort(sortOptions).lean();
+    return res.status(200).json({ schools, success: true });
+  } catch (error) {
+    console.error("❌ Error fetching all schools:", error);
     res.status(500).json({ message: "Error fetching schools", error });
   }
 };

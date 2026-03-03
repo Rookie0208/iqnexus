@@ -150,6 +150,12 @@ export const updateStudent = async (req, res) => {
 
 export const addStudent = async (req, res) => {
   try {
+    // Auto-assign current calendar year if not provided
+    if (!req.body.calendarYear) {
+      const { CalendarYear } = await import("../models/calendarYear.model.js");
+      const currentCY = await CalendarYear.findOne({ isCurrent: true }).lean();
+      if (currentCY) req.body.calendarYear = currentCY.label;
+    }
     const newStudent = new STUDENT_LATEST(req.body);
     const savedStudent = await newStudent.save();
 
@@ -166,14 +172,64 @@ export const addStudent = async (req, res) => {
 
 export const getDashboardAnalytics = async (req, res) => {
   try {
-    // const allStudents = await STUDENT_LATEST.countDocuments();
     const allStudents = await STUDENT_LATEST.countDocuments();
     const allSchools = await School.countDocuments();
     const allStudyMaterials = await StudyMaterial.countDocuments();
 
-       return res
-      .status(200)
-      .json({ allStudents, allSchools, allStudyMaterials, success: true });
+    // KG students count
+    const { KINDERGARTEN_STUDENT } = await import("../models/kindergarten.model.js");
+    const allKGStudents = await KINDERGARTEN_STUDENT.countDocuments({ class: "KD" });
+
+    // Quick Stats: class-wise breakdown for regular students
+    const classWiseCounts = await STUDENT_LATEST.aggregate([
+      { $group: { _id: "$class", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // KG section-wise breakdown
+    const kgSectionCounts = await KINDERGARTEN_STUDENT.aggregate([
+      { $match: { class: "KD" } },
+      { $group: { _id: "$section", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Recent Updates: recently added students (last 10)
+    const recentStudents = await STUDENT_LATEST.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("studentName rollNo schoolCode class createdAt")
+      .lean();
+
+    const recentKGStudents = await KINDERGARTEN_STUDENT.find({ class: "KD" })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("studentName rollNo schoolCode section createdAt")
+      .lean();
+
+    // Merge and sort recent updates
+    const recentUpdates = [
+      ...recentStudents.map(s => ({ ...s, type: "student" })),
+      ...recentKGStudents.map(s => ({ ...s, type: "kindergarten" })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+
+    // City-wise school counts
+    const cityWiseSchools = await School.aggregate([
+      { $group: { _id: "$city", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    return res.status(200).json({
+      allStudents,
+      allSchools,
+      allStudyMaterials,
+      allKGStudents,
+      classWiseCounts,
+      kgSectionCounts,
+      recentUpdates,
+      cityWiseSchools,
+      success: true,
+    });
   } catch (error) {
     console.error("❌ Error fetching analytics:", error);
     res.status(500).json({ message: "Error fetching dashboard analytics", error });
