@@ -1,0 +1,4 @@
+# AWS deploy artifacts (do not commit secrets)
+package/
+*.pem
+.env

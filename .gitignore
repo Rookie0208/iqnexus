@@ -1,0 +1,3 @@
+aws-deploy/package/
+*.tar.gz
+*.pem

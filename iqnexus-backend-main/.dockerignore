@@ -1,8 +1,8 @@
+# Ignore local deps and dumps when building the backend image
 node_modules
 npm-debug.log
-.env
+.env.bak
+utils/db-dump-*
 .git
-.gitignore
-uploads
 *.md
-.vscode
+.DS_Store

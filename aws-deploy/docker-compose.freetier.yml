@@ -1,0 +1,58 @@
+# Slim stack for EC2 t3.micro (1GB RAM) — static frontends + API + Mongo
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: iqnexus-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=Epoch-olympiad-foundation_New
+    networks:
+      - iqnexus-network
+    mem_limit: 256m
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+
+  backend:
+    build:
+      context: ./iqnexus-backend-main
+      dockerfile: Dockerfile
+    container_name: iqnexus-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5001
+      - MONGO_URI=mongodb://mongodb:27017/Epoch-olympiad-foundation_New
+      - DATABASE_NAME=Epoch-olympiad-foundation_New
+      - AWS_KEY=${AWS_KEY:-}
+      - AWS_SECRET=${AWS_SECRET:-}
+      - AWS_REGION=${AWS_REGION:-ap-south-1}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME:-epocho-1.2}
+    depends_on:
+      - mongodb
+    networks:
+      - iqnexus-network
+    mem_limit: 384m
+
+  nginx:
+    image: nginx:alpine
+    container_name: iqnexus-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/freetier.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./client-build:/usr/share/nginx/html/client:ro
+      - ./admin-build:/usr/share/nginx/html/admin:ro
+    depends_on:
+      - backend
+    networks:
+      - iqnexus-network
+    mem_limit: 64m
+
+networks:
+  iqnexus-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
