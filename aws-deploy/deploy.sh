@@ -33,7 +33,7 @@ PARAMS=(
   "ParameterKey=ArtifactBucket,ParameterValue=$BUCKET"
   "ParameterKey=ArtifactKey,ParameterValue=iqnexus-freetier.tar.gz"
   "ParameterKey=AwsBucketName,ParameterValue=${AWS_BUCKET_NAME:-epocho-1.2}"
-  "ParameterKey=AwsAppRegion,ParameterValue=${AWS_APP_REGION:-ap-south-1}"
+  "ParameterKey=AwsAppRegion,ParameterValue=${AWS_APP_REGION:-eu-north-1}"
 )
 
 # Optional app S3 credentials from env (not printed)

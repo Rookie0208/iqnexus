@@ -140,7 +140,7 @@ services:
       - DATABASE_NAME=Epoch-olympiad-foundation_New
       - AWS_KEY=${AWS_KEY}
       - AWS_SECRET=${AWS_SECRET}
-      - AWS_REGION=${AWS_REGION:-ap-south-1}
+      - AWS_REGION=${AWS_REGION:-eu-north-1}
       - AWS_BUCKET_NAME=${AWS_BUCKET_NAME:-epocho-1.2}
     depends_on:
       - mongodb

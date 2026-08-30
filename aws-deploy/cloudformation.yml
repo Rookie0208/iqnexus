@@ -23,7 +23,7 @@ Parameters:
     Default: epocho-1.2
   AwsAppRegion:
     Type: String
-    Default: ap-south-1
+    Default: eu-north-1
     Description: Region of existing S3 app bucket
 
 Resources:
@@ -136,12 +136,10 @@ Resources:
           rm -f app.tar.gz
           chmod +x deploy-remote.sh 2>/dev/null || true
 
-          cat > .env <<EOF
-          AWS_KEY=${AwsAccessKeyId}
-          AWS_SECRET=${AwsSecretAccessKey}
-          AWS_REGION=${AwsAppRegion}
-          AWS_BUCKET_NAME=${AwsBucketName}
-          EOF
+          echo "AWS_KEY=${AwsAccessKeyId}" > .env
+          echo "AWS_SECRET=${AwsSecretAccessKey}" >> .env
+          echo "AWS_REGION=${AwsAppRegion}" >> .env
+          echo "AWS_BUCKET_NAME=${AwsBucketName}" >> .env
 
           docker-compose -f docker-compose.freetier.yml up -d --build
           echo "IQNEXUS_BOOTSTRAP_DONE"

@@ -18,7 +18,11 @@ echo "==> Downloading s3://${BUCKET}/${KEY}"
 aws s3 cp "s3://${BUCKET}/${KEY}" ./app.tar.gz --region "$REGION"
 
 echo "==> Extracting release (preserving existing .env)"
+ENV_BACKUP="$(mktemp)"
+cp .env "$ENV_BACKUP"
 tar -xzf app.tar.gz
+mv "$ENV_BACKUP" .env
+chmod 600 .env
 rm -f app.tar.gz
 chmod +x deploy-remote.sh 2>/dev/null || true
 

@@ -26,6 +26,8 @@ echo "==> Copying backend + compose"
 cp -R "$ROOT/iqnexus-backend-main" "$STAGE/iqnexus-backend-main"
 rm -rf "$STAGE/iqnexus-backend-main/node_modules" \
        "$STAGE/iqnexus-backend-main/.git" \
+       "$STAGE/iqnexus-backend-main/.env" \
+       "$STAGE/iqnexus-backend-main/uploads" \
        "$STAGE/iqnexus-backend-main/utils/db-dump-"* 2>/dev/null || true
 cp "$ROOT/aws-deploy/docker-compose.freetier.yml" "$STAGE/docker-compose.freetier.yml"
 cp "$ROOT/aws-deploy/nginx/freetier.conf" "$STAGE/nginx/freetier.conf"

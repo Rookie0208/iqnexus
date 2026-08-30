@@ -2,8 +2,18 @@ name: Deploy to EC2
 
 on:
   push:
-    branches: [main]
+    branches: [main, master, deploy]
+    paths:
+      - "iqnexus-admin-main/**"
+      - "iqnexus-backend-main/**"
+      - "iqnexus-client-main/**"
+      - "aws-deploy/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
