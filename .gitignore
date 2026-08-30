@@ -1,0 +1,15 @@
+aws-deploy/package/
+*.tar.gz
+*.pem
+AWSCLIV2.pkg
+
+# Env files (use .env.example as templates)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local uploads
+iqnexus-backend-main/uploads/

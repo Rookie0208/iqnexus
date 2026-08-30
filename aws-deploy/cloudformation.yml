@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IQNexus free-tier EC2 t3.micro stack (eu-north-1) — Docker Compose + Nginx + Mongo
+
+Parameters:
+  ArtifactBucket:
+    Type: String
+    Description: S3 bucket containing iqnexus-freetier.tar.gz
+  ArtifactKey:
+    Type: String
+    Default: iqnexus-freetier.tar.gz
+  AwsAccessKeyId:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Optional S3 access key for the app (leave empty to skip)
+  AwsSecretAccessKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Optional S3 secret key for the app
+  AwsBucketName:
+    Type: String
+    Default: epocho-1.2
+  AwsAppRegion:
+    Type: String
+    Default: eu-north-1
+    Description: Region of existing S3 app bucket
+
+Resources:
+  DeployKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${AWS::StackName}-key"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-key"
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ReadDeployArtifact
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${ArtifactBucket}/${ArtifactKey}"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Sub "arn:aws:s3:::${ArtifactBucket}"
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: IQNexus free-tier HTTP/SSH
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Client HTTP
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+          Description: Admin HTTP
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-sg"
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+      KeyName: !Ref DeployKeyPair
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 20
+            VolumeType: gp3
+            Encrypted: true
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          exec > >(tee /var/log/iqnexus-userdata.log) 2>&1
+
+          dnf update -y
+          dnf install -y docker
+          systemctl enable --now docker
+          usermod -aG docker ec2-user
+
+          # Swap for t3.micro (1GB RAM)
+          fallocate -l 2G /swapfile
+          chmod 600 /swapfile
+          mkswap /swapfile
+          swapon /swapfile
+          echo '/swapfile swap swap defaults 0 0' >> /etc/fstab
+
+          curl -L "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+          ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+          mkdir -p /opt/iqnexus
+          cd /opt/iqnexus
+          aws s3 cp "s3://${ArtifactBucket}/${ArtifactKey}" ./app.tar.gz --region ${AWS::Region}
+          tar -xzf app.tar.gz
+          rm -f app.tar.gz
+          chmod +x deploy-remote.sh 2>/dev/null || true
+
+          echo "AWS_KEY=${AwsAccessKeyId}" > .env
+          echo "AWS_SECRET=${AwsSecretAccessKey}" >> .env
+          echo "AWS_REGION=${AwsAppRegion}" >> .env
+          echo "AWS_BUCKET_NAME=${AwsBucketName}" >> .env
+
+          docker-compose -f docker-compose.freetier.yml up -d --build
+          echo "IQNEXUS_BOOTSTRAP_DONE"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ec2"
+        - Key: Project
+          Value: iqnexus
+        - Key: Tier
+          Value: freetier
+
+Outputs:
+  InstanceId:
+    Value: !Ref Instance
+  PublicIp:
+    Value: !GetAtt Instance.PublicIp
+  PublicDns:
+    Value: !GetAtt Instance.PublicDnsName
+  ClientURL:
+    Value: !Sub "http://${Instance.PublicIp}/"
+  AdminURL:
+    Value: !Sub "http://${Instance.PublicIp}/"
+  KeyPairId:
+    Value: !GetAtt DeployKeyPair.KeyPairId
+    Description: Private key in SSM Parameter Store at /ec2/keypair/<KeyPairId>
+  SSHHint:
+    Value: !Sub "aws ssm get-parameter --name /ec2/keypair/${DeployKeyPair.KeyPairId} --with-decryption --query Parameter.Value --output text --region ${AWS::Region} > iqnexus.pem && chmod 400 iqnexus.pem"

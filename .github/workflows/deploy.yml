@@ -1,0 +1,58 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main, master, deploy]
+    paths:
+      - "iqnexus-admin-main/**"
+      - "iqnexus-backend-main/**"
+      - "iqnexus-client-main/**"
+      - "aws-deploy/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build package
+        run: bash aws-deploy/package.sh
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload artifact to S3
+        run: |
+          aws s3 cp aws-deploy/package/iqnexus-freetier.tar.gz \
+            "s3://${{ secrets.ARTIFACT_BUCKET }}/iqnexus-freetier.tar.gz"
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            export ARTIFACT_BUCKET=${{ secrets.ARTIFACT_BUCKET }}
+            export AWS_REGION=${{ secrets.AWS_REGION }}
+            cd /opt/iqnexus
+            bash deploy-remote.sh
+
+      - name: Health check
+        run: curl -fsS "http://${{ secrets.EC2_HOST }}/api/health"
