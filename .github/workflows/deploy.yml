@@ -2,7 +2,7 @@ name: Deploy to EC2
 
 on:
   push:
-    branches: [main, master, deploy]
+    branches: [master]
     paths:
       - "iqnexus-admin-main/**"
       - "iqnexus-backend-main/**"
@@ -22,6 +22,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
 
       - uses: actions/setup-node@v4
         with:

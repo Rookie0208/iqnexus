@@ -59,8 +59,10 @@ Frontends are built with `VITE_BASE_API_URL=/api` and `REACT_APP_BASE_API_URL=/a
 
 | Workflow | When | What |
 |----------|------|------|
-| **CI** (`.github/workflows/ci.yml`) | PR/push to `main`, `master`, or `deploy` | Builds prod package (no deploy) |
-| **Deploy** (`.github/workflows/deploy.yml`) | Push to those branches (app paths only) or manual | Build → S3 → SSH → `deploy-remote.sh` |
+| **CI** (`.github/workflows/ci.yml`) | PR into `master` or push to `master` | Builds prod package (no deploy) |
+| **Deploy** (`.github/workflows/deploy.yml`) | Push to `master` (app paths only) or manual | Build → S3 → SSH → `deploy-remote.sh` |
+
+**Branch flow:** work on feature branches → open PR to `master` (CI runs) → merge to `master` (CI + prod deploy). Pushes to other branches (e.g. `deploy`) do not deploy to EC2.
 
 Deploy does **not** recreate EC2. It preserves `/opt/iqnexus/.env` and MongoDB data.
 
