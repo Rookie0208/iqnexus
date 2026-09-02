@@ -363,7 +363,7 @@ const Sidebar = () => {
                 icon={<Users size={20} />}
                 text="KG Students"
                 href="#"
-                active={location.pathname.startsWith("/allkindargartenStudents")}
+                active={location.pathname.startsWith("/allKindergartenStudents") || location.pathname.startsWith("/allkindargartenStudents")}
                 onClick={e => {
                   e.preventDefault();
                   setKGStudentsOpen?.(prev => !prev);
@@ -376,8 +376,8 @@ const Sidebar = () => {
             <MenuItem
               icon={<Users size={20} />}
               text="All KG Students"
-              href="/allkindargartenStudents"
-              active={location.pathname === "/allkindargartenStudents"}
+              href="/allKindergartenStudents"
+              active={location.pathname === "/allKindergartenStudents" || location.pathname === "/allkindargartenStudents"}
               onClick={closeSidebar}
             />
             <MenuItem

@@ -5,40 +5,55 @@ import { useSelector } from "react-redux";
 import { BASE_API_URL } from "../Api";
 import axios from "axios";
 
+const EXAM_LABELS = {
+  IAOL1: "IQROL1",
+  ITSTL1: "IQSOL1",
+  IMOL1: "IQMOL1",
+  IGKOL1: "IQGKOL1",
+  IENGOL1: "IQEOL1",
+  IAOL2: "IQROL2",
+  ITSTL2: "IQSOL2",
+  IMOL2: "IQMOL2",
+  IENGOL2: "IQEOL2",
+  IQKD: "IQKD",
+  IQKD1: "IQKD",
+  IQKD2: "IQKD",
+};
+
+const formatExam = (examId) => {
+  if (!examId) return "N/A";
+  const label = EXAM_LABELS[examId];
+  return label || examId;
+};
+
 const StudyMaterials = () => {
-  const [selectedLevel, setSelectedLevel] = useState("");
   const [studyMaterials, setStudyMaterials] = useState([]);
+  const [loadError, setLoadError] = useState("");
   const student = useSelector((state) => state.auth.user);
 
   const fetchStudyMaterials = useCallback(async () => {
+    setLoadError("");
     try {
       const response = await axios.post(`${BASE_API_URL}/fetchStudyMaterial`, {
         className: student["Class"],
         rollNo: student["Roll No"],
-        kgSection: student["Section"], // Send section for KG students
+        kgSection: student["Section"],
       });
 
-      if (response.status === 200 && response.data) {
-        const fetchedMaterials = response.data.data;
-        console.log("Study materials:", fetchedMaterials);
-        // Flatten the array of arrays into a single array
-        const flattenedMaterials = fetchedMaterials.flat();
-        console.log("Flattened materials:", flattenedMaterials);
-        setStudyMaterials(flattenedMaterials);
+      if (response.status === 200 && response.data?.success) {
+        setStudyMaterials(response.data.data || []);
       } else {
-        console.error("Failed to fetch study materials.");
+        setStudyMaterials([]);
+        setLoadError(response.data?.message || "Failed to fetch study materials.");
       }
     } catch (error) {
       console.error("Error fetching study materials:", error);
+      setStudyMaterials([]);
+      setLoadError(
+        error.response?.data?.message || "Could not load study materials."
+      );
     }
   }, [student]);
-
-  const filteredMaterials = selectedLevel
-    ? studyMaterials.filter((item) => {
-        const levelFromExamId = item.examId?.slice(-1); // "IAOL1" => "1"
-        return levelFromExamId === selectedLevel;
-      })
-    : studyMaterials;
 
   useEffect(() => {
     if (student) {
@@ -70,6 +85,11 @@ const StudyMaterials = () => {
       </div> */}
 
       {/* Study Materials Table */}
+      {loadError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+          {loadError}
+        </div>
+      )}
       <div className="bg-white shadow-lg rounded-xl overflow-hidden flex-grow">
         <table className="min-w-full text-sm text-gray-700">
           <thead className="bg-gray-100 text-xs uppercase font-semibold">
@@ -81,8 +101,8 @@ const StudyMaterials = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredMaterials.length > 0 ? (
-              filteredMaterials.map((item, index) => (
+            {studyMaterials.length > 0 ? (
+              studyMaterials.map((item, index) => (
                 <tr
                   key={item._id || index}
                   className="border-b last:border-b-0 hover:bg-gray-50 transition duration-200"
@@ -92,7 +112,7 @@ const StudyMaterials = () => {
                       <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
                         {item.examId ? item.examId.charAt(0) : "N/A"}
                       </div>
-                      <span className="ml-3 font-medium">{item.examId || "N/A"}</span>
+                      <span className="ml-3 font-medium">{formatExam(item.examId)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">

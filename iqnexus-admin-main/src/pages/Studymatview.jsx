@@ -1,111 +1,119 @@
-"use client"
-import React from "react"
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { FileText } from "lucide-react"
 import axios from "axios"
 import { BASE_URL } from "../Api"
 
+const EXAM_LABELS = {
+  IAOL1: "IQROL1",
+  ITSTL1: "IQSOL1",
+  IMOL1: "IQMOL1",
+  IGKOL1: "IQGKOL1",
+  IENGOL1: "IQEOL1",
+  IAOL2: "IQROL2",
+  ITSTL2: "IQSOL2",
+  IMOL2: "IQMOL2",
+  IENGOL2: "IQEOL2",
+  IQKD: "IQKD",
+  IQKD1: "IQKD",
+  IQKD2: "IQKD",
+}
+
+const formatExam = (examId) => {
+  if (!examId) return "N/A"
+  const label = EXAM_LABELS[examId]
+  return label ? `${label} (${examId})` : examId
+}
+
+const formatClass = (classValue) => {
+  if (classValue === "kindergarten") return "Kindergarten"
+  return classValue ? `Class ${classValue}` : "N/A"
+}
+
 const Studymatview = () => {
-  const [selectedLevel, setSelectedLevel] = useState("")
+  const [classFilter, setClassFilter] = useState("")
   const [studyMaterials, setStudyMaterials] = useState([])
   const [loading, setLoading] = useState(false)
-  const student = JSON.parse(localStorage.getItem("student"))
 
   const fetchAdminStudyMaterial = async () => {
     setLoading(true)
     try {
-        
-      const response = await axios.get(`${BASE_URL}/fetchAdminStudyMaterial`, {});
-      console.log("Response from fetchAdminStudyMaterial:", response)
-      if (response.status === 200 && response.data) {
-
-        const fetchedMaterials = response.data
-        setStudyMaterials(fetchedMaterials)
-      } else {
-        console.error("Failed to fetch study materials.")
-      }
+      const response = await axios.get(`${BASE_URL}/fetchAdminStudyMaterial`)
+      setStudyMaterials(Array.isArray(response.data) ? response.data : [])
     } catch (error) {
       console.error("Error fetching study materials:", error)
+      setStudyMaterials([])
     }
     setLoading(false)
   }
 
-  // Since your schema doesn't have isActive field, you can add this to your schema or remove this function
-  const handleToggleActive = async (id, currentStatus) => {
-    try {
-      // Call your API to update the status
-      await axios.post(`${BASE_URL}/updateStudyMaterialStatus`, {
-        id,
-        isActive: !currentStatus,
-      })
-      // Update local state
-      setStudyMaterials((prev) => prev.map((item) => (item._id === id ? { ...item, isActive: !currentStatus } : item)))
-    } catch (error) {
-      console.error("Failed to update status", error)
-    }
-  }
-
   const handleDelete = async (id, materialName) => {
-    // Show confirmation dialog
     const confirmed = window.confirm(
       `Are you sure you want to delete "${materialName}"?\n\nThis action cannot be undone.`
     )
-
-    if (!confirmed) {
-      return
-    }
+    if (!confirmed) return
 
     try {
       const response = await axios.delete(`${BASE_URL}/deleteStudyMaterial/${id}`)
-      
       if (response.status === 200) {
-        // Remove from local state
-        setStudyMaterials((prev) => prev.filter((item) => item._id !== id))
+        setStudyMaterials((prev) =>
+          prev.filter((item) => String(item._id) !== String(id))
+        )
         alert("Study material deleted successfully")
       }
     } catch (error) {
       console.error("Failed to delete study material:", error)
-      alert("Failed to delete study material. Please try again.")
+      alert(error.response?.data?.message || "Failed to delete study material. Please try again.")
     }
   }
 
-  const filteredMaterials = selectedLevel
-    ? studyMaterials.filter((item) => {
-        return item.class?.toString() === selectedLevel
-      })
+  const classFilterOptions = [
+    ...new Set(studyMaterials.map((item) => String(item.class))),
+  ].sort()
+
+  const filteredMaterials = classFilter
+    ? studyMaterials.filter((item) => String(item.class) === classFilter)
     : studyMaterials
 
   useEffect(() => {
-      fetchAdminStudyMaterial()
-  },[])
+    fetchAdminStudyMaterial()
+  }, [])
 
   return (
     <div className="min-h-screen p-6 bg-gray-50 flex flex-col">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <div className="bg-blue-100 rounded-full w-9 h-9 flex items-center justify-center text-blue-600">
           <FileText />
         </div>
         <h2 className="text-2xl font-bold text-gray-800">Study Material</h2>
-        <button
-          onClick={() => {
-            setStudyMaterials([]);
-            fetchAdminStudyMaterial();
-          }}
-          className="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        <select
+          value={classFilter}
+          onChange={(e) => setClassFilter(e.target.value)}
+          className="ml-auto border border-gray-300 rounded-md px-3 py-2 text-sm"
         >
-          Refresh Data
+          <option value="">All classes</option>
+          {classFilterOptions.map((cls) => (
+            <option key={cls} value={cls}>
+              {formatClass(cls)}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={fetchAdminStudyMaterial}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+        >
+          Refresh
         </button>
       </div>
       <div className="bg-white shadow-lg rounded-xl overflow-hidden flex-grow">
         <table className="min-w-full text-sm text-gray-700">
           <thead className="bg-gray-100 text-xs uppercase font-semibold">
             <tr>
-              <th className="px-6 py-3 text-left">Subject</th>
-              <th className="px-6 py-3 text-left">Name</th>
+              <th className="px-6 py-3 text-left">Exam</th>
+              <th className="px-6 py-3 text-left">Title</th>
               <th className="px-6 py-3 text-left">Class</th>
-              <th className="px-6 py-3 text-left">Fees(INR)</th>
+              <th className="px-6 py-3 text-left">Fee (INR)</th>
               <th className="px-6 py-3 text-left">Link</th>
-              <th className="px-6 py-3 text-left">Status</th>
+              <th className="px-6 py-3 text-left">Type</th>
               <th className="px-6 py-3 text-left">Actions</th>
             </tr>
           </thead>
@@ -118,13 +126,15 @@ const Studymatview = () => {
               </tr>
             ) : filteredMaterials.length > 0 ? (
               filteredMaterials.map((item, index) => {
+                const isFree =
+                  item.isAvailableForFree === "true" || Number(item.cost) === 0
                 return (
                   <tr
                     key={item._id || index}
                     className="border-b last:border-b-0 hover:bg-gray-50 transition duration-200"
                   >
                     <td className="px-6 py-4">
-                      <span className="font-medium">{item.examId || "N/A"}</span>
+                      <span className="font-medium">{formatExam(item.examId)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-gray-600">{item.category || "N/A"}</span>
@@ -132,7 +142,7 @@ const Studymatview = () => {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          {item.class || "N/A"}
+                          {formatClass(item.class)}
                         </span>
                         {item.kgSection && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-1">
@@ -142,10 +152,9 @@ const Studymatview = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{item.cost !== undefined ? `${item.cost}` : "N/A"}</span>
-                        
-                      </div>
+                      <span className="font-medium">
+                        {item.cost !== undefined && item.cost !== null ? item.cost : "N/A"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       {item.pdfLink ? (
@@ -155,24 +164,24 @@ const Studymatview = () => {
                           rel="noopener noreferrer"
                           className="inline-flex items-center px-3 py-1 bg-indigo-600 text-white text-xs font-medium rounded-md hover:bg-indigo-700 transition duration-150"
                         >
-                          View PDF
+                          Open
                         </a>
                       ) : (
                         "N/A"
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {/* Show free/paid status instead of active/inactive since your schema has isAvailableForFree */}
                       <span
                         className={`px-3 py-1 rounded-md text-xs font-medium ${
-                          item.isAvailableForFree === "true" ? "bg-green-500 text-white" : "bg-blue-500 text-white"
+                          isFree ? "bg-green-500 text-white" : "bg-blue-500 text-white"
                         }`}
                       >
-                        {item.isAvailableForFree === "true" ? "Free" : "ACTIVE"}
+                        {isFree ? "Free" : "Paid"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <button
+                        type="button"
                         onClick={() => handleDelete(item._id, item.category || item.examId)}
                         className="inline-flex items-center px-3 py-1 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 transition duration-150"
                       >

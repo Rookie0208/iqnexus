@@ -12,15 +12,22 @@ const KinderGartenStudentForm = () => {
   } = useForm();
 
   const onSubmit = async (data) => {
-  try {
-    const response = await axios.post(`${BASE_URL}/add-kindergarten-student`, data);
-    alert(response.data.message);
-    reset();
-  } catch (err) {
-    console.error("Error submitting form", err);
-    alert("Failed to add student");
-  }
-};
+    try {
+      const payload = {
+        ...data,
+        class: data.Class,
+        iqkdBook: data.iqkdBook || "0",
+      };
+      delete payload.Class;
+
+      const response = await axios.post(`${BASE_URL}/add-kindergarten-student`, payload);
+      alert(response.data.message);
+      reset();
+    } catch (err) {
+      console.error("Error submitting form", err);
+      alert(err.response?.data?.message || err.response?.data?.error || "Failed to add student");
+    }
+  };
 
   const inputField = ({ label, name, type = "text", required = false }) => (
     <div>
@@ -77,8 +84,8 @@ const KinderGartenStudentForm = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
                   >
                     <option value="">Select</option>
-                    <option value="LK">LK</option>
-                    <option value="UK">UK</option>
+                    <option value="LKG">LKG</option>
+                    <option value="UKG">UKG</option>
                     <option value="PG">PG</option>
                   </select>
                   {errors.section && <p className="text-red-500 text-xs mt-1">{errors.section.message}</p>}
@@ -108,9 +115,8 @@ const KinderGartenStudentForm = () => {
                     {...register("iqkdBook")}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
                   >
-                    <option value="">Select</option>
-                    <option value="1">Yes</option>
                     <option value="0">No</option>
+                    <option value="1">Yes</option>
                   </select>
                 </div>
               </div>

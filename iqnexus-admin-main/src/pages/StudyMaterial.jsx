@@ -2,10 +2,26 @@ import React from 'react';
 import Select from 'react-select';
 import { BASE_URL } from '../Api';
 
+const KG_SUBJECTS = [
+    { value: 'IQKD', label: 'IQKD - Kindergarten Book' },
+];
+
+const REGULAR_SUBJECTS = [
+    { value: 'IAOL1', label: 'IQROL1 - Reasoning L1' },
+    { value: 'ITSTL1', label: 'IQSOL1 - Science L1' },
+    { value: 'IMOL1', label: 'IQMOL1 - Maths L1' },
+    { value: 'IGKOL1', label: 'IQGKOL1 - GK L1' },
+    { value: 'IENGOL1', label: 'IQEOL1 - English L1' },
+    { value: 'IAOL2', label: 'IQROL2 - Reasoning L2' },
+    { value: 'ITSTL2', label: 'IQSOL2 - Science L2' },
+    { value: 'IMOL2', label: 'IQMOL2 - Maths L2' },
+    { value: 'IENGOL2', label: 'IQEOL2 - English L2' },
+];
+
 const StudyMaterial = () => {
     const [formData, setFormData] = React.useState({
         name: '',
-        classes: [], // Changed to array for multi-select
+        classes: [],
         kgSection: '',
         subject: '',
         fee: '',
@@ -34,12 +50,14 @@ const StudyMaterial = () => {
         setFormData(prev => ({
             ...prev,
             classes,
-            // Reset KG section if kindergarten is not selected
             kgSection: classes.includes('kindergarten') ? prev.kgSection : '',
+            subject: '',
         }));
     };
 
     const hasKindergarten = formData.classes.includes('kindergarten');
+    const hasRegularClasses = formData.classes.some((c) => c !== 'kindergarten');
+    const subjectOptions = hasKindergarten && !hasRegularClasses ? KG_SUBJECTS : REGULAR_SUBJECTS;
 
     const [materialType, setMaterialType] = React.useState('file');
     const [link, setLink] = React.useState('');
@@ -55,8 +73,29 @@ const StudyMaterial = () => {
                         return;
                     }
 
+                    if (hasKindergarten && hasRegularClasses) {
+                        alert('Upload kindergarten materials separately from Class 1–12 materials.');
+                        return;
+                    }
+
+                    if (hasKindergarten && !formData.kgSection) {
+                        alert('Please select a kindergarten section (PG, LKG, or UKG).');
+                        return;
+                    }
+
+                    if (materialType === 'file' && !formData.pdf) {
+                        alert('Please select a PDF file to upload.');
+                        return;
+                    }
+
+                    if (materialType === 'link' && !link.trim()) {
+                        alert('Please enter a material link URL.');
+                        return;
+                    }
+
                     let successCount = 0;
                     let failCount = 0;
+                    let lastError = '';
 
                     for (const cls of formData.classes) {
                         const data = new FormData();
@@ -82,11 +121,12 @@ const StudyMaterial = () => {
                             const result = await response.json();
 
                             if (!response.ok || result.error) {
-                                throw new Error(result.error || 'Upload failed');
+                                throw new Error(result.details || result.error || 'Upload failed');
                             }
                             successCount++;
                         } catch (error) {
                             console.error(`Upload error for class ${cls}:`, error);
+                            lastError = error.message;
                             failCount++;
                         }
                     }
@@ -94,10 +134,12 @@ const StudyMaterial = () => {
                     if (failCount === 0) {
                         alert(`Study material uploaded successfully for ${successCount} class(es)!`);
                     } else {
-                        alert(`Uploaded for ${successCount} class(es). Failed for ${failCount} class(es).`);
+                        alert(
+                            `Uploaded for ${successCount} class(es). Failed for ${failCount} class(es).` +
+                            (lastError ? `\n\nLast error: ${lastError}` : '')
+                        );
                     }
 
-                    // Reset form
                     setFormData({
                         name: '',
                         classes: [],
@@ -107,11 +149,12 @@ const StudyMaterial = () => {
                         pdf: null,
                     });
                     setLink('');
+                    setMaterialType('file');
                 }}
                 className="space-y-5"
             >
                 <div>
-                    <label htmlFor="name" className="block mb-1 font-medium">Name:</label>
+                    <label htmlFor="name" className="block mb-1 font-medium">Title:</label>
                     <input
                         type="text"
                         id="name"
@@ -119,6 +162,7 @@ const StudyMaterial = () => {
                         value={formData.name}
                         onChange={handleChange}
                         required
+                        placeholder="e.g. Sample paper, Syllabus"
                         className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
@@ -164,7 +208,7 @@ const StudyMaterial = () => {
                     </div>
                 )}
                 <div>
-                    <label htmlFor="subject" className="block mb-1 font-medium">Subject:</label>
+                    <label htmlFor="subject" className="block mb-1 font-medium">Exam / Subject:</label>
                     <select
                         id="subject"
                         name="subject"
@@ -173,33 +217,21 @@ const StudyMaterial = () => {
                         required
                         className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="">Select Subject</option>
-                        {formData.class === 'kindergarten' ? (
-                            <>
-                                <option value="IQKD1">IQKD1</option>
-                                <option value="IQKD2">IQKD2</option>
-                            </>
-                        ) : (
-                            <>
-                                <option value="IAOL1">IQROL1</option>
-                                <option value="ITSTL1">IQSOL1</option>
-                                <option value="IMOL1">IQMOL1</option>
-                                <option value="IGKOL1">IQGKOL1</option>
-                                <option value="IENGOL1">IQEOL1</option>
-                                <option value="IAOL2">IQROL2</option>
-                                <option value="ITSTL2">IQSOL2</option>
-                                <option value="IMOL2">IQMOL2</option>
-                                <option value="IENGOL2">IQEOL2</option>
-                            </>
-                        )}
+                        <option value="">Select exam</option>
+                        {subjectOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
                     </select>
                 </div>
                 <div>
-                    <label htmlFor="fee" className="block mb-1 font-medium">Fee:</label>
+                    <label htmlFor="fee" className="block mb-1 font-medium">Fee (0 = free):</label>
                     <input
                         type="number"
                         id="fee"
                         name="fee"
+                        min="0"
                         value={formData.fee}
                         onChange={handleChange}
                         required
@@ -215,34 +247,33 @@ const StudyMaterial = () => {
                         onChange={e => setMaterialType(e.target.value)}
                         className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="file">File</option>
-                        <option value="link">Link</option>
+                        <option value="file">PDF File</option>
+                        <option value="link">External Link</option>
                     </select>
                 </div>
                 {materialType === 'file' ? (
                     <div>
-                        <label htmlFor="pdf" className="block mb-1 font-medium">Upload File</label>
+                        <label htmlFor="pdf" className="block mb-1 font-medium">Upload PDF</label>
                         <input
                             type="file"
                             id="pdf"
                             name="pdf"
                             accept="application/pdf"
                             onChange={handleChange}
-                            required
+                            required={materialType === 'file'}
                             className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                         />
                     </div>
                 ) : (
                     <div>
-                        <label htmlFor="link" className="block mb-1 font-medium">Upload Link</label>
+                        <label htmlFor="link" className="block mb-1 font-medium">Material URL</label>
                         <input
                             type="url"
                             id="link"
                             name="link"
                             value={link}
                             onChange={e => setLink(e.target.value)}
-                            required
-                            placeholder="https://example.com/material.pdf"
+                            required={materialType === 'link'}
                             className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>

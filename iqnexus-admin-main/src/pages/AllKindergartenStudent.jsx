@@ -315,6 +315,7 @@ const AllKindergartenStudents = () => {
             dob: student.dob || "",
             mobNo: student.mobNo || "",
             city: student.city || "",
+            iqkdBook: student.iqkdBook || "0",
             IQKDL1: student.IQKD1 || "0",
             IQKDL2: student.IQKD2 || "0",
             Duplicates: student.Duplicates === true,
@@ -353,6 +354,7 @@ const AllKindergartenStudents = () => {
                 dob: updatedData.dob || "",
                 mobNo: updatedData.mobNo || "",
                 city: updatedData.city || "",
+                iqkdBook: updatedData.iqkdBook || "0",
                 IQKD1: updatedData.IQKDL1 || "0",
                 IQKD2: updatedData.IQKDL2 || "0",
                 Duplicates: updatedData.Duplicates,
@@ -969,6 +971,7 @@ const AllKindergartenStudents = () => {
                                         "dob",
                                         "mobNo",
                                         "city",
+                                        "iqkdBook",
                                         "IQKDL1",
                                         "IQKDL2",
                                         "Duplicates",
@@ -1022,7 +1025,7 @@ const AllKindergartenStudents = () => {
                                                     <option value="UKG">UKG</option>
                                                     <option value="PG">PG</option>
                                                 </select>
-                                            ) : field === "IQKDL1" || field === "IQKDL2" ? (
+                                            ) : field === "IQKDL1" || field === "IQKDL2" || field === "iqkdBook" ? (
                                                 <select
                                                     name={field}
                                                     value={updatedData[field]}

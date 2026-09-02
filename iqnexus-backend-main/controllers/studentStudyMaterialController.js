@@ -3,12 +3,13 @@ import fs from "fs";
 import mongoose from "mongoose";
 import { StudyMaterial } from "../services/studyMaterialService.js";
 
-AWS.config.update({
-  accessKeyId: process.env.AWS_KEY,
-  secretAccessKey: process.env.AWS_SECRET,
-  region: process.env.AWS_REGION,
-});
-const s3 = new AWS.S3();
+function configureAws() {
+  AWS.config.update({
+    accessKeyId: process.env.AWS_KEY,
+    secretAccessKey: process.env.AWS_SECRET,
+    region: process.env.AWS_REGION,
+  });
+}
 
 function buildIdFilters(id) {
   const filters = [{ _id: id }];
@@ -61,10 +62,10 @@ function parseS3Location(pdfLink) {
 async function deletePdfFromS3(pdfLink) {
   const location = parseS3Location(pdfLink);
   if (!location?.bucket || !location?.key) {
-    console.warn("Skipping S3 delete — could not parse pdfLink:", pdfLink);
     return;
   }
 
+  configureAws();
   const s3Client = new AWS.S3({
     accessKeyId: process.env.AWS_KEY,
     secretAccessKey: process.env.AWS_SECRET,
@@ -87,74 +88,108 @@ async function deletePdfFromS3(pdfLink) {
   }
 }
 
-export const addStudentStudyMaterial = async (req, res) => {
-  const { name, age, class: className, subject, fee, kgSection } = req.body;
+function cleanupTempFile(filePath) {
+  if (!filePath) return;
+  try {
+    fs.unlinkSync(filePath);
+  } catch {
+    /* ignore */
+  }
+}
 
-  if (!req.file) {
-    console.error("No file uploaded");
-    return res.status(400).json({ error: "No file uploaded" });
+export const addStudentStudyMaterial = async (req, res) => {
+  const {
+    name,
+    class: className,
+    subject,
+    fee,
+    kgSection,
+    materialType = "file",
+    link,
+  } = req.body;
+
+  if (!name?.trim() || !className || !subject) {
+    cleanupTempFile(req.file?.path);
+    return res.status(400).json({ error: "Name, class, and subject are required" });
   }
 
-  const fileContent = fs.readFileSync(req.file.path);
+  if (className === "kindergarten" && !kgSection) {
+    cleanupTempFile(req.file?.path);
+    return res.status(400).json({ error: "Kindergarten section (PG/LKG/UKG) is required" });
+  }
 
-  const params = {
-    Bucket: process.env.AWS_BUCKET_NAME || "epocho",
-    Key: `pdfs/${Date.now()}_${req.file.originalname}`,
-    Body: fileContent,
-    ContentType: "application/pdf",
-  };
+  const cost = Number(fee) || 0;
+  let pdfLink;
 
   try {
-    const result = await s3.upload(params).promise();
-    fs.unlinkSync(req.file.path); // optional: cleanup temp file
-    
-    // console.log("Creating study material with:", {
-    //   category: name,
-    //   class: className,
-    //   kgSection: kgSection,
-    //   examId: subject,
-    //   cost: fee
-    // });
-    
-    const resultMongo = await StudyMaterial.create({
-      category: name,
-      class: className,
-      ...(kgSection && { kgSection: kgSection }),
-      examId: subject,
-      cost: fee,
-      pdfLink: result.Location,
-    });
-    await resultMongo.save();
-    
-    // console.log("Study material saved:", resultMongo);
-    // console.log("File uploaded successfully. Location:", result.Location);
+    if (materialType === "link") {
+      if (!link?.trim()) {
+        return res.status(400).json({ error: "Link URL is required" });
+      }
+      pdfLink = link.trim();
+    } else {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
 
-    // console.log(result.Location);
+      if (!process.env.AWS_KEY?.trim() || !process.env.AWS_SECRET?.trim()) {
+        cleanupTempFile(req.file.path);
+        return res.status(500).json({
+          error: "Upload failed",
+          details:
+            "AWS credentials not configured. Set AWS_KEY and AWS_SECRET in the backend .env, then restart.",
+        });
+      }
+
+      configureAws();
+      const s3 = new AWS.S3();
+      const fileContent = fs.readFileSync(req.file.path);
+      const bucket = process.env.AWS_BUCKET_NAME || "epocho-1.2";
+
+      const result = await s3
+        .upload({
+          Bucket: bucket,
+          Key: `pdfs/${Date.now()}_${req.file.originalname}`,
+          Body: fileContent,
+          ContentType: "application/pdf",
+        })
+        .promise();
+
+      pdfLink = result.Location;
+      cleanupTempFile(req.file.path);
+    }
+
+    const doc = await StudyMaterial.create({
+      category: name.trim(),
+      class: className,
+      ...(kgSection && { kgSection }),
+      examId: subject,
+      cost,
+      isAvailableForFree: cost === 0 ? "true" : "false",
+      pdfLink,
+    });
+
     res.json({
       message: "Upload successful",
-      url: result.Location,
-      name,
-      age,
+      url: pdfLink,
+      id: doc._id,
     });
   } catch (err) {
-    console.error("S3 Upload Error:", err);
-    console.error("Error details:", err.message, err.stack);
+    cleanupTempFile(req.file?.path);
+    console.error("Study material upload error:", err);
     res.status(500).json({ error: "Upload failed", details: err.message });
   }
 };
-export const fetchStudyMaterialForAdmin = async (req, res) => {
 
+export const fetchStudyMaterialForAdmin = async (req, res) => {
   try {
-    const studyMaterials = await StudyMaterial.find({});
-    if (studyMaterials.length === 0) {
-      return res.status(404).json({ message: "No study materials found" });
-    }
+    const studyMaterials = await StudyMaterial.find({}).sort({ _id: -1 }).lean();
     res.json(studyMaterials);
   } catch (error) {
     console.error("Error fetching study materials:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 export const deleteStudyMaterial = async (req, res) => {
   const { id } = req.params;
