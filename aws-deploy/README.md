@@ -10,7 +10,7 @@ Production deploy artifacts for EC2. Local dev uses root `docker-compose.yml` �
 ## GitHub Actions deploy
 
 1. Add secrets (see root README).
-2. Push to `deploy` or `main`, or run **Deploy to EC2** manually in Actions.
+2. Merge to `master` (auto-deploy when app paths change), or run **Deploy to EC2** manually in Actions (always deploys `master`).
 3. Workflow runs `package.sh` → uploads tarball → SSH → `deploy-remote.sh`.
 
 `deploy-remote.sh` backs up and restores `/opt/iqnexus/.env` so prod S3 keys are never overwritten.
