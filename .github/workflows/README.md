@@ -34,7 +34,7 @@ App S3 keys for study material uploads live only in `/opt/iqnexus/.env` on EC2 �
 
 ## Workflows
 
-- **ci.yml** — build on PR into `master` or push to `master`
-- **deploy.yml** — deploy to EC2 on push to `master` (when app paths change) or manual trigger (always checks out `master`)
+- **ci.yml** — build only on PR/push
+- **deploy.yml** — deploy on push (when app paths change) or manual trigger
 
-Feature branches do not deploy. Merge to `master` for production releases.
+Branches: `main`, `master`, `deploy`
