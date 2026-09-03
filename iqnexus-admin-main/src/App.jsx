@@ -62,11 +62,13 @@ const App = () => {
             <Route path="/ViewResults" element={<ViewResults />} />
             <Route path="/ExamManagement" element={<ExamManagement />} />
             <Route path="/StudyMaterial" element={<StudyMaterial />} />
-            <Route path="/studymatview" element={ <Studymatview />} />
+            <Route path="/Studymatview" element={<Studymatview />} />
+            <Route path="/studymatview" element={<Studymatview />} />
             <Route path="/allSchools" element={< AllSchools />} />
             <Route path="/allStudents" element={< AllStudents />} />
             <Route path="/genrate-admit-card" element={< AdmitCard />} />
-            <Route path="/allKindergartenStudents" element={< AllKindergartenStudents />} />
+            <Route path="/allKindergartenStudents" element={<AllKindergartenStudents />} />
+            <Route path="/allkindargartenStudents" element={<AllKindergartenStudents />} />
             <Route path="/kindargartenStudent" element={< KinderGartenStudentForm />} />
             <Route path="/uploadKindergartenStudentData" element={< UploadBulkKindergartenStudentData />} />
             <Route path="/calendar-year" element={<CalendarYearManagement />} />

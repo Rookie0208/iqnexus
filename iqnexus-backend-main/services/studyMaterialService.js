@@ -20,6 +20,12 @@ const StudyMaterial = mongoose.model(
   "study-material"
 );
 
+function kgSectionVariants(section) {
+  if (!section) return [];
+  const normalized = { LK: "LKG", UK: "UKG" }[section] || section;
+  return [...new Set([section, normalized])];
+}
+
 async function fetchStudyMaterial(req, res) {
   console.log("Fetching study material for class:", req.body);
   const { rollNo, className, kgSection } = req.body;
@@ -65,30 +71,30 @@ async function fetchStudyMaterial(req, res) {
         });
       }
 
+      const sectionMatches = [
+        ...new Set([
+          ...kgSectionVariants(studentData.section),
+          ...kgSectionVariants(kgSection),
+        ]),
+      ].filter(Boolean);
+
       console.log("📚 KG Student Data:", {
         rollNo: studentData.rollNo,
         section: studentData.section,
+        sectionMatches,
+        iqkdBook: studentData.iqkdBook,
         IQKD1: studentData.IQKD1,
-        IQKD2: studentData.IQKD2
+        IQKD2: studentData.IQKD2,
       });
 
-      // For KG students, check IQKD1 and IQKD2 exams
-      if (studentData.IQKD1 === "1") {
+      // KG study material: one book (iqkdBook), not separate L1/L2 exams
+      if (studentData.iqkdBook === "1") {
         const material = await StudyMaterial.find({
-          examId: "IQKD1",
+          examId: { $in: ["IQKD", "IQKD1", "IQKD2"] },
           class: "kindergarten",
-          kgSection: kgSection
+          kgSection: { $in: sectionMatches },
         });
-        console.log(`📖 Found ${material.length} materials for IQKD1`);
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.IQKD2 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IQKD2",
-          class: "kindergarten",
-          kgSection: kgSection
-        });
-        console.log(`📖 Found ${material.length} materials for IQKD2`);
+        console.log(`📖 Found ${material.length} materials for IQKD`);
         studyMaterialArray.push(...material);
       }
     } else {
@@ -171,10 +177,13 @@ async function fetchStudyMaterial(req, res) {
       }
     }
 
-    console.log("Study materials fetched successfully:", studyMaterialArray);
+    console.log("Study materials fetched successfully:", studyMaterialArray.length);
     res.status(200).json({
       success: true,
-      message: "Study materials fetched successfully",
+      message:
+        studyMaterialArray.length === 0
+          ? "No study materials available for your enrolled exams"
+          : "Study materials fetched successfully",
       data: studyMaterialArray,
     });
 
