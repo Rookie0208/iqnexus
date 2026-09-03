@@ -57,4 +57,16 @@ jobs:
             bash deploy-remote.sh
 
       - name: Health check
-        run: curl -fsS "http://${{ secrets.EC2_HOST }}/api/health"
+        run: |
+          URL="http://${{ secrets.EC2_HOST }}/api/health"
+          for i in $(seq 1 12); do
+            if curl -fsS "$URL"; then
+              echo ""
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Waiting for backend... ($i/12)"
+            sleep 30
+          done
+          echo "Health check failed after 12 attempts (~6 minutes)"
+          exit 1
