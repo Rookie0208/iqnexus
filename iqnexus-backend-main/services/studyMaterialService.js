@@ -87,14 +87,23 @@ async function fetchStudyMaterial(req, res) {
         IQKD2: studentData.IQKD2,
       });
 
-      // KG study material: one book (iqkdBook), not separate L1/L2 exams
-      if (studentData.iqkdBook === "1") {
+      // KG study material: gated by exam enrollment (IQKD1 / IQKD2), like regular students
+      if (studentData.IQKD1 === "1") {
         const material = await StudyMaterial.find({
-          examId: { $in: ["IQKD", "IQKD1", "IQKD2"] },
+          examId: { $in: ["IQKD1", "IQKD"] },
           class: "kindergarten",
           kgSection: { $in: sectionMatches },
         });
-        console.log(`📖 Found ${material.length} materials for IQKD`);
+        console.log(`📖 Found ${material.length} materials for IQKD L1`);
+        studyMaterialArray.push(...material);
+      }
+      if (studentData.IQKD2 === "1") {
+        const material = await StudyMaterial.find({
+          examId: "IQKD2",
+          class: "kindergarten",
+          kgSection: { $in: sectionMatches },
+        });
+        console.log(`📖 Found ${material.length} materials for IQKD L2`);
         studyMaterialArray.push(...material);
       }
     } else {
