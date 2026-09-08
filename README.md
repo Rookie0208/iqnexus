@@ -41,7 +41,7 @@ Uses `aws-deploy/docker-compose.freetier.yml`: nginx + static frontends + backen
 | URL | Host |
 |-----|------|
 | Student | https://student.iqnexus.in |
-| Admin | https://admin.iqnexus.in |
+| Admin | https://console-24as61r26.iqnexus.in |
 | API | `/api` on both hosts |
 
 **Production config (on EC2, not in git)**

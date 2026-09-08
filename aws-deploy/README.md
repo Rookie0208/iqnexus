@@ -4,7 +4,7 @@ Production deploy artifacts for EC2. Local dev uses root `docker-compose.yml` â€
 
 ## URLs
 - **Student:** https://student.iqnexus.in/
-- **Admin:** https://admin.iqnexus.in/
+- **Admin:** https://console-24as61r26.iqnexus.in/
 - **API:** `/api` on both hosts
 
 ## GitHub Actions deploy

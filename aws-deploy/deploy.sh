@@ -58,6 +58,6 @@ aws cloudformation describe-stacks \
   --query 'Stacks[0].Outputs' \
   --output table
 
-echo "Done. Client: https://student.iqnexus.in/  Admin: https://admin.iqnexus.in/"
+echo "Done. Client: https://student.iqnexus.in/  Admin: https://console-24as61r26.iqnexus.in/"
 echo "Bootstrap may take 5–15 minutes after instance launch (Docker build)."
 echo "For routine code updates on an existing instance, use deploy-remote.sh or GitHub Actions."

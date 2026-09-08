@@ -7,7 +7,7 @@ import { BASE_API_URL } from "../Api";
 import { useState } from "react";
 
 const LoginPage = () => {
-  const [batch, setBatch] = useState("2024-25");
+  const [batch, setBatch] = useState("2026-27");
   const [mobile, setMobile] = useState("");
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -130,9 +130,10 @@ const LoginPage = () => {
                   onChange={(e) => setBatch(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none transition-all duration-300 bg-white pr-10"
                 >
-                  <option value="2025-26">2025-26</option>
-                  <option value="2024-25">2024-25</option>
-                  <option value="2023-24">2023-24</option>
+                  <option value="2026-2027">2026-27</option>
+                  <option value="2025-2026">2025-26</option>
+                  <option value="2024-2025">2024-25</option>
+                  <option value="2023-2024">2023-24</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none w-5 h-5" />
               </div>
