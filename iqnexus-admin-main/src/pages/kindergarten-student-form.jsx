@@ -16,6 +16,8 @@ const KinderGartenStudentForm = () => {
       const payload = {
         ...data,
         class: data.Class,
+        IQKD1: data.IQKD1 || "0",
+        IQKD2: data.IQKD2 || "0",
         iqkdBook: data.iqkdBook || "0",
       };
       delete payload.Class;
@@ -109,6 +111,26 @@ const KinderGartenStudentForm = () => {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Exam Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKD L1</label>
+                  <select
+                    {...register("IQKD1")}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
+                  >
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKD L2</label>
+                  <select
+                    {...register("IQKD2")}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
+                  >
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">IQKD Book</label>
                   <select

@@ -86,31 +86,37 @@ export const deleteKindergartenStudent = async (req, res) => {
 export const updateKindergartenStudent = async (req, res) => {
   const {
     _id, rollNo, schoolCode, section, studentName,
-    motherName, fatherName, dob, mobNo, city, IQKG, IQKD1, IQKD2, Duplicates,
+    motherName, fatherName, dob, mobNo, city, IQKG, IQKD1, IQKD2, iqkdBook, Duplicates,
   } = req.body;
 
   if (!_id || !rollNo || !schoolCode || !section || !studentName) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  const updateData = {
-    rollNo: rollNo.trim(),
-    schoolCode: Number(schoolCode),
-    class: "KD",
-    section: section.trim(),
-    studentName: studentName.trim(),
-    motherName: motherName?.trim() || "",
-    fatherName: fatherName?.trim() || "",
-    dob: dob?.trim() || "",
-    mobNo: mobNo?.trim() || "",
-    city: city?.trim() || "",
-    IQKG: IQKG || "0",
-    IQKD1: IQKD1 || "0",
-    IQKD2: IQKD2 || "0",
-    Duplicates: Duplicates !== undefined ? Duplicates : false,
-  };
-
   try {
+    const currentStudent = await KINDERGARTEN_STUDENT.findById(_id).lean();
+    if (!currentStudent) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const updateData = {
+      rollNo: rollNo.trim(),
+      schoolCode: Number(schoolCode),
+      class: "KD",
+      section: section.trim(),
+      studentName: studentName.trim(),
+      motherName: motherName?.trim() || "",
+      fatherName: fatherName?.trim() || "",
+      dob: dob?.trim() || "",
+      mobNo: mobNo?.trim() || "",
+      city: city?.trim() || "",
+      IQKG: IQKG !== undefined ? (IQKG || "0") : (currentStudent.IQKG || "0"),
+      IQKD1: IQKD1 !== undefined ? (IQKD1 || "0") : (currentStudent.IQKD1 || "0"),
+      IQKD2: IQKD2 !== undefined ? (IQKD2 || "0") : (currentStudent.IQKD2 || "0"),
+      iqkdBook: iqkdBook !== undefined ? (iqkdBook || "0") : (currentStudent.iqkdBook || "0"),
+      Duplicates: Duplicates !== undefined ? Duplicates : currentStudent.Duplicates ?? false,
+    };
+
     const existingStudent = await KINDERGARTEN_STUDENT.findOne({
       rollNo: rollNo.trim(),
       _id: { $ne: _id },

@@ -16,8 +16,8 @@ const EXAM_LABELS = {
   IMOL2: "IQMOL2",
   IENGOL2: "IQEOL2",
   IQKD: "IQKD",
-  IQKD1: "IQKD",
-  IQKD2: "IQKD",
+  IQKD1: "IQKD L1",
+  IQKD2: "IQKD L2",
 };
 
 const formatExam = (examId) => {

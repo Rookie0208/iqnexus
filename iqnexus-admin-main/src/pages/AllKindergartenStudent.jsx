@@ -21,6 +21,23 @@ const examFullNames = {
     },
 };
 
+const UPDATE_FIELD_LABELS = {
+    rollNo: "Roll No",
+    schoolCode: "School Code",
+    section: "Section",
+    studentName: "Student Name",
+    motherName: "Mother Name",
+    fatherName: "Father Name",
+    dob: "Date of Birth",
+    mobNo: "Mobile No",
+    city: "City",
+    IQKDL1: "IQKD L1",
+    IQKDL2: "IQKD L2",
+    iqkdBook: "IQKD Book",
+    IQKG: "IQKG Participation",
+    Duplicates: "Duplicates",
+};
+
 const AllKindergartenStudents = () => {
     const [students, setStudents] = useState([]);
     const [searched, setSearched] = useState(false);
@@ -315,6 +332,7 @@ const AllKindergartenStudents = () => {
             dob: student.dob || "",
             mobNo: student.mobNo || "",
             city: student.city || "",
+            IQKG: student.IQKG || "0",
             iqkdBook: student.iqkdBook || "0",
             IQKDL1: student.IQKD1 || "0",
             IQKDL2: student.IQKD2 || "0",
@@ -354,6 +372,7 @@ const AllKindergartenStudents = () => {
                 dob: updatedData.dob || "",
                 mobNo: updatedData.mobNo || "",
                 city: updatedData.city || "",
+                IQKG: updatedData.IQKG || "0",
                 iqkdBook: updatedData.iqkdBook || "0",
                 IQKD1: updatedData.IQKDL1 || "0",
                 IQKD2: updatedData.IQKDL2 || "0",
@@ -971,14 +990,15 @@ const AllKindergartenStudents = () => {
                                         "dob",
                                         "mobNo",
                                         "city",
-                                        "iqkdBook",
                                         "IQKDL1",
                                         "IQKDL2",
+                                        "iqkdBook",
+                                        "IQKG",
                                         "Duplicates",
                                     ].map((field, idx) => (
                                         <div key={idx}>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                {field.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}
+                                                {UPDATE_FIELD_LABELS[field] || field}
                                             </label>
                                             {field === "Duplicates" ? (
                                                 <div className="inline-flex border rounded-md">
@@ -1025,7 +1045,7 @@ const AllKindergartenStudents = () => {
                                                     <option value="UKG">UKG</option>
                                                     <option value="PG">PG</option>
                                                 </select>
-                                            ) : field === "IQKDL1" || field === "IQKDL2" || field === "iqkdBook" ? (
+                                            ) : field === "IQKDL1" || field === "IQKDL2" || field === "iqkdBook" || field === "IQKG" ? (
                                                 <select
                                                     name={field}
                                                     value={updatedData[field]}

@@ -3,7 +3,8 @@ import Select from 'react-select';
 import { BASE_URL } from '../Api';
 
 const KG_SUBJECTS = [
-    { value: 'IQKD', label: 'IQKD - Kindergarten Book' },
+    { value: 'IQKD1', label: 'IQKD L1' },
+    { value: 'IQKD2', label: 'IQKD L2' },
 ];
 
 const REGULAR_SUBJECTS = [
