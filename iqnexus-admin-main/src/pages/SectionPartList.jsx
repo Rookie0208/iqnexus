@@ -31,10 +31,14 @@ const SectionPartList = () => {
   const [searched, setSearched] = useState(false);
   const [countData, setCountData] = useState({
    IQKD1:{
-    "KD": { LKG: 0, UKG: 0, PG: 0 },
+    "NURSERY": { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 },
+    "LKG": { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 },
+    "UKG": { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 },
    },
    IQKD2:{
-    "KD": { LKG: 0, UKG: 0, PG: 0 },
+    "NURSERY": { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 },
+    "LKG": { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 },
+    "UKG": { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 },
    },
    IENGOL1:{
     "1": { A: 0, B: 0, C: 0, D: 0, E: 0,F: 0, G: 0, H: 0, I: 0 },
@@ -386,13 +390,15 @@ const SectionPartList = () => {
               examListPlainArray.includes(nameMappings[exam.name])
             : true;
         const isKDExam = exam.name === "IQKDL1" || exam.name === "IQKDL2";
+        const kgVals = ["NURSERY", "LKG", "UKG", "KD"];
         const onlyKDSelected =
-          selectedClasses.length === 1 && selectedClasses[0].value === "KD";
-        const hasKDSelected = selectedClasses.some(
-          (cls) => cls.value === "KD"
+          selectedClasses.length > 0 &&
+          selectedClasses.every((cls) => kgVals.includes(cls.value));
+        const hasKDSelected = selectedClasses.some((cls) =>
+          kgVals.includes(cls.value)
         );
         const hasNonKDSelected = selectedClasses.some(
-          (cls) => cls.value !== "KD"
+          (cls) => !kgVals.includes(cls.value)
         );
 
         if (selectedClasses.length === 0) return levelMatches && examSelected;
@@ -526,14 +532,15 @@ const SectionPartList = () => {
         const isKDExam = exam.name === "IQKDL1" || exam.name === "IQKDL2";
 
         // For KD exams show only KD rows with KD sections; for regular show 1-10 with A-I
+        const kgClassValues = ["NURSERY", "LKG", "UKG", "KD"];
         const relevantClasses = isKDExam
-          ? classOptions.filter((c) => c.value === "KD")
+          ? classOptions.filter((c) => kgClassValues.includes(c.value))
           : classOptions.filter(
-              (c) => c.value !== "KD" && c.value !== "11" && c.value !== "12"
+              (c) => !kgClassValues.includes(c.value) && c.value !== "11" && c.value !== "12"
             );
-        const relevantSections = isKDExam
-          ? allSections.filter((s) => ["LKG", "UKG", "PG"].includes(s.value))
-          : allSections.filter((s) => !["LKG", "UKG", "PG"].includes(s.value));
+        const relevantSections = allSections.filter((s) =>
+          ["A", "B", "C", "D", "E", "F", "G", "H", "I"].includes(s.value)
+        );
 
         const tableHead = [
           ["Class", ...relevantSections.map((s) => s.value), "Total"],
@@ -542,7 +549,7 @@ const SectionPartList = () => {
         const columnTotals = new Array(relevantSections.length).fill(0);
 
         relevantClasses.forEach((classOption) => {
-          const row = [classOption.value === "KD" ? "KD" : classOption.value];
+          const row = [classOption.value === "NURSERY" ? "Nursery" : classOption.value];
           let rowTotal = 0;
           relevantSections.forEach((section, secIdx) => {
             const count =
@@ -784,9 +791,11 @@ const SectionPartList = () => {
     }
   };
 
-  // Predefined class options
+  // Predefined class options (KG = Nursery / LKG / UKG)
   const classOptions = [
-    { value: "KD", label: "Kindergarten (KD)" },
+    { value: "NURSERY", label: "Nursery" },
+    { value: "LKG", label: "LKG" },
+    { value: "UKG", label: "UKG" },
     { value: "1", label: "Class 1" },
     { value: "2", label: "Class 2" },
     { value: "3", label: "Class 3" },
@@ -801,11 +810,8 @@ const SectionPartList = () => {
     { value: "12", label: "Class 12" },
   ];
 
-  // Predefined section options
+  // Section = A–E (school sections for both KG and upper)
   const sectionOptions = [
-    { value: "LKG", label: "LKG (Lower Kindergarten)" },
-    { value: "UKG", label: "UKG (Upper Kindergarten)" },
-    { value: "PG", label: "PG (Pre-Primary/Play Group)" },
     { value: "A", label: "Section A" },
     { value: "B", label: "Section B" },
     { value: "C", label: "Section C" },
@@ -813,17 +819,7 @@ const SectionPartList = () => {
     { value: "E", label: "Section E" },
   ];
 
-  //   const dropdown = [
-  //     { value: "10", label: "10 dataset" },
-  //     { value: "25", label: "25 dataset" },
-  //     { value: "50", label: "50 dataset" },
-  //   ];
-
-  // Predefined school sectons
   const allSections = [
-    { value: "LKG" },
-    { value: "UKG" },
-    { value: "PG" },
     { value: "A" },
     { value: "B" },
     { value: "C" },
@@ -1125,9 +1121,10 @@ const SectionPartList = () => {
                   const isKDExam = exam.name === "IQKDL1" || exam.name === "IQKDL2";
                   
                   // Check if only KD class is selected
-                  const onlyKDSelected = selectedClasses.length === 1 && selectedClasses[0].value === "KD";
-                  const hasKDSelected = selectedClasses.some(cls => cls.value === "KD");
-                  const hasNonKDSelected = selectedClasses.some(cls => cls.value !== "KD");
+                  const kgVals = ["NURSERY", "LKG", "UKG", "KD"];
+                  const onlyKDSelected = selectedClasses.length > 0 && selectedClasses.every(cls => kgVals.includes(cls.value));
+                  const hasKDSelected = selectedClasses.some(cls => kgVals.includes(cls.value));
+                  const hasNonKDSelected = selectedClasses.some(cls => !kgVals.includes(cls.value));
                   
                   // Determine if this exam should be shown
                   let shouldShow = false;

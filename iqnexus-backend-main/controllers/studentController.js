@@ -176,9 +176,11 @@ export const getDashboardAnalytics = async (req, res) => {
     const allSchools = await School.countDocuments();
     const allStudyMaterials = await StudyMaterial.countDocuments();
 
-    // KG students count
+    // KG students count (NURSERY / LKG / UKG + legacy KD)
     const { KINDERGARTEN_STUDENT } = await import("../models/kindergarten.model.js");
-    const allKGStudents = await KINDERGARTEN_STUDENT.countDocuments({ class: "KD" });
+    const { kgStudentsClassQuery } = await import("../utils/kgHelpers.js");
+    const kgBase = kgStudentsClassQuery();
+    const allKGStudents = await KINDERGARTEN_STUDENT.countDocuments(kgBase);
 
     // Quick Stats: class-wise breakdown for regular students
     const classWiseCounts = await STUDENT_LATEST.aggregate([
@@ -186,10 +188,10 @@ export const getDashboardAnalytics = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // KG section-wise breakdown
+    // KG class-wise breakdown (NURSERY / LKG / UKG)
     const kgSectionCounts = await KINDERGARTEN_STUDENT.aggregate([
-      { $match: { class: "KD" } },
-      { $group: { _id: "$section", count: { $sum: 1 } } },
+      { $match: kgBase },
+      { $group: { _id: "$class", count: { $sum: 1 } } },
       { $sort: { _id: 1 } }
     ]);
 
@@ -200,10 +202,10 @@ export const getDashboardAnalytics = async (req, res) => {
       .select("studentName rollNo schoolCode class createdAt")
       .lean();
 
-    const recentKGStudents = await KINDERGARTEN_STUDENT.find({ class: "KD" })
+    const recentKGStudents = await KINDERGARTEN_STUDENT.find(kgBase)
       .sort({ createdAt: -1 })
       .limit(5)
-      .select("studentName rollNo schoolCode section createdAt")
+      .select("studentName rollNo schoolCode class section createdAt")
       .lean();
 
     // Merge and sort recent updates

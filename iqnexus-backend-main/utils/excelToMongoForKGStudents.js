@@ -4,6 +4,7 @@ import fs from "fs";
 import { parse } from "csv-parse";
 import mongoose from "mongoose";
 import { promises as fsPromises } from "fs";
+import { normalizeKgClass, normalizeKgSection, KG_CLASSES } from "./kgHelpers.js";
 
 export async function excelToMongoDbForKindergarten(filePath) {
     let invalidRecords = []; // Declare at function scope
@@ -22,6 +23,9 @@ export async function excelToMongoDbForKindergarten(filePath) {
             "IQKD Book": "iqkdBook",
             IQKD1: "IQKD1",
             IQKD2: "IQKD2",
+            IQKGL2: "IQKGL2",
+            IQKG1: "IQKD1",
+            IQKG2: "IQKD2",
             "Total Basic Level Participated Exams": "totalBasicLevelParticipatedExams",
             "Basic Level Full Amount": "basicLevelFullAmount",
             "Basic Level Paid Amount": "basicLevelAmountPaid",
@@ -36,7 +40,7 @@ export async function excelToMongoDbForKindergarten(filePath) {
             "Total Amount Paid Online": "totalAmountPaidOnline",
         };
 
-        const requiredColumns = ["studentName", "rollNo", "schoolCode", "section"];
+        const requiredColumns = ["studentName", "rollNo", "schoolCode", "class", "section"];
         const optionalColumns = [
             "motherName",
             "fatherName",
@@ -44,9 +48,9 @@ export async function excelToMongoDbForKindergarten(filePath) {
             "mobNo",
             "city",
             "IQKD Book",
-            "class",
             "IQKD1",
             "IQKD2",
+            "IQKGL2",
         ];
         const allColumns = [...requiredColumns, ...optionalColumns];
 
@@ -91,12 +95,12 @@ export async function excelToMongoDbForKindergarten(filePath) {
 
         const rawHeaders = headerLine.split(",").map(h => h.trim().replace(/^"|"$/g, ""));
         const expectedCsvHeaders = Object.keys(renameFields);
-        const requiredCsvHeaders = ["Roll No", "School Code", "Student Name", "Section"];
+        const requiredCsvHeaders = ["Roll No", "School Code", "Student Name", "Class", "Section"];
         const missingCsvHeaders = requiredCsvHeaders.filter(h => !rawHeaders.includes(h));
         if (missingCsvHeaders.length > 0) {
             throw new Error(
                 `Invalid CSV format. Missing required columns: ${missingCsvHeaders.join(", ")}. ` +
-                `Expected columns: ${expectedCsvHeaders.join(", ")}. ` +
+                `Expected columns include: Roll No, School Code, Student Name, Class (NURSERY/LKG/UKG), Section (A/B/C…). ` +
                 `Please download the kindergarten template and use the correct format.`
             );
         }
@@ -126,8 +130,7 @@ export async function excelToMongoDbForKindergarten(filePath) {
         });
 
         // Validate and transform student data
-        const validSections = ["LKG", "UKG", "PG"];
-        // invalidRecords now declared at function scope
+        // Class = NURSERY | LKG | UKG (PG → NURSERY); Section = A, B, C…
         const processedStudents = students.map((student, index) => {
             const rowNum = index + 2;
             const errors = [];
@@ -153,12 +156,24 @@ export async function excelToMongoDbForKindergarten(filePath) {
                 errors.push(`Row ${rowNum}: schoolCode is required`);
             }
 
-            if (!student.section || !validSections.includes(student.section)) {
-                errors.push(`Row ${rowNum}: section must be LKG, UKG, or PG`);
+            const normalizedClass = normalizeKgClass(student.class) || normalizeKgClass(student.section);
+            if (!normalizedClass) {
+                errors.push(
+                    `Row ${rowNum}: class must be one of ${KG_CLASSES.join(", ")} (PG maps to NURSERY)`
+                );
             }
 
-            if (student.class && student.class !== "KD") {
-                errors.push(`Row ${rowNum}: class must be KD`);
+            // If section looked like a class (legacy), default to A
+            let normalizedSection = normalizeKgSection(student.section);
+            if (!normalizedSection) {
+                // section column may have been empty or a class label
+                if (student.section && normalizeKgClass(student.section)) {
+                    normalizedSection = "A";
+                } else if (!student.section || !String(student.section).trim()) {
+                    normalizedSection = "A";
+                } else {
+                    normalizedSection = String(student.section).trim().toUpperCase();
+                }
             }
 
             if (errors.length > 0) {
@@ -169,25 +184,22 @@ export async function excelToMongoDbForKindergarten(filePath) {
                 });
             }
 
+            // IQKGL2 template column aliases IQKD2
+            const l2Raw = student.IQKD2 ?? student.IQKGL2 ?? student.iqkgl2;
+
             return {
                 rollNo: student.rollNo?.trim() || "",
                 schoolCode,
-                class: "KD",
-                section: student.section?.trim() || "",
+                class: normalizedClass || "NURSERY",
+                section: normalizedSection,
                 studentName: student.studentName?.trim() || "",
                 fatherName: student.fatherName?.trim() || "",
                 motherName: student.motherName?.trim() || "",
                 dob: student.dob?.trim() || "",
                 mobNo: student.mobNo?.trim() || "",
                 iqkdBook: student.iqkdBook?.trim() || "",
-                IQKD1: (() => {
-                    console.log(`Processing IQKD1 for ${student.rollNo}: raw value = "${student.IQKD1}", normalized = "${normalizeBoolean(student.IQKD1)}"`);
-                    return normalizeBoolean(student.IQKD1);
-                })(),
-                IQKD2: (() => {
-                    console.log(`Processing IQKD2 for ${student.rollNo}: raw value = "${student.IQKD2}", normalized = "${normalizeBoolean(student.IQKD2)}"`);
-                    return normalizeBoolean(student.IQKD2);
-                })(),
+                IQKD1: normalizeBoolean(student.IQKD1),
+                IQKD2: normalizeBoolean(l2Raw),
                 totalBasicLevelParticipatedExams: student.totalBasicLevelParticipatedExams?.trim() || "",
                 basicLevelFullAmount: student.basicLevelFullAmount?.trim() || "",
                 basicLevelAmountPaid: student.basicLevelAmountPaid?.trim() || "",

@@ -1,11 +1,16 @@
 import mongoose from "mongoose";
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
 import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
+import {
+  isKgClass,
+  normalizeKgClass,
+  kgStudentsClassQuery,
+} from "../utils/kgHelpers.js";
 
 const studyMaterialSchema = new mongoose.Schema({
   id: Number,
-  class: mongoose.Schema.Types.Mixed, // Allow both Number and String (for kindergarten)
-  kgSection: String,
+  class: mongoose.Schema.Types.Mixed, // Number (1–12) or KG class string (NURSERY/LKG/UKG)
+  kgSection: String, // optional school section A/B/C (legacy also held PG/LKG/UKG)
   category: String,
   examId: String,
   cost: Number,
@@ -20,190 +25,141 @@ const StudyMaterial = mongoose.model(
   "study-material"
 );
 
-function kgSectionVariants(section) {
-  if (!section) return [];
-  const normalized = { LK: "LKG", UK: "UKG" }[section] || section;
-  return [...new Set([section, normalized])];
-}
-
 async function fetchStudyMaterial(req, res) {
   console.log("Fetching study material for class:", req.body);
   const { rollNo, className, kgSection } = req.body;
 
   const studyMaterialArray = [];
-  
+
   if (!className) {
-    console.error("🚨 Error: Class information not found for the student");
     return res.status(400).json({
       success: false,
-      message: "Class information not found for the student"
+      message: "Class information not found for the student",
     });
   }
 
-  // Check if this is a kindergarten student (class = "KD")
-  const isKindergarten = className === "KD";
-
-  // For kindergarten, kgSection is required
-  if (isKindergarten && !kgSection) {
-    console.error("🚨 Error: Kindergarten section not provided");
-    return res.status(400).json({
-      success: false,
-      message: "Kindergarten section is required"
-    });
-  }
+  const kgClass = normalizeKgClass(className) || normalizeKgClass(kgSection);
+  const isKindergarten = isKgClass(className) || !!kgClass;
 
   try {
-    // For kindergarten, query with class "kindergarten" (as stored in DB)
-    // For regular students, use the numeric class value
     let studentData;
-    
+
     if (isKindergarten) {
-      // Query kindergarten student model
-      studentData = await KINDERGARTEN_STUDENT.findOne({
-        rollNo: rollNo,
-        class: "KD"
-      });
-      
+      const classQuery = kgClass
+        ? { rollNo, class: kgClass }
+        : { rollNo, ...kgStudentsClassQuery() };
+
+      studentData = await KINDERGARTEN_STUDENT.findOne(classQuery);
+
+      // Fallback: roll only within KG collection (legacy KD rows)
+      if (!studentData) {
+        studentData = await KINDERGARTEN_STUDENT.findOne({ rollNo });
+      }
+
       if (!studentData) {
         return res.status(404).json({
           success: false,
-          message: "Kindergarten student not found"
+          message: "Kindergarten student not found",
         });
       }
 
-      const sectionMatches = [
-        ...new Set([
-          ...kgSectionVariants(studentData.section),
-          ...kgSectionVariants(kgSection),
-        ]),
-      ].filter(Boolean);
+      const materialClass = normalizeKgClass(studentData.class) || kgClass;
+      // Match materials by real class; also accept legacy "kindergarten" + kgSection=class
+      const classMatch = materialClass
+        ? {
+            $or: [
+              { class: materialClass },
+              { class: materialClass.toLowerCase() },
+              { class: "kindergarten", kgSection: materialClass },
+              { class: "kindergarten", kgSection: { $in: legacySectionAliases(materialClass) } },
+              { class: "KD", kgSection: materialClass },
+            ],
+          }
+        : { class: "kindergarten" };
 
       console.log("📚 KG Student Data:", {
         rollNo: studentData.rollNo,
+        class: studentData.class,
         section: studentData.section,
-        sectionMatches,
-        iqkdBook: studentData.iqkdBook,
         IQKD1: studentData.IQKD1,
         IQKD2: studentData.IQKD2,
+        materialClass,
       });
 
-      // KG study material: gated by exam enrollment (IQKD1 / IQKD2), like regular students
       if (studentData.IQKD1 === "1") {
         const material = await StudyMaterial.find({
-          examId: { $in: ["IQKD1", "IQKD"] },
-          class: "kindergarten",
-          kgSection: { $in: sectionMatches },
+          examId: { $in: ["IQKD1", "IQKD", "IQKG1", "IQKGL1"] },
+          ...classMatch,
         });
-        console.log(`📖 Found ${material.length} materials for IQKD L1`);
         studyMaterialArray.push(...material);
       }
       if (studentData.IQKD2 === "1") {
         const material = await StudyMaterial.find({
-          examId: "IQKD2",
-          class: "kindergarten",
-          kgSection: { $in: sectionMatches },
+          examId: { $in: ["IQKD2", "IQKG2", "IQKGL2"] },
+          ...classMatch,
         });
-        console.log(`📖 Found ${material.length} materials for IQKD L2`);
         studyMaterialArray.push(...material);
       }
     } else {
-      // Query regular student model
       studentData = await STUDENT_LATEST.findOne({
         rollNo: rollNo,
-        class: className
+        class: className,
       });
 
       if (!studentData) {
         return res.status(404).json({
           success: false,
-          message: "Student not found"
+          message: "Student not found",
         });
       }
 
-      // For regular students (class 1-12), check regular exams
-      if (studentData.IAOL1 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IAOL1",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.ITSTL1 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "ITSTL1",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.IMOL1 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IMOL1",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.IENGOL1 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IENGOL1",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.IGKOL1 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IGKOL1",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.IAOL2 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IAOL2",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.ITSTL2 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "ITSTL2",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.IMOL2 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IMOL2",
-          class: className
-        });
-        studyMaterialArray.push(...material);
-      }
-      if (studentData.IENGOL2 === "1") {
-        const material = await StudyMaterial.find({
-          examId: "IENGOL2",
-          class: className
-        });
-        studyMaterialArray.push(...material);
+      const examFields = [
+        "IAOL1", "ITSTL1", "IMOL1", "IENGOL1", "IGKOL1",
+        "IAOL2", "ITSTL2", "IMOL2", "IENGOL2",
+      ];
+      for (const field of examFields) {
+        if (studentData[field] === "1") {
+          const material = await StudyMaterial.find({
+            examId: field,
+            class: className,
+          });
+          studyMaterialArray.push(...material);
+        }
       }
     }
 
-    console.log("Study materials fetched successfully:", studyMaterialArray.length);
+    // Deduplicate by _id
+    const seen = new Set();
+    const unique = studyMaterialArray.filter((m) => {
+      const id = String(m._id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
     res.status(200).json({
       success: true,
       message:
-        studyMaterialArray.length === 0
+        unique.length === 0
           ? "No study materials available for your enrolled exams"
           : "Study materials fetched successfully",
-      data: studyMaterialArray,
+      data: unique,
     });
-
   } catch (error) {
     console.error("❌ Error fetching study material:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching study materials",
-      error: error.message
+      error: error.message,
     });
   }
+}
+
+function legacySectionAliases(kgClass) {
+  if (kgClass === "NURSERY") return ["NURSERY", "PG", "Play Group"];
+  if (kgClass === "LKG") return ["LKG", "LK"];
+  if (kgClass === "UKG") return ["UKG", "UK", "UKD"];
+  return [kgClass];
 }
 
 export { fetchStudyMaterial, mongoose, StudyMaterial };

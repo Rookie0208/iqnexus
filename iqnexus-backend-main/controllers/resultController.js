@@ -6,6 +6,11 @@ import { Subject } from "../models/subjectModel.js";
 import mongoose from "mongoose";
 import fs from "fs";
 import xlsx from "xlsx";
+import {
+  isKgClass,
+  normalizeKgClass,
+  kgStudentsClassQuery,
+} from "../utils/kgHelpers.js";
 
 // Exam code mapping from display codes to internal field names
 const examFieldMap = {
@@ -19,17 +24,29 @@ const examFieldMap = {
   IQMOL2: "IMOL2",
   IQGKOL1: "IGKOL1",
   IQGKOL2: "IGKOL2",
-  // KG exams map to themselves
+  // KG exams (IQKG* aliases → internal IQKD* fields)
   IQKD1: "IQKD1",
   IQKD2: "IQKD2",
+  IQKG1: "IQKD1",
+  IQKG2: "IQKD2",
+  IQKGL1: "IQKD1",
+  IQKGL2: "IQKD2",
 };
 
-// Check if an exam code is a kindergarten exam
-const isKGExam = (subject) => ["IQKD1", "IQKD2"].includes(subject);
+const isKGExam = (subject) =>
+  ["IQKD1", "IQKD2", "IQKG1", "IQKG2", "IQKGL1", "IQKGL2"].includes(subject);
 
-// Get the appropriate model based on student class
 const getStudentModel = (studentClass) => {
-  return studentClass === "KD" ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
+  return isKgClass(studentClass) || studentClass === "KD"
+    ? KINDERGARTEN_STUDENT
+    : STUDENT_LATEST;
+};
+
+/** Build class filter for KG uploads: specific class or all KG classes */
+const kgClassFilter = (studentClass) => {
+  const normalized = normalizeKgClass(studentClass);
+  if (normalized) return { class: normalized };
+  return kgStudentsClassQuery();
 };
 
 /**
@@ -104,12 +121,12 @@ export const uploadResult = async (req, res) => {
         return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
       }
 
-      const isKG = studentClass === "KD";
+      const isKG = isKgClass(studentClass) || isKGExam(subject);
       const StudentModel = getStudentModel(studentClass);
 
       // Validate students exist for this school + class
       const studentQuery = isKG 
-        ? { schoolCode: Number(schoolCode), class: "KD" }
+        ? { schoolCode: Number(schoolCode), ...kgClassFilter(studentClass) }
         : { schoolCode: Number(schoolCode), class: studentClass };
       const studentCount = await StudentModel.countDocuments(studentQuery);
       if (studentCount === 0) {
@@ -263,10 +280,10 @@ export const uploadResult = async (req, res) => {
 
         if (hasClassAndSchool) {
           // Original mode: use form-provided class & schoolCode
-          const isKG = studentClass === "KD";
+          const isKG = isKgClass(studentClass) || isKGExam(subject);
           const StudentModel = getStudentModel(studentClass);
           const findQuery = isKG
-            ? { rollNo: rollNo, class: "KD", schoolCode: Number(schoolCode) }
+            ? { rollNo: rollNo, schoolCode: Number(schoolCode), ...kgClassFilter(studentClass) }
             : { rollNo: rollNo, class: studentClass, schoolCode: Number(schoolCode) };
           
           updateResult = await StudentModel.findOneAndUpdate(
@@ -399,12 +416,12 @@ export const uploadResultSimple = async (req, res) => {
       return res.status(400).json({ error: `School with code ${schoolCode} does not exist. Please add the school first.` });
     }
 
-    const isKG = studentClass === "KD";
+    const isKG = isKgClass(studentClass) || isKGExam(subject);
     const StudentModel = getStudentModel(studentClass);
 
     // Validate students exist for this school + class
     const studentQuery = isKG 
-      ? { schoolCode: Number(schoolCode), class: "KD" }
+      ? { schoolCode: Number(schoolCode), ...kgClassFilter(studentClass) }
       : { schoolCode: Number(schoolCode), class: studentClass };
     const studentCount = await StudentModel.countDocuments(studentQuery);
     if (studentCount === 0) {
@@ -458,7 +475,7 @@ export const uploadResultSimple = async (req, res) => {
       if (!rollNo || isNaN(marksObtained) || isNaN(totalMarks)) continue;
 
       const findQuery = isKG
-        ? { rollNo: rollNo, class: "KD", schoolCode: Number(schoolCode) }
+        ? { rollNo: rollNo, schoolCode: Number(schoolCode), ...kgClassFilter(studentClass) }
         : { rollNo: rollNo, class: studentClass, schoolCode: Number(schoolCode) };
 
       const updateResult = await StudentModel.findOneAndUpdate(
@@ -569,7 +586,7 @@ export const getAllResults = async (req, res) => {
     }
     
     if (isKG) {
-      query.class = "KD";
+      Object.assign(query, kgClassFilter(studentClass === "all" ? null : studentClass));
     } else if (studentClass && studentClass !== 'all') {
       query.class = studentClass;
     }
@@ -847,7 +864,7 @@ export const exportResultsToExcel = async (req, res) => {
     const StudentModel = isKG ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
 
     if (isKG) {
-      query.class = "KD";
+      Object.assign(query, kgStudentsClassQuery());
     }
 
     if (resultKey) {

@@ -1,6 +1,12 @@
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
 import { School } from "../models/schoolModel.js";
 import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
+import {
+  KG_CLASSES,
+  isKgClass,
+  normalizeKgClass,
+  kgStudentsClassQuery,
+} from "../utils/kgHelpers.js";
 
 const studentCache = {};
 const examNameMapping = {
@@ -15,6 +21,8 @@ const kgExamMapping = {
   IQKD: 'IQKD'
 };
 
+const KG_EXAM_CODES = ["IQKD1", "IQKD2", "IQKG1", "IQKG2", "IQKGL1", "IQKGL2"];
+
 export const getParticipationFilteredList = async (req, res) => {
   const { schoolCode, classes, sections, exam, examLevel } = req.body;
 
@@ -22,44 +30,48 @@ export const getParticipationFilteredList = async (req, res) => {
     // Find school
     const school = await School.findOne({ schoolCode }) || {};
     
-    // Check if KD class is requested OR if IQKD exams are selected OR if L1 exam level is selected
-    const hasKDClass = classes && classes.includes("KD");
-    const hasKDExam = exam && exam.some(examObj => examObj?.value === 'IQKD1' || examObj?.value === 'IQKD2');
-    const hasOnlyKDExam = exam && exam.length > 0 && exam.every(examObj => examObj?.value === 'IQKD1' || examObj?.value === 'IQKD2');
+    const selectedKgClasses = (classes || [])
+      .map(normalizeKgClass)
+      .filter(Boolean);
+    const hasKDClass =
+      selectedKgClasses.length > 0 ||
+      (classes && classes.some((c) => c === "KD" || isKgClass(c)));
+    const hasKDExam = exam && exam.some(examObj => KG_EXAM_CODES.includes(examObj?.value));
+    const hasOnlyKDExam = exam && exam.length > 0 && exam.every(examObj => KG_EXAM_CODES.includes(examObj?.value));
     const isL1LevelOnly = examLevel === "L1" && (!exam || exam.length === 0);
-    const regularClasses = classes ? classes.filter(cls => cls !== "KD") : [];
+    const regularClasses = classes
+      ? classes.filter((cls) => !isKgClass(cls) && cls !== "KD" && !KG_CLASSES.includes(cls))
+      : [];
     
     let students = [];
     
-    // Fetch kindergarten students if KD is selected OR if IQKD exams are selected OR if L1 level is selected
+    // Fetch kindergarten students if KG class/exam selected
     if (hasKDClass || hasKDExam || isL1LevelOnly) {
-      const kgQuery = {};
+      const kgQuery = selectedKgClasses.length
+        ? { class: { $in: selectedKgClasses } }
+        : { ...kgStudentsClassQuery() };
       
       if (schoolCode) {
         kgQuery.schoolCode = { $in: schoolCode };
       }
       
-      kgQuery.class = "KD";
-      
       if (sections && sections.length > 0) {
-        kgQuery.section = { $in: sections };
+        kgQuery.section = { $in: sections.map((s) => String(s).toUpperCase()) };
       }
       
-      // Handle kindergarten exams (IQKD1, IQKD2)
       if (exam && exam.length > 0) {
         for (const examObj of exam) {
           const examValue = examObj?.value;
-          
-          // Check if it's a kindergarten exam
-          if (examValue && (examValue === 'IQKD1' || examValue === 'IQKD2')) {
-            kgQuery[examValue] = "1";
+          if (examValue === "IQKD1" || examValue === "IQKG1" || examValue === "IQKGL1") {
+            kgQuery.IQKD1 = "1";
+          } else if (examValue === "IQKD2" || examValue === "IQKG2" || examValue === "IQKGL2") {
+            kgQuery.IQKD2 = "1";
           }
         }
       } else if (examLevel === "L1") {
-        // If L1 is selected without specific exams, fetch all KD students with any L1 exam
-        kgQuery["$or"] = [
-          { IQKD1: "1" }
-        ];
+        kgQuery["$or"] = [{ IQKD1: "1" }];
+      } else if (examLevel === "L2") {
+        kgQuery["$or"] = [{ IQKD2: "1" }];
       }
       
       console.log("KG Query:", kgQuery);

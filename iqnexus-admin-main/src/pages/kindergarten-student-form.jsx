@@ -74,7 +74,9 @@ const KinderGartenStudentForm = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
                   >
                     <option value="">Select</option>
-                    <option value="KD">KD</option>
+                    <option value="NURSERY">Nursery</option>
+                    <option value="LKG">LKG</option>
+                    <option value="UKG">UKG</option>
                   </select>
                   {errors.Class && <p className="text-red-500 text-xs mt-1">{errors.Class.message}</p>}
                 </div>
@@ -86,9 +88,11 @@ const KinderGartenStudentForm = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
                   >
                     <option value="">Select</option>
-                    <option value="LKG">LKG</option>
-                    <option value="UKG">UKG</option>
-                    <option value="PG">PG</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
                   </select>
                   {errors.section && <p className="text-red-500 text-xs mt-1">{errors.section.message}</p>}
                 </div>
@@ -112,7 +116,7 @@ const KinderGartenStudentForm = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Exam Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKD L1</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKG1 (Level 1 / Basic)</label>
                   <select
                     {...register("IQKD1")}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
@@ -122,7 +126,7 @@ const KinderGartenStudentForm = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKD L2</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKG2 / IQKGL2 (Level 2 / Advanced)</label>
                   <select
                     {...register("IQKD2")}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
@@ -132,7 +136,7 @@ const KinderGartenStudentForm = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKD Book</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IQKG Book</label>
                   <select
                     {...register("iqkdBook")}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"

@@ -4,7 +4,8 @@ import { PrizeConfig } from "../models/prizeConfigModel.js";
 import { Subject } from "../models/subjectModel.js";
 import { School } from "../models/schoolModel.js";
 
-const isKGExam = (subject) => ["IQKD1", "IQKD2"].includes(subject);
+const isKGExam = (subject) =>
+  ["IQKD1", "IQKD2", "IQKG1", "IQKG2", "IQKGL1", "IQKGL2"].includes(subject);
 const getStudentModel = (subject) =>
   isKGExam(subject) ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
 

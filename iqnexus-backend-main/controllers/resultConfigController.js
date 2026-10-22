@@ -20,7 +20,8 @@ const examFieldMap = {
 };
 
 // Check if an exam code is a kindergarten exam
-const isKGExam = (subject) => ["IQKD1", "IQKD2"].includes(subject);
+const isKGExam = (subject) =>
+  ["IQKD1", "IQKD2", "IQKG1", "IQKG2", "IQKGL1", "IQKGL2"].includes(subject);
 
 // Get the appropriate model
 const getStudentModel = (subject) => {

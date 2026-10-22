@@ -68,18 +68,19 @@ const ViewResults = () => {
   const [sortBy, setSortBy] = useState({ value: 'total.score', label: 'Score' });
   const [sortOrder, setSortOrder] = useState({ value: 'desc', label: 'High to Low' });
 
-  // Class options
+  // Class options (KG = Nursery / LKG / UKG; sections are A/B/C)
   const classOptions = [
     { value: 'all', label: 'All Classes' },
-    { value: 'KD', label: 'Kindergarten (KD)' },
+    { value: 'NURSERY', label: 'Nursery' },
+    { value: 'LKG', label: 'LKG' },
+    { value: 'UKG', label: 'UKG' },
     ...Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Class ${i + 1}` }))
   ];
 
-  // Section options (includes KG sections)
+  // Section options (A–H for KG and upper classes)
   const sectionOptions = [
     { value: 'all', label: 'All Sections' },
     ...['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(s => ({ value: s, label: `Section ${s}` })),
-    ...['LKG', 'UKG', 'PG'].map(s => ({ value: s, label: s })),
   ];
 
   // Subject/Exam options - dynamically fetched
@@ -108,8 +109,8 @@ const ViewResults = () => {
           { value: 'IQEOL2', label: 'IQEO Level 2 (English)' },
           { value: 'IQGKOL1', label: 'IQGKO Level 1 (GK)' },
           { value: 'IQGKOL2', label: 'IQGKO Level 2 (GK)' },
-          { value: 'IQKD1', label: 'IQKD1 - Kindergarten Exam 1' },
-          { value: 'IQKD2', label: 'IQKD2 - Kindergarten Exam 2' },
+          { value: 'IQKD1', label: 'IQKG1 - Kindergarten Level 1 (Basic)' },
+          { value: 'IQKD2', label: 'IQKG2 / IQKGL2 - Kindergarten Level 2 (Advanced)' },
         ]);
       }
     };

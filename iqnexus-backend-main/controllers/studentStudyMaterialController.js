@@ -113,9 +113,13 @@ export const addStudentStudyMaterial = async (req, res) => {
     return res.status(400).json({ error: "Name, class, and subject are required" });
   }
 
-  if (className === "kindergarten" && !kgSection) {
+  // KG materials: class should be NURSERY / LKG / UKG (or legacy "kindergarten" + kgSection)
+  const kgClassNames = ["NURSERY", "LKG", "UKG", "nursery", "lkg", "ukg", "kindergarten", "KD"];
+  if (kgClassNames.includes(String(className)) && className === "kindergarten" && !kgSection) {
     cleanupTempFile(req.file?.path);
-    return res.status(400).json({ error: "Kindergarten section (PG/LKG/UKG) is required" });
+    return res.status(400).json({
+      error: "For kindergarten materials, select class NURSERY, LKG, or UKG (or provide kgSection)",
+    });
   }
 
   const cost = Number(fee) || 0;
@@ -159,10 +163,26 @@ export const addStudentStudyMaterial = async (req, res) => {
       cleanupTempFile(req.file.path);
     }
 
+    // Normalize KG class (PG → NURSERY); store real class on document
+    let storedClass = className;
+    let storedKgSection = kgSection;
+    const upper = String(className || "").toUpperCase();
+    const kgMap = { PG: "NURSERY", NURSERY: "NURSERY", LKG: "LKG", UKG: "UKG", UKD: "UKG" };
+    if (kgMap[upper]) {
+      storedClass = kgMap[upper];
+      storedKgSection = undefined; // section letters optional going forward
+    } else if (upper === "KINDERGARTEN" || upper === "KD") {
+      const fromSection = kgMap[String(kgSection || "").toUpperCase()];
+      if (fromSection) {
+        storedClass = fromSection;
+        storedKgSection = undefined;
+      }
+    }
+
     const doc = await StudyMaterial.create({
       category: name.trim(),
-      class: className,
-      ...(kgSection && { kgSection }),
+      class: storedClass,
+      ...(storedKgSection && { kgSection: storedKgSection }),
       examId: subject,
       cost,
       isAvailableForFree: cost === 0 ? "true" : "false",

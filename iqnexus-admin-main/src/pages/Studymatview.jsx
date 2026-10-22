@@ -13,9 +13,9 @@ const EXAM_LABELS = {
   ITSTL2: "IQSOL2",
   IMOL2: "IQMOL2",
   IENGOL2: "IQEOL2",
-  IQKD: "IQKD",
-  IQKD1: "IQKD L1",
-  IQKD2: "IQKD L2",
+  IQKD: "IQKG",
+  IQKD1: "IQKG1 (L1)",
+  IQKD2: "IQKG2 / IQKGL2 (L2)",
 }
 
 const formatExam = (examId) => {
@@ -26,6 +26,10 @@ const formatExam = (examId) => {
 
 const formatClass = (classValue) => {
   if (classValue === "kindergarten") return "Kindergarten"
+  if (classValue === "NURSERY" || classValue === "nursery") return "Nursery"
+  if (classValue === "LKG") return "LKG"
+  if (classValue === "UKG") return "UKG"
+  if (classValue === "KD") return "KG (legacy)"
   return classValue ? `Class ${classValue}` : "N/A"
 }
 

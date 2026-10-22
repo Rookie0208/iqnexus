@@ -15,8 +15,8 @@ const defaultSubjects = [
   { code: "IQEOL2", name: "English Olympiad Level 2", label: "IQEO L2", category: "English", examLevel: "L2", resultFieldKey: "IENGOL2", registrationField: "IENGOL2", displayOrder: 8, linkedLevel1Subject: "IQEOL1" },
   { code: "IQGKOL1", name: "GK Olympiad Level 1", label: "IQGKO L1", category: "General Knowledge", examLevel: "L1", resultFieldKey: "IGKOL1", registrationField: "IGKOL1", displayOrder: 9, linkedLevel1Subject: "" },
   { code: "IQGKOL2", name: "GK Olympiad Level 2", label: "IQGKO L2", category: "General Knowledge", examLevel: "L2", resultFieldKey: "IGKOL2", registrationField: "IGKOL2", displayOrder: 10, linkedLevel1Subject: "IQGKOL1" },
-  { code: "IQKD1", name: "Kindergarten Exam 1", label: "IQKD1", category: "Kindergarten", examLevel: "L1", resultFieldKey: "IQKD1", registrationField: "IQKD1", displayOrder: 11, linkedLevel1Subject: "" },
-  { code: "IQKD2", name: "Kindergarten Exam 2", label: "IQKD2", category: "Kindergarten", examLevel: "L2", resultFieldKey: "IQKD2", registrationField: "IQKD2", displayOrder: 12, linkedLevel1Subject: "IQKD1" },
+  { code: "IQKD1", name: "Kindergarten Level 1 (Basic)", label: "IQKG1", category: "Kindergarten", examLevel: "L1", resultFieldKey: "IQKD1", registrationField: "IQKD1", displayOrder: 11, linkedLevel1Subject: "" },
+  { code: "IQKD2", name: "Kindergarten Level 2 (Advanced)", label: "IQKG2 / IQKGL2", category: "Kindergarten", examLevel: "L2", resultFieldKey: "IQKD2", registrationField: "IQKD2", displayOrder: 12, linkedLevel1Subject: "IQKD1" },
 ];
 
 

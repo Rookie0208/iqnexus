@@ -24,6 +24,7 @@ const examFullNames = {
 const UPDATE_FIELD_LABELS = {
     rollNo: "Roll No",
     schoolCode: "School Code",
+    class: "Class",
     section: "Section",
     studentName: "Student Name",
     motherName: "Mother Name",
@@ -31,9 +32,9 @@ const UPDATE_FIELD_LABELS = {
     dob: "Date of Birth",
     mobNo: "Mobile No",
     city: "City",
-    IQKDL1: "IQKD L1",
-    IQKDL2: "IQKD L2",
-    iqkdBook: "IQKD Book",
+    IQKDL1: "IQKG1 (L1)",
+    IQKDL2: "IQKG2 / IQKGL2 (L2)",
+    iqkdBook: "IQKG Book",
     IQKG: "IQKG Participation",
     Duplicates: "Duplicates",
 };
@@ -77,12 +78,21 @@ const AllKindergartenStudents = () => {
     ];
     const kgExams = exams; // Alias for compatibility
     const kgExamFullNames = examFullNames; // Alias for compatibility
-    
-    // Predefined section options for kindergarten
-    const sectionOptions = [
+
+    // Class = NURSERY / LKG / UKG (PG maps to NURSERY)
+    const classOptions = [
+        { value: "NURSERY", label: "Nursery" },
         { value: "LKG", label: "LKG" },
         { value: "UKG", label: "UKG" },
-        { value: "PG", label: "PG" },
+    ];
+    
+    // Section = A, B, C… (school section)
+    const sectionOptions = [
+        { value: "A", label: "A" },
+        { value: "B", label: "B" },
+        { value: "C", label: "C" },
+        { value: "D", label: "D" },
+        { value: "E", label: "E" },
     ];
 
     // Predefined IQKG options
@@ -282,7 +292,7 @@ const AllKindergartenStudents = () => {
         if (window.confirm("Are you sure you want to delete this student?")) {
             try {
                 const res = await axios.delete(`${BASE_URL}/kindergarten-student`, {
-                    data: { rollNo, class: "KD" },
+                    data: { rollNo },
                 });
                 alert(res.data.message);
                 fetchStudents(currentPage, searchData);
@@ -325,6 +335,7 @@ const AllKindergartenStudents = () => {
         const formattedData = {
             rollNo: student.rollNo || "",
             schoolCode: student.schoolCode ? Number(student.schoolCode) : "",
+            class: student.class || "",
             section: student.section || "",
             studentName: student.studentName || "",
             motherName: student.motherName || "",
@@ -365,6 +376,7 @@ const AllKindergartenStudents = () => {
                 _id: selectedStudent._id,
                 rollNo: updatedData.rollNo,
                 schoolCode: updatedData.schoolCode ? Number(updatedData.schoolCode) : undefined,
+                class: updatedData.class,
                 section: updatedData.section,
                 studentName: updatedData.studentName,
                 motherName: updatedData.motherName || "",
@@ -983,6 +995,7 @@ const AllKindergartenStudents = () => {
                                     {[
                                         "rollNo",
                                         "schoolCode",
+                                        "class",
                                         "section",
                                         "studentName",
                                         "motherName",
@@ -1033,6 +1046,18 @@ const AllKindergartenStudents = () => {
                                                         No
                                                     </button>
                                                 </div>
+                                            ) : field === "class" ? (
+                                                <select
+                                                    name={field}
+                                                    value={updatedData[field]}
+                                                    onChange={handleUpdateChange}
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                                                >
+                                                    <option value="">Select Class</option>
+                                                    <option value="NURSERY">Nursery</option>
+                                                    <option value="LKG">LKG</option>
+                                                    <option value="UKG">UKG</option>
+                                                </select>
                                             ) : field === "section" ? (
                                                 <select
                                                     name={field}
@@ -1041,9 +1066,11 @@ const AllKindergartenStudents = () => {
                                                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
                                                 >
                                                     <option value="">Select Section</option>
-                                                    <option value="LKG">LKG</option>
-                                                    <option value="UKG">UKG</option>
-                                                    <option value="PG">PG</option>
+                                                    <option value="A">A</option>
+                                                    <option value="B">B</option>
+                                                    <option value="C">C</option>
+                                                    <option value="D">D</option>
+                                                    <option value="E">E</option>
                                                 </select>
                                             ) : field === "IQKDL1" || field === "IQKDL2" || field === "iqkdBook" || field === "IQKG" ? (
                                                 <select

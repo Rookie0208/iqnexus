@@ -2,9 +2,11 @@ import React from 'react';
 import Select from 'react-select';
 import { BASE_URL } from '../Api';
 
+const KG_CLASSES = ['NURSERY', 'LKG', 'UKG'];
+
 const KG_SUBJECTS = [
-    { value: 'IQKD1', label: 'IQKD L1' },
-    { value: 'IQKD2', label: 'IQKD L2' },
+    { value: 'IQKD1', label: 'IQKG1 - Level 1 (Basic)' },
+    { value: 'IQKD2', label: 'IQKG2 / IQKGL2 - Level 2 (Advanced)' },
 ];
 
 const REGULAR_SUBJECTS = [
@@ -23,14 +25,15 @@ const StudyMaterial = () => {
     const [formData, setFormData] = React.useState({
         name: '',
         classes: [],
-        kgSection: '',
         subject: '',
         fee: '',
         pdf: null,
     });
 
     const classOptions = [
-        { value: 'kindergarten', label: 'Kindergarten' },
+        { value: 'NURSERY', label: 'Nursery' },
+        { value: 'LKG', label: 'LKG' },
+        { value: 'UKG', label: 'UKG' },
         ...[...Array(12)].map((_, i) => ({
             value: (i + 1).toString(),
             label: `Class ${i + 1}`,
@@ -51,13 +54,12 @@ const StudyMaterial = () => {
         setFormData(prev => ({
             ...prev,
             classes,
-            kgSection: classes.includes('kindergarten') ? prev.kgSection : '',
             subject: '',
         }));
     };
 
-    const hasKindergarten = formData.classes.includes('kindergarten');
-    const hasRegularClasses = formData.classes.some((c) => c !== 'kindergarten');
+    const hasKindergarten = formData.classes.some((c) => KG_CLASSES.includes(c));
+    const hasRegularClasses = formData.classes.some((c) => !KG_CLASSES.includes(c));
     const subjectOptions = hasKindergarten && !hasRegularClasses ? KG_SUBJECTS : REGULAR_SUBJECTS;
 
     const [materialType, setMaterialType] = React.useState('file');
@@ -75,12 +77,7 @@ const StudyMaterial = () => {
                     }
 
                     if (hasKindergarten && hasRegularClasses) {
-                        alert('Upload kindergarten materials separately from Class 1–12 materials.');
-                        return;
-                    }
-
-                    if (hasKindergarten && !formData.kgSection) {
-                        alert('Please select a kindergarten section (PG, LKG, or UKG).');
+                        alert('Upload kindergarten materials (Nursery/LKG/UKG) separately from Class 1–12 materials.');
                         return;
                     }
 
@@ -105,9 +102,6 @@ const StudyMaterial = () => {
                         data.append('subject', formData.subject);
                         data.append('fee', formData.fee);
                         data.append('materialType', materialType);
-                        if (cls === 'kindergarten' && formData.kgSection) {
-                            data.append('kgSection', formData.kgSection);
-                        }
                         if (materialType === 'file' && formData.pdf) {
                             data.append('file', formData.pdf);
                         }
@@ -144,7 +138,6 @@ const StudyMaterial = () => {
                     setFormData({
                         name: '',
                         classes: [],
-                        kgSection: '',
                         subject: '',
                         fee: '',
                         pdf: null,
@@ -176,7 +169,7 @@ const StudyMaterial = () => {
                         onChange={handleClassChange}
                         className="basic-multi-select"
                         classNamePrefix="select"
-                        placeholder="Select class(es)..."
+                        placeholder="Nursery / LKG / UKG or Class 1–12..."
                         styles={{
                             control: (base) => ({
                                 ...base,
@@ -189,25 +182,10 @@ const StudyMaterial = () => {
                             }),
                         }}
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                        KG: Nursery, LKG, UKG. Section (A/B/C) is on the student record, not here.
+                    </p>
                 </div>
-                {hasKindergarten && (
-                    <div>
-                        <label htmlFor="kgSection" className="block mb-1 font-medium">Kindergarten Section:</label>
-                        <select
-                            id="kgSection"
-                            name="kgSection"
-                            value={formData.kgSection}
-                            onChange={handleChange}
-                            required
-                            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">Select Section</option>
-                            <option value="PG">Pre-Primary (PG)</option>
-                            <option value="LKG">Lower Kindergarten (LKG)</option>
-                            <option value="UKG">Upper Kindergarten (UKG)</option>
-                        </select>
-                    </div>
-                )}
                 <div>
                     <label htmlFor="subject" className="block mb-1 font-medium">Exam / Subject:</label>
                     <select

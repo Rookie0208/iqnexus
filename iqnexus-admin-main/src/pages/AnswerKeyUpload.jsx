@@ -157,16 +157,21 @@ const AnswerKeyUpload = () => {
                 <Select
                     options={isKGExam
                         ? [
+                            { value: "NURSERY", label: "Nursery" },
                             { value: "LKG", label: "LKG" },
                             { value: "UKG", label: "UKG" },
-                            { value: "PG", label: "PG (Pre-Primary)" },
                         ]
                         : [...Array(12)].map((_, i) => ({
                             value: (i + 1).toString(),
                             label: `Class ${i + 1}`,
                         }))
                     }
-                    value={selectedClass ? { value: selectedClass, label: `Class ${selectedClass}` } : null}
+                    value={selectedClass ? {
+                      value: selectedClass,
+                      label: ["NURSERY", "LKG", "UKG"].includes(selectedClass)
+                        ? (selectedClass === "NURSERY" ? "Nursery" : selectedClass)
+                        : `Class ${selectedClass}`,
+                    } : null}
                     onChange={(selected) => setSelectedClass(selected?.value || "")}
                     className="basic-select w-90 mb-4"
                     classNamePrefix="select"

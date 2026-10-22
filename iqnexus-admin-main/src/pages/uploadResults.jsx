@@ -37,8 +37,8 @@ const qualifiedlist = {
         { value: "IQROL2", label: "IQROL2 - Reasoning Olympiad" },
     ],
     KG: [
-        { value: "IQKD1", label: "IQKD1 - Kindergarten Exam 1" },
-        { value: "IQKD2", label: "IQKD2 - Kindergarten Exam 2" },
+        { value: "IQKD1", label: "IQKG1 - Kindergarten Level 1 (Basic)" },
+        { value: "IQKD2", label: "IQKG2 / IQKGL2 - Kindergarten Level 2 (Advanced)" },
     ],
 };
 
@@ -258,7 +258,8 @@ const Uploadresults = () => {
 
     const handleUpload = async () => {
         const isKG = examLevel === "KG";
-        const effectiveClass = isKG ? "KD" : studentClass;
+        // KG: use selected Nursery/LKG/UKG class (optional — can also come from Excel)
+        const effectiveClass = isKG ? (studentClass || "") : studentClass;
         
         // Only file, subject, and examLevel are required now
         if (!file || !subject || !examLevel) {
@@ -338,11 +339,7 @@ const Uploadresults = () => {
                                 onChange={(e) => {
                                     setExamLevel(e.target.value);
                                     setSubject(""); // Reset subject when exam level changes
-                                    if (e.target.value === "KG") {
-                                        setStudentClass("KD"); // Auto-set class for KG
-                                    } else {
-                                        setStudentClass(""); // Reset class for non-KG
-                                    }
+                                    setStudentClass("");
                                 }}
                                 className="w-full border rounded-lg px-3 py-2"
                             >
@@ -366,11 +363,6 @@ const Uploadresults = () => {
                                     </option>
                                 ))}
                             </select>
-                            {examLevel === "KG" ? (
-                                <div className="w-full border rounded-lg px-3 py-2 bg-gray-50 text-gray-700">
-                                    Kindergarten (KD) — LKG / UKG / PG
-                                </div>
-                            ) : (
                             <div>
                             <select
                                 value={studentClass}
@@ -378,15 +370,24 @@ const Uploadresults = () => {
                                 className="w-full border rounded-lg px-3 py-2"
                             >
                                 <option value="">Select Class (Optional)</option>
-                                {classOptions.map((cls) => (
-                                    <option key={cls} value={cls}>
+                                {examLevel === "KG"
+                                  ? ["NURSERY", "LKG", "UKG"].map((cls) => (
+                                      <option key={cls} value={cls}>
+                                        {cls === "NURSERY" ? "Nursery" : cls}
+                                      </option>
+                                    ))
+                                  : classOptions.map((cls) => (
+                                      <option key={cls} value={cls}>
                                         {cls}
-                                    </option>
-                                ))}
+                                      </option>
+                                    ))}
                             </select>
-                            <p className="text-xs text-gray-400 mt-1">Optional — auto-detected from Roll Number</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {examLevel === "KG"
+                                ? "Optional — Nursery / LKG / UKG (also read from Excel class column)"
+                                : "Optional — auto-detected from Roll Number"}
+                            </p>
                             </div>
-                            )}
                             <div>
                             <input
                                 type="number"

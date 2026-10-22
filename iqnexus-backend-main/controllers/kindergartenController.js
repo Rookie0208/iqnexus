@@ -2,25 +2,38 @@ import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
 import { TeacherIncharge } from "../models/TeacherInchanrgeModel.js";
 import { excelToMongoDbForKindergarten } from "../utils/excelToMongoForKGStudents.js";
+import {
+  kgStudentsClassQuery,
+  normalizeKgClass,
+  normalizeKgSection,
+  KG_CLASSES,
+  isKgClass,
+} from "../utils/kgHelpers.js";
 import fs from "fs/promises";
 
 export const getKindergartenStudents = async (req, res) => {
-  const { schoolCode, rollNo, section, studentName, IQKG, exam } = req.body;
+  const { schoolCode, rollNo, section, class: classFilter, studentName, IQKG, exam } = req.body;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
-  const query = { class: "KD" };
+  const query = { ...kgStudentsClassQuery() };
   if (schoolCode) query.schoolCode = Number(schoolCode);
   if (rollNo) query.rollNo = { $regex: rollNo.trim(), $options: "i" };
-  if (section?.length > 0) query.section = { $in: section };
+  if (section?.length > 0) query.section = { $in: section.map((s) => String(s).toUpperCase()) };
+  if (classFilter) {
+    const normalized = Array.isArray(classFilter)
+      ? classFilter.map(normalizeKgClass).filter(Boolean)
+      : [normalizeKgClass(classFilter)].filter(Boolean);
+    if (normalized.length) query.class = { $in: normalized };
+  }
   if (studentName) query.studentName = { $regex: studentName.trim(), $options: "i" };
   if (IQKG) query.IQKG = IQKG;
-  
-  // Filter by exam participation (for attendance) - TEMPORARILY DISABLED FOR TESTING
-  // TODO: Re-enable this after updating student records with IQKD1/IQKD2 values
-  // if (exam) {
-  //   query[exam] = "1"; // Only get students registered for this exam
-  // }
+
+  if (exam === "IQKD1" || exam === "IQKG1" || exam === "IQKGL1") {
+    query.IQKD1 = "1";
+  } else if (exam === "IQKD2" || exam === "IQKG2" || exam === "IQKGL2") {
+    query.IQKD2 = "1";
+  }
 
   console.log("KG Students Query:", JSON.stringify(query));
 
@@ -29,7 +42,7 @@ export const getKindergartenStudents = async (req, res) => {
     const totalStudents = await KINDERGARTEN_STUDENT.countDocuments(query);
     const totalPages = Math.ceil(totalStudents / limit);
     console.log(`Found ${students.length} students out of ${totalStudents} total`);
-    res.status(200).json({ success: true, data: students, totalPages, totalStudents });
+    res.status(200).json({ success: true, data: students, totalPages, totalStudents, kgClasses: KG_CLASSES });
   } catch (err) {
     console.error("Error in getKindergartenStudents:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -41,8 +54,9 @@ export const getAllKindergartenStudents = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
 
   try {
-    const students = await KINDERGARTEN_STUDENT.find({ class: "KD" }).skip((page - 1) * limit).limit(limit).lean();
-    const totalStudents = await KINDERGARTEN_STUDENT.countDocuments({ class: "KD" });
+    const base = kgStudentsClassQuery();
+    const students = await KINDERGARTEN_STUDENT.find(base).skip((page - 1) * limit).limit(limit).lean();
+    const totalStudents = await KINDERGARTEN_STUDENT.countDocuments(base);
     const totalPages = Math.ceil(totalStudents / limit);
     res.status(200).json({ success: true, allStudents: students, totalPages, totalStudents });
   } catch (err) {
@@ -51,12 +65,18 @@ export const getAllKindergartenStudents = async (req, res) => {
 };
 
 export const getAllKindergartenStudentsNoPagination = async (req, res) => {
-  const { schoolCode, rollNo, section, studentName, IQKG } = req.body;
-  const query = { class: "KD" };
+  const { schoolCode, rollNo, section, class: classFilter, studentName, IQKG } = req.body;
+  const query = { ...kgStudentsClassQuery() };
 
   if (schoolCode) query.schoolCode = Number(schoolCode);
   if (rollNo) query.rollNo = { $regex: rollNo.trim(), $options: "i" };
-  if (section?.length > 0) query.section = { $in: section };
+  if (section?.length > 0) query.section = { $in: section.map((s) => String(s).toUpperCase()) };
+  if (classFilter) {
+    const normalized = Array.isArray(classFilter)
+      ? classFilter.map(normalizeKgClass).filter(Boolean)
+      : [normalizeKgClass(classFilter)].filter(Boolean);
+    if (normalized.length) query.class = { $in: normalized };
+  }
   if (studentName) query.studentName = { $regex: studentName.trim(), $options: "i" };
   if (IQKG) query.IQKG = IQKG;
 
@@ -70,12 +90,18 @@ export const getAllKindergartenStudentsNoPagination = async (req, res) => {
 
 export const deleteKindergartenStudent = async (req, res) => {
   const { rollNo, class: className } = req.body;
-  if (!rollNo || className !== "KD") {
-    return res.status(400).json({ message: "Roll number and class (KD) are required" });
+  if (!rollNo) {
+    return res.status(400).json({ message: "Roll number is required" });
+  }
+
+  const deleteQuery = { rollNo: rollNo.trim() };
+  if (className && isKgClass(className)) {
+    const normalized = normalizeKgClass(className);
+    if (normalized) deleteQuery.class = normalized;
   }
 
   try {
-    const deletedStudent = await KINDERGARTEN_STUDENT.findOneAndDelete({ rollNo: rollNo.trim(), class: "KD" });
+    const deletedStudent = await KINDERGARTEN_STUDENT.findOneAndDelete(deleteQuery);
     if (!deletedStudent) return res.status(404).json({ message: "Student not found" });
     res.status(200).json({ success: true, message: "Student deleted successfully" });
   } catch (err) {
@@ -85,12 +111,19 @@ export const deleteKindergartenStudent = async (req, res) => {
 
 export const updateKindergartenStudent = async (req, res) => {
   const {
-    _id, rollNo, schoolCode, section, studentName,
+    _id, rollNo, schoolCode, class: className, section, studentName,
     motherName, fatherName, dob, mobNo, city, IQKG, IQKD1, IQKD2, iqkdBook, Duplicates,
   } = req.body;
 
   if (!_id || !rollNo || !schoolCode || !section || !studentName) {
     return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const normalizedClass = normalizeKgClass(className);
+  if (!normalizedClass) {
+    return res.status(400).json({
+      message: `Invalid class. Must be one of: ${KG_CLASSES.join(", ")}`,
+    });
   }
 
   try {
@@ -102,8 +135,8 @@ export const updateKindergartenStudent = async (req, res) => {
     const updateData = {
       rollNo: rollNo.trim(),
       schoolCode: Number(schoolCode),
-      class: "KD",
-      section: section.trim(),
+      class: normalizedClass,
+      section: normalizeKgSection(section) || String(section).trim().toUpperCase() || "A",
       studentName: studentName.trim(),
       motherName: motherName?.trim() || "",
       fatherName: fatherName?.trim() || "",
@@ -140,7 +173,16 @@ export const addKindergartenStudent = async (req, res) => {
       req.body.class = req.body.Class;
       delete req.body.Class;
     }
-    // Auto-assign current calendar year if not provided
+
+    const normalizedClass = normalizeKgClass(req.body.class);
+    if (!normalizedClass) {
+      return res.status(400).json({
+        message: `Invalid class. Must be one of: ${KG_CLASSES.join(", ")}`,
+      });
+    }
+    req.body.class = normalizedClass;
+    req.body.section = normalizeKgSection(req.body.section) || String(req.body.section || "A").trim().toUpperCase();
+
     if (!req.body.calendarYear) {
       const { CalendarYear } = await import("../models/calendarYear.model.js");
       const currentCY = await CalendarYear.findOne({ isCurrent: true }).lean();
@@ -176,64 +218,55 @@ export const uploadKindergartenStudentsCSV = async (req, res) => {
 };
 
 export const getKindergartenAttendance = async (req, res) => {
-  const { schoolCode, exam, section } = req.body;
+  const { schoolCode, exam, section, class: classFilter } = req.body;
 
   if (!schoolCode || !exam) {
     return res.status(400).json({ message: "School code and exam are required" });
   }
 
-  const query = { 
-    class: "KD",
-    schoolCode: Number(schoolCode)
+  const query = {
+    ...kgStudentsClassQuery(),
+    schoolCode: Number(schoolCode),
   };
 
-  // Filter by exam enrollment
-  if (exam === "IQKD1") {
+  if (exam === "IQKD1" || exam === "IQKG1" || exam === "IQKGL1") {
     query.IQKD1 = "1";
-  } else if (exam === "IQKD2") {
+  } else if (exam === "IQKD2" || exam === "IQKG2" || exam === "IQKGL2") {
     query.IQKD2 = "1";
   }
 
-  // Filter by sections if provided
   if (section && Array.isArray(section) && section.length > 0) {
-    query.section = { $in: section };
+    query.section = { $in: section.map((s) => String(s).toUpperCase()) };
+  }
+  if (classFilter) {
+    const normalized = Array.isArray(classFilter)
+      ? classFilter.map(normalizeKgClass).filter(Boolean)
+      : [normalizeKgClass(classFilter)].filter(Boolean);
+    if (normalized.length) query.class = { $in: normalized };
   }
 
   console.log("Attendance Query:", JSON.stringify(query));
 
   try {
-    // Fetch all students without pagination
     const students = await KINDERGARTEN_STUDENT.find(query).lean();
-    
-    // Fetch school information
     const school = await School.findOne({ schoolCode: Number(schoolCode) }).lean();
-    
-    // Fetch exam incharge information
-    const examIncharge = await TeacherIncharge.findOne({ 
-      schoolCode: Number(schoolCode) 
+    const examIncharge = await TeacherIncharge.findOne({
+      schoolCode: Number(schoolCode),
     }).lean();
 
-    console.log(`Found ${students.length} students for attendance`);
-    console.log("School:", school?.schoolName);
-    console.log("School Incharge:", school?.incharge);
-    console.log("Exam Incharge:", examIncharge?.examInchargeName);
-
-    // Use exam incharge if available, otherwise fall back to school incharge
     const inchargeName = examIncharge?.examInchargeName || school?.incharge || "N/A";
     const inchargeMobNo = examIncharge?.examInchargeMobNo || school?.schoolMobNo || "N/A";
     const inchargeEmail = examIncharge?.examInchargeEmail || school?.schoolEmail || "N/A";
 
-    console.log("Final Incharge Name:", inchargeName);
-
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       data: students,
       school: school || {},
       examIncharge: {
         examInchargeName: inchargeName,
         examInchargeMobNo: inchargeMobNo,
-        examInchargeEmail: inchargeEmail
-      }
+        examInchargeEmail: inchargeEmail,
+      },
     });
   } catch (err) {
     console.error("Error in getKindergartenAttendance:", err);
