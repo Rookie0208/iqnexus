@@ -28,6 +28,8 @@ const Results = () => {
     { value: 'IQEOL2', label: 'IQEO Level 2 (English)' },
     { value: 'IQGKOL1', label: 'IQGKO Level 1 (GK)' },
     { value: 'IQGKOL2', label: 'IQGKO Level 2 (GK)' },
+    { value: 'IQKD1', label: 'IQKG1 - Kindergarten Level 1 (Basic)' },
+    { value: 'IQKD2', label: 'IQKG2 - Kindergarten Level 2 (Advanced)' },
   ];
 
   // Fetch published result for a specific subject

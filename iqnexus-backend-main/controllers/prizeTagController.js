@@ -19,7 +19,8 @@ const examFieldMap = {
   IQKD2: "IQKD2",
 };
 
-const isKGExam = (subject) => ["IQKD1", "IQKD2"].includes(subject);
+const isKGExam = (subject) =>
+  ["IQKD1", "IQKD2", "IQKG1", "IQKG2", "IQKGL1", "IQKGL2"].includes(subject);
 const getStudentModel = (subject) =>
   isKGExam(subject) ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
 

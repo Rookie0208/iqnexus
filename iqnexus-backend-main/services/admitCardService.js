@@ -103,7 +103,10 @@ async function generateAdmitCard(students, level, /* session, */ examDate, schoo
         const levelSuffix = level === "L1" ? "1" : "2";
         
         // Check if this is a kindergarten student
-        const isKindergartenStudent = student.class === "KD" || student.IQKD1 !== undefined || student.IQKD2 !== undefined;
+        const isKindergartenStudent =
+          ["NURSERY", "LKG", "UKG", "KD", "PG"].includes(String(student.class || "").toUpperCase()) ||
+          student.IQKD1 !== undefined ||
+          student.IQKD2 !== undefined;
         
         let IAOL, ITSTL, IMOL, IGKOL, IENGOL;
         

@@ -82,8 +82,8 @@ const ExamManagement = () => {
           { value: "IQEOL2", label: "IQEO Level 2 (English)", name: "English Olympiad L2" },
           { value: "IQGKOL1", label: "IQGKO Level 1 (GK)", name: "GK Olympiad L1" },
           { value: "IQGKOL2", label: "IQGKO Level 2 (GK)", name: "GK Olympiad L2" },
-          { value: "IQKD1", label: "IQKD1 - Kindergarten Exam 1", name: "Kindergarten Exam 1" },
-          { value: "IQKD2", label: "IQKD2 - Kindergarten Exam 2", name: "Kindergarten Exam 2" },
+          { value: "IQKD1", label: "IQKG1 - Kindergarten Level 1", name: "Kindergarten Level 1" },
+          { value: "IQKD2", label: "IQKG2 / IQKGL2 - Kindergarten Level 2", name: "Kindergarten Level 2" },
         ]);
       }
     };
@@ -287,7 +287,7 @@ const ExamManagement = () => {
                         </h3>
                         <p className="text-sm text-gray-500">
                           {getTopicCount(exam.topicNames)} topics configured • 
-                          Class: {exam.classLevel === "all" ? "All Classes" : exam.classLevel === "KD" ? "Kindergarten" : `Class ${exam.classLevel}`} • 
+                          Class: {exam.classLevel === "all" ? "All Classes" : ["NURSERY", "LKG", "UKG", "KD"].includes(exam.classLevel) ? (exam.classLevel === "NURSERY" ? "Nursery" : exam.classLevel === "KD" ? "KG (legacy)" : exam.classLevel) : `Class ${exam.classLevel}`} • 
                           {exam.isPublished ? (
                             <span className="text-green-600"> Published</span>
                           ) : (
@@ -493,7 +493,9 @@ const ExamManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="all">All Classes (Universal Config)</option>
-                    <option value="KD">Kindergarten (KD)</option>
+                    <option value="NURSERY">Nursery</option>
+                    <option value="LKG">LKG</option>
+                    <option value="UKG">UKG</option>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(c => (
                       <option key={c} value={String(c)}>Class {c}</option>
                     ))}

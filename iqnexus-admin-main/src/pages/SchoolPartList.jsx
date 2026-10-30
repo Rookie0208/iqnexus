@@ -658,7 +658,9 @@ const SchoolPartList = () => {
 
   // Predefined class options
   const classOptions = [
-    { value: "KD", label: "Kindergarten (KD)" },
+    { value: "NURSERY", label: "Nursery" },
+    { value: "LKG", label: "LKG" },
+    { value: "UKG", label: "UKG" },
     { value: "1", label: "Class 1" },
     { value: "2", label: "Class 2" },
     { value: "3", label: "Class 3" },
@@ -675,9 +677,6 @@ const SchoolPartList = () => {
 
   // Predefined section options
   const sectionOptions = [
-    { value: "LKG", label: "LKG (Lower Kindergarten)" },
-    { value: "UKG", label: "UKG (Upper Kindergarten)" },
-    { value: "PG", label: "PG (Pre-Primary/Play Group)" },
     { value: "A", label: "Section A" },
     { value: "B", label: "Section B" },
     { value: "C", label: "Section C" },

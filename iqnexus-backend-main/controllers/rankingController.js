@@ -25,10 +25,13 @@ const getExamFieldMapFromDB = async () => {
     IQMOL1: "IMOL1", IQMOL2: "IMOL2",
     IQGKOL1: "IGKOL1", IQGKOL2: "IGKOL2",
     IQKD1: "IQKD1", IQKD2: "IQKD2",
+    IQKG1: "IQKD1", IQKG2: "IQKD2",
+    IQKGL1: "IQKD1", IQKGL2: "IQKD2",
   };
 };
 
-const isKGExam = (subject) => ["IQKD1", "IQKD2"].includes(subject);
+const isKGExam = (subject) =>
+  ["IQKD1", "IQKD2", "IQKG1", "IQKG2", "IQKGL1", "IQKGL2"].includes(subject);
 const getStudentModel = (subject) =>
   isKGExam(subject) ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
 

@@ -13,17 +13,22 @@ const KindergartenStudentSchema = new Schema(
             type: Number,
             required: true,
         },
+        // Class = NURSERY | LKG | UKG (PG / Play Group maps to NURSERY)
+        // Legacy "KD" allowed only so pre-migration documents still load
         class: {
             type: String,
             required: true,
             trim: true,
-            enum: ["KD"],
+            uppercase: true,
+            enum: ["NURSERY", "LKG", "UKG", "KD"],
         },
+        // Section = A, B, C, … (school section — not PG/LKG/UKG)
         section: {
             type: String,
             required: true,
             trim: true,
-            enum: ["LKG", "UKG", "PG"],
+            uppercase: true,
+            default: "A",
         },
         studentName: {
             type: String,
