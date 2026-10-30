@@ -8,6 +8,7 @@ import {
   getStudentsWithoutPagination,
   getDashboardAnalytics,
   updateStudent,
+  deleteStudent,
   addStudent
 } from "../controllers/studentController.js";
 import { storeFeedBack } from "../controllers/feedbackController.js";
@@ -26,6 +27,7 @@ router.post("/students", getStudents);
 
 router.post("/all-students-no-pagination", getStudentsWithoutPagination);
 router.put("/student", updateStudent);
+router.delete("/student", deleteStudent);
 router.post("/add-student", addStudent);
 router.get("/dashboard-analytics", getDashboardAnalytics);
 router.post("/feedback", storeFeedBack);

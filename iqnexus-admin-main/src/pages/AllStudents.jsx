@@ -26,6 +26,58 @@ const booleanFields = [
   "Duplicates",
 ];
 
+// Do not show / send these in the edit modal (nested or system fields)
+const EDIT_EXCLUDED_FIELDS = new Set([
+  "_id",
+  "__v",
+  "result",
+  "createdAt",
+  "updatedAt",
+]);
+
+const EDITABLE_FIELD_ORDER = [
+  "rollNo",
+  "schoolCode",
+  "class",
+  "section",
+  "studentName",
+  "fatherName",
+  "motherName",
+  "dob",
+  "mobNo",
+  "city",
+  "IAOL1",
+  "IAOL1Book",
+  "ITSTL1",
+  "ITSTL1Book",
+  "IMOL1",
+  "IMOL1Book",
+  "IGKOL1",
+  "IGKOL1Book",
+  "IENGOL1",
+  "IENGOL1Book",
+  "IAOL2",
+  "ITSTL2",
+  "IMOL2",
+  "IENGOL2",
+  "iqkdBook",
+  "totalBasicLevelParticipatedExams",
+  "basicLevelFullAmount",
+  "basicLevelAmountPaid",
+  "basicLevelAmountPaidOnline",
+  "isBasicLevelConcessionGiven",
+  "concessionReason",
+  "ParentsWorkingschool",
+  "designation",
+  "advanceLevelAmountPaid",
+  "advanceLevelAmountPaidOnline",
+  "totalAmountPaid",
+  "totalAmountPaidOnline",
+  "calendarYear",
+  "remark",
+  "Duplicates",
+];
+
 // Map exam codes to full names
 const examFullNames = {
   IQEOL1: {
@@ -686,18 +738,30 @@ fetchStudents(1);
     fetchStudents(1, clearedFilters);
   };
 
-  const handleDelete = async (rollNo, studentClass) => {
-    if (window.confirm("Are you sure you want to delete this student?")) {
-      try {
-        const res = await axios.delete(`${BASE_URL}/student`, {
-          data: { rollNo, class: studentClass },
-        });
-        alert(res.data.message);
-        fetchStudents(currentPage);
-      } catch (err) {
-        console.error("Delete error:", err);
-        alert("Failed to delete student");
-      }
+  const handleDelete = async (student) => {
+    const rollNo = student?.rollNo;
+    const studentClass = student?.class;
+    const name = student?.studentName || rollNo;
+    if (
+      !window.confirm(
+        `Delete student ${name} (Roll ${rollNo}, Class ${studentClass})? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await axios.delete(`${BASE_URL}/student`, {
+        data: {
+          _id: student?._id,
+          rollNo,
+          class: studentClass,
+        },
+      });
+      alert(res.data.message || "Student deleted successfully");
+      fetchStudents(currentPage, searchData);
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert(err.response?.data?.message || "Failed to delete student");
     }
   };
 
@@ -712,13 +776,35 @@ fetchStudents(1);
   const openUpdateModal = (student) => {
     setSelectedStudent(student);
     const formattedData = {};
-    Object.keys(student).forEach((key) => {
+    EDITABLE_FIELD_ORDER.forEach((key) => {
+      if (!(key in student) && !booleanFields.includes(key)) {
+        // Still show common identity fields even if empty on record
+        if (
+          ![
+            "rollNo",
+            "schoolCode",
+            "class",
+            "section",
+            "studentName",
+            "fatherName",
+            "motherName",
+            "dob",
+            "mobNo",
+            "city",
+            "calendarYear",
+            "remark",
+            "Duplicates",
+          ].includes(key)
+        ) {
+          return;
+        }
+      }
       if (booleanFields.includes(key)) {
         formattedData[key] = student[key] === "1" || student[key] === true;
       } else if (key === "schoolCode") {
         formattedData[key] = student[key] ? Number(student[key]) : "";
       } else {
-        formattedData[key] = student[key] || "";
+        formattedData[key] = student[key] ?? "";
       }
     });
     setUpdatedData(formattedData);
@@ -728,18 +814,27 @@ fetchStudents(1);
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = { _id: selectedStudent._id };
+      const payload = { _id: selectedStudent._id, rollNo: selectedStudent.rollNo };
       Object.keys(updatedData).forEach((key) => {
+        if (EDIT_EXCLUDED_FIELDS.has(key)) return;
         if (booleanFields.includes(key)) {
-          payload[key] = updatedData[key] ? "1" : "0";
+          // Duplicates is a real boolean in the model
+          if (key === "Duplicates") {
+            payload[key] = !!updatedData[key];
+          } else {
+            payload[key] = updatedData[key] ? "1" : "0";
+          }
         } else {
           payload[key] = updatedData[key];
         }
       });
+      if (payload.schoolCode !== undefined && payload.schoolCode !== "") {
+        payload.schoolCode = Number(payload.schoolCode);
+      }
       const res = await axios.put(`${BASE_URL}/student`, payload);
       alert(res.data.message);
       setIsModalOpen(false);
-      fetchStudents(currentPage);
+      fetchStudents(currentPage, searchData);
     } catch (error) {
       console.error("Update error:", error);
       const errorMessage =
@@ -1099,7 +1194,7 @@ fetchStudents(1);
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(stu.rollNo, stu.class)}
+                        onClick={() => handleDelete(stu)}
                         className="inline-flex items-center px-3 py-1 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 transition duration-150"
                       >
                         <svg
@@ -1198,13 +1293,7 @@ fetchStudents(1);
               <form onSubmit={handleUpdateSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {Object.keys(updatedData)
-                    .filter(
-                      (key) =>
-                        key !== "_id" &&
-                        key !== "__v" &&
-                        key !== "createdAt" &&
-                        key !== "updatedAt"
-                    )
+                    .filter((key) => !EDIT_EXCLUDED_FIELDS.has(key))
                     .map((field, idx) => (
                       <div key={idx}>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
