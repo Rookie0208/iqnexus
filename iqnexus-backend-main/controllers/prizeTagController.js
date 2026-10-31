@@ -2,6 +2,7 @@ import { PrizeConfig } from "../models/prizeConfigModel.js";
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
 import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
+import { isKgClass, kgStudentsClassQuery } from "../utils/kgHelpers.js";
 
 /* ── Exam code → result-field mapping ── */
 const examFieldMap = {
@@ -17,6 +18,10 @@ const examFieldMap = {
   IQGKOL2: "IGKOL2",
   IQKD1: "IQKD1",
   IQKD2: "IQKD2",
+  IQKG1: "IQKD1",
+  IQKG2: "IQKD2",
+  IQKGL1: "IQKD1",
+  IQKGL2: "IQKD2",
 };
 
 const isKGExam = (subject) =>
@@ -24,14 +29,60 @@ const isKGExam = (subject) =>
 const getStudentModel = (subject) =>
   isKGExam(subject) ? KINDERGARTEN_STUDENT : STUDENT_LATEST;
 
+/** Categories that must be ranked on the full dataset (not school-first) */
+const GLOBAL_SCOPE_CATEGORIES = new Set(["NATIONALITY", "COUNTRY", "CITY"]);
+
+/**
+ * Helper: pick students from positions (offset+1) to (offset+N)
+ * in a sorted-descending list, honouring ties at the boundary.
+ */
+const pickRange = (sorted, offset, n) => {
+  if (n <= 0 || sorted.length === 0) return { winners: [], tiedCount: 0 };
+
+  const remaining = sorted.slice(offset);
+  if (remaining.length === 0) return { winners: [], tiedCount: 0 };
+
+  if (remaining.length <= n) return { winners: [...remaining], tiedCount: 0 };
+
+  const cutoffScore = remaining[n - 1].score;
+  const winners = [];
+  let tiedCount = 0;
+
+  for (const s of remaining) {
+    if (s.score > cutoffScore) {
+      winners.push(s);
+    } else if (s.score === cutoffScore) {
+      winners.push(s);
+    } else {
+      break;
+    }
+  }
+
+  if (winners.length > n) {
+    tiedCount = winners.filter((w) => w.score === cutoffScore).length;
+  }
+
+  return { winners, tiedCount };
+};
+
 /* ══════════════════════════════════════════════════════
    GET /prize-tag
    Query: exam, level, schoolCode, classLevel (optional), batchId (optional)
    Returns: school info + prize rows with student lists
+
+   National / Country / City winners are computed from the FULL student
+   pool first, then filtered to the requested school for display.
+   School / Class / Section prizes stay within the selected school.
    ══════════════════════════════════════════════════════ */
 export const getPrizeTag = async (req, res) => {
   try {
-    const { exam, level = "basic", schoolCode, classLevel = "all", batchId = "2024-25" } = req.query;
+    const {
+      exam,
+      level = "basic",
+      schoolCode,
+      classLevel = "all",
+      batchId = "2024-25",
+    } = req.query;
 
     if (!exam || !schoolCode) {
       return res
@@ -39,12 +90,13 @@ export const getPrizeTag = async (req, res) => {
         .json({ success: false, error: "exam and schoolCode are required" });
     }
 
+    const selectedSchoolCode = Number(schoolCode);
     const resultKey = examFieldMap[exam] || exam;
     const StudentModel = getStudentModel(exam);
 
     /* ── 1. School info ── */
     const school = await School.findOne({
-      schoolCode: Number(schoolCode),
+      schoolCode: selectedSchoolCode,
     }).lean();
     if (!school) {
       return res
@@ -53,7 +105,6 @@ export const getPrizeTag = async (req, res) => {
     }
 
     /* ── 2. Prize config ── */
-    // Try the requested classLevel first, then fall back to "all"
     let config = await PrizeConfig.findOne({
       exam,
       classLevel,
@@ -75,92 +126,87 @@ export const getPrizeTag = async (req, res) => {
       });
     }
 
-    /* ── 3. All PRESENT students from this school for this exam ── */
+    /* ── 3. ALL PRESENT students for this exam (full dataset) ── */
     const studentQuery = {
-      schoolCode: Number(schoolCode),
       [`result.${resultKey}.attendance`]: "PRESENT",
       [`result.${resultKey}.total.score`]: { $exists: true },
     };
-    // Filter by class if a specific class was selected
     if (classLevel !== "all") {
-      studentQuery.class = classLevel;
+      if (isKgClass(classLevel) || classLevel === "KG" || classLevel === "KD") {
+        Object.assign(
+          studentQuery,
+          classLevel === "KG" || classLevel === "KD"
+            ? kgStudentsClassQuery()
+            : { class: classLevel }
+        );
+      } else {
+        studentQuery.class = classLevel;
+      }
     }
 
     const students = await StudentModel.find(studentQuery)
       .select(
-        `rollNo studentName fatherName class section result.${resultKey}.total.score`
+        `rollNo studentName fatherName class section schoolCode city result.${resultKey}.total.score`
       )
       .lean();
 
-    const studentData = students
-      .map((s) => ({
-        rollNo: s.rollNo,
-        studentName: s.studentName || "",
-        fatherName: s.fatherName || "",
-        class: s.class || "",
-        section: s.section || "",
-        score: s.result?.[resultKey]?.total?.score ?? 0,
-      }))
-      .sort((a, b) => b.score - a.score); // descending by score
+    /* schoolCode → city from School collection (fallback when student.city empty) */
+    const schoolCodes = [
+      ...new Set(
+        students
+          .map((s) => Number(s.schoolCode))
+          .filter((c) => Number.isFinite(c) && c > 0)
+      ),
+    ];
+    const schoolDocs = await School.find({
+      schoolCode: { $in: schoolCodes },
+    })
+      .select("schoolCode city schoolName")
+      .lean();
+    const cityBySchool = {};
+    for (const s of schoolDocs) {
+      cityBySchool[Number(s.schoolCode)] = String(s.city || "")
+        .trim()
+        .toUpperCase();
+    }
 
-    /* ── 4. Walk through prize rules in priority order ── */
+    const studentData = students
+      .map((s) => {
+        const sc = Number(s.schoolCode) || 0;
+        const city =
+          String(s.city || "").trim().toUpperCase() ||
+          cityBySchool[sc] ||
+          "";
+        return {
+          rollNo: s.rollNo,
+          studentName: s.studentName || "",
+          fatherName: s.fatherName || "",
+          class: s.class || "",
+          section: s.section || "",
+          schoolCode: sc,
+          city,
+          score: s.result?.[resultKey]?.total?.score ?? 0,
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    const schoolStudents = studentData.filter(
+      (s) => s.schoolCode === selectedSchoolCode
+    );
+
+    /* ── 4. Walk prize rules in priority order ── */
     const prizeRules = [...config.prizeRules].sort(
       (a, b) => a.priority - b.priority
     );
-    const assignedStudents = new Set(); // roll numbers already awarded higher prizes
+    const assignedStudents = new Set();
     const prizes = [];
-
-    /**
-     * Per-group running offset. Tracks how many positions we've already
-     * handed out within each group so sequential prizes in the same scope
-     * pick the NEXT students, not the same ones.
-     * Key format: "CATEGORY__groupKey"  e.g. "NATIONALITY___all", "CLASS__5"
-     */
     const groupedOffset = {};
-
-    /**
-     * Helper: pick students from positions (offset+1) to (offset+N)
-     * in a sorted-descending list, honouring ties at the boundary.
-     * Returns { winners, tiedCount }.
-     */
-    const pickRange = (sorted, offset, n) => {
-      if (n <= 0 || sorted.length === 0) return { winners: [], tiedCount: 0 };
-
-      // Skip the first `offset` positions (already awarded to higher prizes)
-      const remaining = sorted.slice(offset);
-      if (remaining.length === 0) return { winners: [], tiedCount: 0 };
-
-      if (remaining.length <= n) return { winners: [...remaining], tiedCount: 0 };
-
-      // The cutoff score is the score of the Nth student in remaining
-      const cutoffScore = remaining[n - 1].score;
-      const winners = [];
-      let tiedCount = 0;
-
-      for (const s of remaining) {
-        if (s.score > cutoffScore) {
-          winners.push(s);
-        } else if (s.score === cutoffScore) {
-          winners.push(s);
-        } else {
-          break; // sorted descending
-        }
-      }
-
-      // Tied = those beyond the configured N
-      if (winners.length > n) {
-        tiedCount = winners.filter((w) => w.score === cutoffScore).length;
-      }
-
-      return { winners, tiedCount };
-    };
 
     for (const rule of prizeRules) {
       let winners = [];
       let tiedCount = 0;
       const configuredMax = rule.totalPrizes;
 
-      // totalPrizes === 0 means "don't award this prize" (except category "all")
       if (rule.totalPrizes === 0 && rule.category !== "all") {
         prizes.push({
           srNo: rule.priority,
@@ -175,20 +221,15 @@ export const getPrizeTag = async (req, res) => {
         continue;
       }
 
-      /*
-       * 1. Build eligible student list (excluding higher-prize winners)
-       */
-      const eligible = studentData.filter(
+      const pool = GLOBAL_SCOPE_CATEGORIES.has(rule.category)
+        ? studentData
+        : schoolStudents;
+
+      const eligible = pool.filter(
         (s) =>
           !(rule.excludeHigherPrizeWinners && assignedStudents.has(s.rollNo))
       );
 
-      /*
-       * 2. Group students by scope.
-       *    CLASS  → one group per class
-       *    SECTION → one group per class+section
-       *    Everything else (NATIONALITY, COUNTRY, CITY, SCHOOL, all) → single group
-       */
       const groups = {};
 
       if (rule.category === "CLASS") {
@@ -202,49 +243,71 @@ export const getPrizeTag = async (req, res) => {
           if (!groups[key]) groups[key] = [];
           groups[key].push(s);
         }
+      } else if (rule.category === "CITY") {
+        // One group per city across ALL schools
+        for (const s of eligible) {
+          const key = s.city || "_UNKNOWN_CITY";
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(s);
+        }
+      } else if (rule.category === "SCHOOL") {
+        // Group by school; we only need the selected school's group for display,
+        // but still use school-scoped eligible pool above.
+        groups[String(selectedSchoolCode)] = eligible;
       } else {
-        // NATIONALITY, COUNTRY, CITY, SCHOOL, all → single pool
+        // NATIONALITY, COUNTRY, all → single pool
         groups["_all"] = eligible;
       }
 
-      /*
-       * 3. Pick winners from each group using positional offset
-       */
       if (rule.category === "all") {
-        // Certificate: everyone eligible gets it (no offset logic)
         winners = [...eligible];
       } else {
         for (const groupKey of Object.keys(groups)) {
           const fullKey = `${rule.category}__${groupKey}`;
           const offset = groupedOffset[fullKey] || 0;
-          const result = pickRange(groups[groupKey], offset, rule.totalPrizes);
+          // Keep each city/class group sorted by score
+          const sortedGroup = [...groups[groupKey]].sort(
+            (a, b) => b.score - a.score
+          );
+          const result = pickRange(sortedGroup, offset, rule.totalPrizes);
           winners.push(...result.winners);
           tiedCount += result.tiedCount;
-          // Advance offset by the larger of configured or actual (to skip ties)
           groupedOffset[fullKey] =
             offset + Math.max(rule.totalPrizes, result.winners.length);
         }
       }
 
-      // Track assigned students for the exclude-higher-winners logic
+      // Always mark ALL computed winners as assigned (full national/city set),
+      // so exclude-higher works correctly across scopes.
       for (const w of winners) {
         assignedStudents.add(w.rollNo);
       }
+
+      // For school prize-tag PDF: only list winners who belong to this school.
+      // National/city winners from other schools are calculated but not shown here.
+      const displayWinners = GLOBAL_SCOPE_CATEGORIES.has(rule.category)
+        ? winners.filter((w) => w.schoolCode === selectedSchoolCode)
+        : winners;
 
       prizes.push({
         srNo: rule.priority,
         prizeType: rule.prizeType,
         category: rule.category,
         show: rule.show,
-        total: winners.length,
+        total: displayWinners.length,
         configuredMax,
         tiedCount,
-        students: winners.map((w) => ({
+        globalWinnerCount: GLOBAL_SCOPE_CATEGORIES.has(rule.category)
+          ? winners.length
+          : undefined,
+        students: displayWinners.map((w) => ({
           rollNo: w.rollNo,
           studentName: w.studentName,
           fatherName: w.fatherName,
           class: w.class,
           section: w.section,
+          schoolCode: w.schoolCode,
+          city: w.city,
           score: w.score,
         })),
       });
@@ -260,6 +323,8 @@ export const getPrizeTag = async (req, res) => {
       },
       exam,
       level,
+      scopeNote:
+        "National/Country/City prizes are ranked on the full dataset; this response lists only winners from the selected school.",
       prizes,
     });
   } catch (error) {
