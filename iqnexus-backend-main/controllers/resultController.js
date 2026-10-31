@@ -3,6 +3,7 @@ import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
 import { ResultConfig } from "../models/resultConfigModel.js";
 import { Subject } from "../models/subjectModel.js";
+import { answersModel } from "../models/answersModel.js";
 import mongoose from "mongoose";
 import fs from "fs";
 import xlsx from "xlsx";
@@ -11,6 +12,15 @@ import {
   normalizeKgClass,
   kgStudentsClassQuery,
 } from "../utils/kgHelpers.js";
+import {
+  isKgExamSubject,
+  normalizeKgExamSubject,
+} from "../utils/kgScoringConfig.js";
+import {
+  isKgResponseRow,
+  normalizeAnswerKeyMap,
+  scoreKgRow,
+} from "../utils/scoreKgResponses.js";
 
 // Exam code mapping from display codes to internal field names
 const examFieldMap = {
@@ -85,7 +95,10 @@ export const uploadResult = async (req, res) => {
       return res.status(400).json({ error: "File is empty. No data found." });
     }
     const fileColumns = Object.keys(data[0]);
-    const requiredResultColumns = ["ROLL NO", "ATTENDANCE", "S1_Score", "Total_Score"];
+    const responseMode = isKgResponseRow(fileColumns);
+    const requiredResultColumns = responseMode
+      ? ["ROLL NO", "ATTENDANCE"]
+      : ["ROLL NO", "ATTENDANCE", "S1_Score", "Total_Score"];
     // Check case-insensitively
     const fileColumnsLower = fileColumns.map(c => c.toLowerCase());
     const missingColumns = requiredResultColumns.filter(c => 
@@ -95,8 +108,10 @@ export const uploadResult = async (req, res) => {
       fs.unlinkSync(filePath);
       return res.status(400).json({ 
         error: `Invalid file format. Missing required columns: ${missingColumns.join(", ")}. ` +
-          `Expected columns: ROLL NO, ATTENDANCE, CLASS, SECTION, S1_Score, S1_Percentage, S1_CorrectQCount, S1_TotalQCount, S1_UnAttempted, ... Total_Score, Total_Rank, Total_Percentage, etc. ` +
-          `Please download the result template and use the correct format.`
+          (responseMode
+            ? `KG Q-response format expects: ROLL NO, ATTENDANCE, CLASS, SECTION, p1…p30 (or Q1…Q30).`
+            : `Expected columns: ROLL NO, ATTENDANCE, CLASS, SECTION, S1_Score, … Total_Score. `) +
+          ` Please download the correct result template.`
       });
     }
 
@@ -105,6 +120,14 @@ export const uploadResult = async (req, res) => {
     if (!subject) {
       fs.unlinkSync(filePath);
       return res.status(400).json({ error: "Subject is required" });
+    }
+
+    if (responseMode && !isKgExamSubject(subject) && !isKgClass(studentClass)) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({
+        error:
+          "Q-response (p1…p30) auto-scoring is only for KG exams (IQKD1/IQKD2). Select a KG subject or use the pre-scored template for classes 1–12.",
+      });
     }
 
     // Determine if class and schoolCode were provided (flexible mode when absent)
@@ -167,16 +190,28 @@ export const uploadResult = async (req, res) => {
       console.log(`📊 Flexible mode: class/schoolCode not provided, will lookup each student by rollNo`);
     }
 
-    console.log(`📊 Processing ${data.length} result records for ${resultKey}`);
+    // Prefer normalized KG exam field (IQKD1/IQKD2) when applicable
+    const kgResultKey = normalizeKgExamSubject(subject);
+    const effectiveResultKey = kgResultKey || resultKey;
+
+    console.log(
+      `📊 Processing ${data.length} result records for ${effectiveResultKey}` +
+        (responseMode ? " [KG auto-score from p1…p30]" : "")
+    );
 
     // Get configurable qualifying percentage (instead of hardcoded 40%)
     let qualifyingPercentage = 40; // default fallback
     try {
-      const config = await ResultConfig.findOne({ subject, batchId: "2024-25" });
+      const config = await ResultConfig.findOne({
+        subject: { $in: [subject, effectiveResultKey].filter(Boolean) },
+        batchId: "2024-25",
+      });
       if (config?.qualifyingPercentage != null) {
         qualifyingPercentage = config.qualifyingPercentage;
       } else {
-        const subjectDoc = await Subject.findOne({ code: subject }).lean();
+        const subjectDoc = await Subject.findOne({
+          code: { $in: [subject, effectiveResultKey].filter(Boolean) },
+        }).lean();
         if (subjectDoc?.qualificationRules?.qualifyingPercentage != null) {
           qualifyingPercentage = subjectDoc.qualificationRules.qualifyingPercentage;
         }
@@ -185,6 +220,43 @@ export const uploadResult = async (req, res) => {
       console.warn("Could not fetch qualifying percentage, using default:", qErr.message);
     }
     console.log(`📊 Using qualifying percentage: ${qualifyingPercentage}%`);
+
+    // Preload answer keys for KG auto-scoring (by class)
+    const answerKeyByClass = {};
+    if (responseMode) {
+      const subjectAliases = [
+        effectiveResultKey,
+        subject,
+        subject === "IQKD1" ? "IQKDL1" : null,
+        subject === "IQKD2" ? "IQKDL2" : null,
+        subject === "IQKD1" ? "IQKG1" : null,
+        subject === "IQKD2" ? "IQKG2" : null,
+        subject === "IQKD1" ? "IQKGL1" : null,
+        subject === "IQKD2" ? "IQKGL2" : null,
+      ].filter(Boolean);
+
+      const keyDocs = await answersModel
+        .find({ subject: { $in: [...new Set(subjectAliases)] } })
+        .sort({ updatedAt: -1 })
+        .lean();
+
+      for (const doc of keyDocs) {
+        const cls = normalizeKgClass(doc.class) || String(doc.class || "").trim().toUpperCase();
+        if (!cls || answerKeyByClass[cls]) continue; // keep newest per class
+        const map = normalizeAnswerKeyMap(doc.questions);
+        if (Object.keys(map).length > 0) {
+          answerKeyByClass[cls] = map;
+        }
+      }
+
+      if (Object.keys(answerKeyByClass).length === 0) {
+        fs.unlinkSync(filePath);
+        return res.status(400).json({
+          error: `No answer key found for ${effectiveResultKey}. Upload the KG answer key (per class) before uploading student responses.`,
+        });
+      }
+      console.log(`🔑 Loaded answer keys for classes: ${Object.keys(answerKeyByClass).join(", ")}`);
+    }
 
     let successCount = 0;
     let errorCount = 0;
@@ -201,70 +273,109 @@ export const uploadResult = async (req, res) => {
           continue;
         }
 
-        // Helper to read a column with fallback names (handles both "CorrectQCount" and "CorrectCount" variants)
-        const readCol = (row, ...keys) => {
-          for (const key of keys) {
-            if (row[key] !== undefined && row[key] !== null && row[key] !== "") {
-              return Number(row[key]) || 0;
-            }
+        let section1, section2, section3, section4, section5, total;
+
+        if (responseMode) {
+          const rowClass =
+            normalizeKgClass(row["CLASS"] || row["Class"] || row["class"]) ||
+            normalizeKgClass(studentClass);
+          const answerKeyMap =
+            (rowClass && answerKeyByClass[rowClass]) ||
+            (normalizeKgClass(studentClass) && answerKeyByClass[normalizeKgClass(studentClass)]) ||
+            Object.values(answerKeyByClass)[0];
+
+          if (!answerKeyMap) {
+            errorCount++;
+            errors.push({
+              rollNo,
+              error: `No answer key for class ${rowClass || studentClass || "(unknown)"}`,
+            });
+            continue;
           }
-          return 0;
-        };
 
-        // Parse section-wise data (support both "QCount" and "Count" column name variants)
-        const section1 = {
-          score: readCol(row, "S1_Score"),
-          percentage: readCol(row, "S1_Percentage"),
-          correctCount: readCol(row, "S1_CorrectQCount", "S1_CorrectCount"),
-          totalCount: readCol(row, "S1_TotalQCount", "S1_TotalCount"),
-          unAttempted: readCol(row, "S1_UnAttempted"),
-        };
+          const scored = scoreKgRow({
+            row,
+            answerKeyMap,
+            classValue: rowClass || studentClass,
+            attendance,
+          });
+          section1 = scored.section1;
+          section2 = scored.section2;
+          section3 = scored.section3;
+          section4 = scored.section4;
+          section5 = scored.section5;
+          total = scored.total;
+        } else {
+          // Helper to read a column with fallback names (handles both "CorrectQCount" and "CorrectCount" variants)
+          const readCol = (r, ...keys) => {
+            for (const key of keys) {
+              if (r[key] !== undefined && r[key] !== null && r[key] !== "") {
+                return Number(r[key]) || 0;
+              }
+            }
+            return 0;
+          };
 
-        const section2 = {
-          score: readCol(row, "S2_Score"),
-          percentage: readCol(row, "S2_Percentage"),
-          correctCount: readCol(row, "S2_CorrectQCount", "S2_CorrectCount"),
-          totalCount: readCol(row, "S2_TotalQCount", "S2_TotalCount"),
-          unAttempted: readCol(row, "S2_UnAttempted"),
-        };
+          section1 = {
+            score: readCol(row, "S1_Score"),
+            percentage: readCol(row, "S1_Percentage"),
+            correctCount: readCol(row, "S1_CorrectQCount", "S1_CorrectCount"),
+            totalCount: readCol(row, "S1_TotalQCount", "S1_TotalCount"),
+            unAttempted: readCol(row, "S1_UnAttempted"),
+          };
 
-        const section3 = {
-          score: readCol(row, "S3_Score"),
-          percentage: readCol(row, "S3_Percentage"),
-          correctCount: readCol(row, "S3_CorrectQCount", "S3_CorrectCount"),
-          totalCount: readCol(row, "S3_TotalQCount", "S3_TotalCount"),
-          unAttempted: readCol(row, "S3_UnAttempted"),
-        };
+          section2 = {
+            score: readCol(row, "S2_Score"),
+            percentage: readCol(row, "S2_Percentage"),
+            correctCount: readCol(row, "S2_CorrectQCount", "S2_CorrectCount"),
+            totalCount: readCol(row, "S2_TotalQCount", "S2_TotalCount"),
+            unAttempted: readCol(row, "S2_UnAttempted"),
+          };
 
-        const section4 = {
-          score: readCol(row, "S4_Score"),
-          percentage: readCol(row, "S4_Percentage"),
-          correctCount: readCol(row, "S4_CorrectQCount", "S4_CorrectCount"),
-          totalCount: readCol(row, "S4_TotalQCount", "S4_TotalCount"),
-          unAttempted: readCol(row, "S4_UnAttempted"),
-        };
+          section3 = {
+            score: readCol(row, "S3_Score"),
+            percentage: readCol(row, "S3_Percentage"),
+            correctCount: readCol(row, "S3_CorrectQCount", "S3_CorrectCount"),
+            totalCount: readCol(row, "S3_TotalQCount", "S3_TotalCount"),
+            unAttempted: readCol(row, "S3_UnAttempted"),
+          };
 
-        const section5 = {
-          score: readCol(row, "S5_Score"),
-          percentage: readCol(row, "S5_Percentage"),
-          correctCount: readCol(row, "S5_CorrectQCount", "S5_CorrectCount"),
-          totalCount: readCol(row, "S5_TotalQCount", "S5_TotalCount"),
-          unAttempted: readCol(row, "S5_UnAttempted"),
-        };
+          section4 = {
+            score: readCol(row, "S4_Score"),
+            percentage: readCol(row, "S4_Percentage"),
+            correctCount: readCol(row, "S4_CorrectQCount", "S4_CorrectCount"),
+            totalCount: readCol(row, "S4_TotalQCount", "S4_TotalCount"),
+            unAttempted: readCol(row, "S4_UnAttempted"),
+          };
 
-        const total = {
-          score: readCol(row, "Total_Score"),
-          rank: readCol(row, "Total_Rank"),
-          percentage: readCol(row, "Total_Percentage"),
-          correctCount: readCol(row, "Total_CorrectQCount", "Total_CorrectCount"),
-          totalCount: readCol(row, "Total_TotalQCount", "Total_TotalCount"),
-          unAttempted: readCol(row, "Total_UnAttempted"),
-        };
+          section5 = {
+            score: readCol(row, "S5_Score"),
+            percentage: readCol(row, "S5_Percentage"),
+            correctCount: readCol(row, "S5_CorrectQCount", "S5_CorrectCount"),
+            totalCount: readCol(row, "S5_TotalQCount", "S5_TotalCount"),
+            unAttempted: readCol(row, "S5_UnAttempted"),
+          };
 
-        // Validate: log warning if Total_Percentage doesn't match sum of section percentages
-        const computedSumPct = section1.percentage + section2.percentage + section3.percentage + section4.percentage + section5.percentage;
-        if (total.percentage > 0 && computedSumPct > 0 && Math.abs(total.percentage - computedSumPct) > 1) {
-          console.warn(`⚠️ Roll ${rollNo}: Total_Percentage (${total.percentage}) differs from sum of section percentages (${computedSumPct})`);
+          total = {
+            score: readCol(row, "Total_Score"),
+            rank: readCol(row, "Total_Rank"),
+            percentage: readCol(row, "Total_Percentage"),
+            correctCount: readCol(row, "Total_CorrectQCount", "Total_CorrectCount"),
+            totalCount: readCol(row, "Total_TotalQCount", "Total_TotalCount"),
+            unAttempted: readCol(row, "Total_UnAttempted"),
+          };
+
+          const computedSumPct =
+            section1.percentage +
+            section2.percentage +
+            section3.percentage +
+            section4.percentage +
+            section5.percentage;
+          if (total.percentage > 0 && computedSumPct > 0 && Math.abs(total.percentage - computedSumPct) > 1) {
+            console.warn(
+              `⚠️ Roll ${rollNo}: Total_Percentage (${total.percentage}) differs from sum of section percentages (${computedSumPct})`
+            );
+          }
         }
 
         // Determine pass/fail based on attendance and qualifying percentage
@@ -290,24 +401,33 @@ export const uploadResult = async (req, res) => {
             findQuery,
             {
               $set: {
-                [`result.${resultKey}.attendance`]: attendance,
-                [`result.${resultKey}.section1`]: section1,
-                [`result.${resultKey}.section2`]: section2,
-                [`result.${resultKey}.section3`]: section3,
-                [`result.${resultKey}.section4`]: section4,
-                [`result.${resultKey}.section5`]: section5,
-                [`result.${resultKey}.total`]: total,
-                [`result.${resultKey}.passOrFail`]: passOrFail,
+                [`result.${effectiveResultKey}.attendance`]: attendance,
+                [`result.${effectiveResultKey}.section1`]: section1,
+                [`result.${effectiveResultKey}.section2`]: section2,
+                [`result.${effectiveResultKey}.section3`]: section3,
+                [`result.${effectiveResultKey}.section4`]: section4,
+                [`result.${effectiveResultKey}.section5`]: section5,
+                [`result.${effectiveResultKey}.total`]: total,
+                [`result.${effectiveResultKey}.passOrFail`]: passOrFail,
               },
             },
             { new: true }
           );
         } else {
-          // Flexible mode: lookup by rollNo alone, try regular students first then KG
-          let student = await STUDENT_LATEST.findOne({ rollNo }).lean();
+          // Flexible mode: lookup by rollNo — prefer KG model for auto-score / KG exams
+          let student = null;
           let model = STUDENT_LATEST;
+          const preferKg = responseMode || isKGExam(subject) || isKgExamSubject(subject);
 
+          if (preferKg) {
+            student = await KINDERGARTEN_STUDENT.findOne({ rollNo }).lean();
+            model = KINDERGARTEN_STUDENT;
+          }
           if (!student) {
+            student = await STUDENT_LATEST.findOne({ rollNo }).lean();
+            model = STUDENT_LATEST;
+          }
+          if (!student && !preferKg) {
             student = await KINDERGARTEN_STUDENT.findOne({ rollNo }).lean();
             model = KINDERGARTEN_STUDENT;
           }
@@ -317,14 +437,14 @@ export const uploadResult = async (req, res) => {
               { rollNo },
               {
                 $set: {
-                  [`result.${resultKey}.attendance`]: attendance,
-                  [`result.${resultKey}.section1`]: section1,
-                  [`result.${resultKey}.section2`]: section2,
-                  [`result.${resultKey}.section3`]: section3,
-                  [`result.${resultKey}.section4`]: section4,
-                  [`result.${resultKey}.section5`]: section5,
-                  [`result.${resultKey}.total`]: total,
-                  [`result.${resultKey}.passOrFail`]: passOrFail,
+                  [`result.${effectiveResultKey}.attendance`]: attendance,
+                  [`result.${effectiveResultKey}.section1`]: section1,
+                  [`result.${effectiveResultKey}.section2`]: section2,
+                  [`result.${effectiveResultKey}.section3`]: section3,
+                  [`result.${effectiveResultKey}.section4`]: section4,
+                  [`result.${effectiveResultKey}.section5`]: section5,
+                  [`result.${effectiveResultKey}.total`]: total,
+                  [`result.${effectiveResultKey}.passOrFail`]: passOrFail,
                 },
               },
               { new: true }
@@ -350,11 +470,15 @@ export const uploadResult = async (req, res) => {
     console.log(`✅ Results uploaded: ${successCount} success, ${errorCount} errors`);
 
     res.status(200).json({
-      message: "Results uploaded successfully",
+      message: responseMode
+        ? "KG responses scored and results uploaded successfully"
+        : "Results uploaded successfully",
       summary: {
         totalProcessed: data.length,
         successCount,
         errorCount,
+        autoScored: responseMode,
+        resultKey: effectiveResultKey,
         errors: errors.slice(0, 10), // Return first 10 errors only
       },
     });

@@ -21,7 +21,7 @@ const AnswerKeyUpload = () => {
         // Add upload logic here
         setUploading(false);
     };
-      const exams = [
+  const exams = [
     { name: "IQEOL1", level: "L1" },
     { name: "IQEOL2", level: "L2" },
     { name: "IQROL1", level: "L1" },
@@ -31,15 +31,15 @@ const AnswerKeyUpload = () => {
     { name: "IQMOL1", level: "L1" },
     { name: "IQMOL2", level: "L2" },
     { name: "IQGKOL1", level: "L1" },
-    // { name: "IQGKOL2", level: "L2" },
-    { name: "IQKDL1", level: "L1", isKG: true },
-    { name: "IQKDL2", level: "L2", isKG: true },
+    { name: "IQKD1", level: "L1", isKG: true, label: "IQKG1 (IQKD1)" },
+    { name: "IQKD2", level: "L2", isKG: true, label: "IQKG2 / IQKGL2 (IQKD2)" },
   ];
+
+  const KG_QUESTION_COUNTS = { NURSERY: 20, LKG: 25, UKG: 30 };
 
     const [selectedClass, setSelectedClass] = useState("");
     const [questionsCount, setQuestionsCount] = useState(30);
     const [answers, setAnswers] = useState({});
-  console.log("Selected Exam Level:", answers);
     const handleAnswerChange = (questionIndex, answer) => {
         setAnswers(prev => ({
             ...prev,
@@ -49,6 +49,18 @@ const AnswerKeyUpload = () => {
 
     const addMoreQuestions = () => {
         setQuestionsCount(prev => prev + 5);
+    };
+
+    const applyKgQuestionCount = (classValue) => {
+      const count = KG_QUESTION_COUNTS[classValue] || 30;
+      setQuestionsCount(count);
+      setAnswers((prev) => {
+        const next = {};
+        for (let i = 0; i < count; i++) {
+          if (prev[i] !== undefined) next[i] = prev[i];
+        }
+        return next;
+      });
     };
 
     const handleSaveAnswers = async () => {
@@ -74,18 +86,20 @@ const AnswerKeyUpload = () => {
 
             if (response.ok) {
                 const result = await response.json();
-                alert("Answers saved successfully!");
-                console.log("Answers saved successfully:", result);
+                alert(result.message || "Answers saved successfully!");
                 setSelectedExam([]);
                 setSelectedExamLevel("");
                 setSelectedClass("");
                 setQuestionsCount(30);
                 setAnswers({});
             } else {
-                console.error("Failed to save answers:", response.statusText);
+                const err = await response.json().catch(() => ({}));
+                alert(err.message || "Failed to save answers");
+                console.error("Failed to save answers:", response.statusText, err);
             }
         } catch (error) {
             console.error("Error while saving answers:", error);
+            alert("Error while saving answers");
         }
     };
 
@@ -127,7 +141,7 @@ const AnswerKeyUpload = () => {
                         .filter((exam) => exam.level === selectedExamLevel)
                         .map((exam) => ({
                             value: exam.name,
-                            label: exam.name,
+                            label: exam.label || exam.name,
                             isKG: exam.isKG || false,
                         }))}
                     value={selectedExam}
@@ -136,6 +150,7 @@ const AnswerKeyUpload = () => {
                         setIsKGExam(selected?.isKG || false);
                         setSelectedClass("");
                         setAnswers({});
+                        if (!selected?.isKG) setQuestionsCount(30);
                     }}
                     className="basic-select w-90 mb-4"
                     classNamePrefix="select"
@@ -172,7 +187,11 @@ const AnswerKeyUpload = () => {
                         ? (selectedClass === "NURSERY" ? "Nursery" : selectedClass)
                         : `Class ${selectedClass}`,
                     } : null}
-                    onChange={(selected) => setSelectedClass(selected?.value || "")}
+                    onChange={(selected) => {
+                      const value = selected?.value || "";
+                      setSelectedClass(value);
+                      if (isKGExam && value) applyKgQuestionCount(value);
+                    }}
                     className="basic-select w-90 mb-4"
                     classNamePrefix="select"
                     placeholder="Select Class"
@@ -190,7 +209,20 @@ const AnswerKeyUpload = () => {
                     }}
                 />
                 <div className="upload-section mt-6">
-                    <h3 className='font-semibold mb-3 text-xl text-gray-800'>Questions</h3>
+                    <h3 className='font-semibold mb-3 text-xl text-gray-800'>
+                      Questions
+                      {isKGExam && selectedClass ? (
+                        <span className="ml-2 text-sm font-normal text-gray-500">
+                          ({selectedClass}: {questionsCount} questions — A/B only)
+                        </span>
+                      ) : null}
+                    </h3>
+                    {isKGExam && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mb-3">
+                        NURSERY=20, LKG=25, UKG=30. Upload this key before KG result responses (p1…p30).
+                        General questions are 1 mark; last 5 Achiever questions are 2 marks each.
+                      </p>
+                    )}
                     {[...Array(questionsCount)].map((_, index) => (
                         <div key={index} className="question-item mb-4 p-4 border rounded bg-gray-100">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
