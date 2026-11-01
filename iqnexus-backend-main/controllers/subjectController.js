@@ -207,7 +207,15 @@ export const updateTieBreakOrder = async (req, res) => {
     const { code } = req.params;
     const { tieBreakOrder, achieversSectionIndex, higherDifficultyIndex } = req.body;
 
-    const validCriteria = ["totalMarks", "achieversSection", "higherDifficulty", "level1Marks", "age"];
+    const validCriteria = [
+      "totalMarks",
+      "achieversSection",
+      "otherSectionsCombined",
+      "higherDifficulty",
+      "level1Marks",
+      "age",
+      "rollNumber",
+    ];
     
     if (tieBreakOrder) {
       const invalid = tieBreakOrder.filter(c => !validCriteria.includes(c));

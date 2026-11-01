@@ -39,7 +39,7 @@ const SubjectManagement = () => {
       qualifyingPercentage: 40,
       qualifiesForLevel2: true,
     },
-    tieBreakOrder: ["totalMarks", "achieversSection", "higherDifficulty", "level1Marks", "age"],
+    tieBreakOrder: ["totalMarks", "achieversSection", "otherSectionsCombined", "age", "rollNumber"],
     achieversSectionIndex: 5,
     higherDifficultyIndex: 4,
     linkedLevel1Subject: "",
@@ -57,9 +57,11 @@ const SubjectManagement = () => {
   const tieBreakOptions = [
     { value: "totalMarks", label: "Total Marks" },
     { value: "achieversSection", label: "Achievers Section Score" },
-    { value: "higherDifficulty", label: "Higher Difficulty Questions" },
+    { value: "otherSectionsCombined", label: "Other Sections Combined" },
+    { value: "higherDifficulty", label: "Higher Difficulty (legacy single section)" },
     { value: "level1Marks", label: "Level-1 Marks (for L2)" },
     { value: "age", label: "Age (Younger Preferred)" },
+    { value: "rollNumber", label: "Roll Number (Lower Preferred)" },
   ];
 
   // Fetch subjects
