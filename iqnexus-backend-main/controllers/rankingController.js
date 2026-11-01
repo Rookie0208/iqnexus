@@ -192,12 +192,75 @@ export const recalculateQualification = async (req, res) => {
 // 2. RANKING ENGINE WITH TIE-BREAKING
 // ═══════════════════════════════════════════════════════════
 
+/** Spec default: Total → Achiever → Other sections combined → DOB (younger) → lower roll */
+export const DEFAULT_TIE_BREAK_ORDER = [
+  "totalMarks",
+  "achieversSection",
+  "otherSectionsCombined",
+  "age",
+  "rollNumber",
+];
+
+const sumOtherSections = (student, resultKey, achieverIdx) => {
+  const result = student.result?.[resultKey] || {};
+  let sum = 0;
+  for (let i = 1; i <= 5; i++) {
+    if (i === achieverIdx) continue;
+    sum += result[`section${i}`]?.score ?? 0;
+  }
+  return sum;
+};
+
+const compareRollNumbers = (a, b) => {
+  const rollA = String(a.rollNo ?? "").trim();
+  const rollB = String(b.rollNo ?? "").trim();
+  const numA = Number(rollA);
+  const numB = Number(rollB);
+  if (
+    Number.isFinite(numA) &&
+    Number.isFinite(numB) &&
+    String(numA) === rollA &&
+    String(numB) === rollB
+  ) {
+    return numA - numB; // lower roll = higher rank
+  }
+  return rollA.localeCompare(rollB, undefined, { numeric: true, sensitivity: "base" });
+};
+
+/**
+ * Ensure configured order includes uniqueness criteria.
+ * Always appends rollNumber last if missing so ranks can be unique.
+ */
+const normalizeTieBreakOrder = (order) => {
+  const base =
+    Array.isArray(order) && order.length > 0
+      ? [...order]
+      : [...DEFAULT_TIE_BREAK_ORDER];
+
+  if (
+    !base.includes("otherSectionsCombined") &&
+    !base.includes("higherDifficulty")
+  ) {
+    const ai = base.indexOf("achieversSection");
+    base.splice(ai >= 0 ? ai + 1 : 1, 0, "otherSectionsCombined");
+  }
+
+  if (!base.includes("rollNumber")) {
+    base.push("rollNumber");
+  }
+  return base;
+};
+
 /**
  * Compare two students using configurable tie-break criteria.
- * Returns <0 if a ranks higher, >0 if b ranks higher, 0 if tied.
+ * Returns <0 if a ranks higher, >0 if b ranks higher.
+ * Always ends with roll-number compare so ordering is total (unique ranks).
  */
 const compareStudents = (a, b, tieBreakOrder, resultKey, subjectConfig) => {
-  for (const criterion of tieBreakOrder) {
+  const order = normalizeTieBreakOrder(tieBreakOrder);
+  const achieverIdx = subjectConfig?.achieversSectionIndex || 5;
+
+  for (const criterion of order) {
     let diff = 0;
 
     switch (criterion) {
@@ -208,14 +271,20 @@ const compareStudents = (a, b, tieBreakOrder, resultKey, subjectConfig) => {
         break;
       }
       case "achieversSection": {
-        const secIdx = subjectConfig?.achieversSectionIndex || 5;
-        const secKey = `section${secIdx}`;
+        const secKey = `section${achieverIdx}`;
         const achieverA = a.result?.[resultKey]?.[secKey]?.score ?? 0;
         const achieverB = b.result?.[resultKey]?.[secKey]?.score ?? 0;
         diff = achieverB - achieverA;
         break;
       }
+      case "otherSectionsCombined": {
+        const otherA = sumOtherSections(a, resultKey, achieverIdx);
+        const otherB = sumOtherSections(b, resultKey, achieverIdx);
+        diff = otherB - otherA;
+        break;
+      }
       case "higherDifficulty": {
+        // Legacy single-section criterion (kept for existing subject configs)
         const diffIdx = subjectConfig?.higherDifficultyIndex || 4;
         const diffKey = `section${diffIdx}`;
         const diffA = a.result?.[resultKey]?.[diffKey]?.score ?? 0;
@@ -224,7 +293,6 @@ const compareStudents = (a, b, tieBreakOrder, resultKey, subjectConfig) => {
         break;
       }
       case "level1Marks": {
-        // Only relevant for L2 exams - compare L1 scores
         const l1Subject = subjectConfig?.linkedLevel1Subject;
         if (l1Subject) {
           const l1Key = subjectConfig?.linkedLevel1ResultKey || l1Subject;
@@ -235,18 +303,27 @@ const compareStudents = (a, b, tieBreakOrder, resultKey, subjectConfig) => {
         break;
       }
       case "age": {
-        // Younger preferred (higher DOB date = younger)
+        // Younger preferred (later DOB)
         const dobA = a.dob ? new Date(a.dob) : new Date(0);
         const dobB = b.dob ? new Date(b.dob) : new Date(0);
-        diff = dobB.getTime() - dobA.getTime(); // Later DOB = younger = preferred
+        const tA = Number.isNaN(dobA.getTime()) ? 0 : dobA.getTime();
+        const tB = Number.isNaN(dobB.getTime()) ? 0 : dobB.getTime();
+        diff = tB - tA;
         break;
       }
+      case "rollNumber": {
+        diff = compareRollNumbers(a, b);
+        break;
+      }
+      default:
+        break;
     }
 
     if (diff !== 0) return diff;
   }
 
-  return 0; // Completely tied
+  // Absolute uniqueness fallback (even if rollNumber was omitted somehow)
+  return compareRollNumbers(a, b);
 };
 
 /**
@@ -268,7 +345,7 @@ export const calculateRanks = async (req, res) => {
 
     // Get tie-break configuration from subject
     const subjectDoc = await Subject.findOne({ code: subject }).lean();
-    const tieBreakOrder = subjectDoc?.tieBreakOrder || ["totalMarks", "achieversSection", "higherDifficulty", "level1Marks", "age"];
+    const tieBreakOrder = normalizeTieBreakOrder(subjectDoc?.tieBreakOrder);
     
     // Resolve linked L1 result key
     let linkedLevel1ResultKey = "";
@@ -317,20 +394,13 @@ export const calculateRanks = async (req, res) => {
       country: schoolMap[s.schoolCode]?.country || "INDIA",
     }));
 
-    // Sort using tie-break criteria
+    // Sort using tie-break criteria (total order via roll fallback)
     enrichedStudents.sort((a, b) => compareStudents(a, b, tieBreakOrder, resultKey, subjectConfig));
 
-    // Assign ranks (handle ties: students with same everything get same rank)
+    // Unique ranks 1..N (no automatic joint ranks — admin override can still set joints)
     const assignRanksToGroup = (group) => {
-      let currentRank = 1;
       for (let i = 0; i < group.length; i++) {
-        if (i > 0 && compareStudents(group[i], group[i - 1], tieBreakOrder, resultKey, subjectConfig) === 0) {
-          // Tied with previous student, same rank
-          group[i]._calculatedRank = group[i - 1]._calculatedRank;
-        } else {
-          group[i]._calculatedRank = currentRank;
-        }
-        currentRank++;
+        group[i]._calculatedRank = i + 1;
       }
       return group;
     };

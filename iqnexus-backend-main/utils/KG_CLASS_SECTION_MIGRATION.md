@@ -38,4 +38,4 @@ What it does:
 
 - Student / bulk KG: Class = NURSERY|LKG|UKG, Section = A|B|C
 - IQKGL2 participation: same Class/Section + `IQKGL2` Yes/No
-- Result (future Q-response): `class`, `section`, `p1`…`p30` as in `kindergarten_result_template.xlsx`
+- Result (Q-response auto-score): download `GET /download-kg-result-template` → `ROLL NO`, `ATTENDANCE`, `CLASS`, `SECTION`, `p1`…`p30`. Upload answer key first, then `/upload-result` auto-scores (NURSERY 20 / LKG 25 / UKG 30).

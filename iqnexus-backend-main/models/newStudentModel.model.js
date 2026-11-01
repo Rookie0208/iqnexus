@@ -309,9 +309,15 @@ export const getStudentsByFilters = async (
   subject,
   examLevel,
   page = 1,
-  limit = 10
+  limit = 10,
+  calendarYear = null
 ) => {
   const matchConditions = [];
+
+  // Session / calendar year
+  if (calendarYear && String(calendarYear).trim() && String(calendarYear).toUpperCase() !== "ALL") {
+    matchConditions.push({ calendarYear: String(calendarYear).trim() });
+  }
 
   // Roll No (exact match)
   if (rollNo && rollNo.trim() !== "") {

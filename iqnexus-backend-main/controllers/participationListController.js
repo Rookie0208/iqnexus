@@ -7,6 +7,10 @@ import {
   normalizeKgClass,
   kgStudentsClassQuery,
 } from "../utils/kgHelpers.js";
+import {
+  resolveCalendarYear,
+  applyCalendarYearFilter,
+} from "../utils/resolveCalendarYear.js";
 
 const studentCache = {};
 const examNameMapping = {
@@ -24,9 +28,11 @@ const kgExamMapping = {
 const KG_EXAM_CODES = ["IQKD1", "IQKD2", "IQKG1", "IQKG2", "IQKGL1", "IQKGL2"];
 
 export const getParticipationFilteredList = async (req, res) => {
-  const { schoolCode, classes, sections, exam, examLevel } = req.body;
+  const { schoolCode, classes, sections, exam, examLevel, calendarYear } = req.body;
 
   try {
+    const yearLabel = await resolveCalendarYear(calendarYear);
+
     // Find school
     const school = await School.findOne({ schoolCode }) || {};
     
@@ -50,6 +56,7 @@ export const getParticipationFilteredList = async (req, res) => {
       const kgQuery = selectedKgClasses.length
         ? { class: { $in: selectedKgClasses } }
         : { ...kgStudentsClassQuery() };
+      applyCalendarYearFilter(kgQuery, yearLabel);
       
       if (schoolCode) {
         kgQuery.schoolCode = { $in: schoolCode };
@@ -83,6 +90,7 @@ export const getParticipationFilteredList = async (req, res) => {
     // BUT skip if only kindergarten exams are selected
     if (!hasOnlyKDExam && (regularClasses.length > 0 || (!hasKDClass && (!classes || classes.length === 0)) || examLevel)) {
       const query = {};
+      applyCalendarYearFilter(query, yearLabel);
       
       if (schoolCode) {
         query.schoolCode = { $in: schoolCode };

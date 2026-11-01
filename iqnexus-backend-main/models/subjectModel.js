@@ -76,10 +76,11 @@ const SubjectSchema = new mongoose.Schema({
   },
 
   // Tie-break criteria order (array of criteria in priority order)
-  // Each criterion: "totalMarks", "achieversSection", "higherDifficulty", "level1Marks", "age"
+  // Spec: totalMarks → achieversSection → otherSectionsCombined → age → rollNumber
+  // Legacy "higherDifficulty" still accepted for older configs.
   tieBreakOrder: {
     type: [String],
-    default: ["totalMarks", "achieversSection", "higherDifficulty", "level1Marks", "age"],
+    default: ["totalMarks", "achieversSection", "otherSectionsCombined", "age", "rollNumber"],
   },
 
   // Which section is the "Achievers Section" (for tie-breaking)

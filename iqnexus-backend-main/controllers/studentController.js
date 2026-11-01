@@ -47,7 +47,7 @@ export const getStudentByMobile = async (req, res) => {
 
 export const getStudents = async (req, res) => {
   try {
-    const { schoolCode, className, rollNo, section, studentName, subject,examLevel } = req.body;
+    const { schoolCode, className, rollNo, section, studentName, subject, examLevel, calendarYear } = req.body;
     const { page = 1, limit = 10 } = req.query;
 
     const schoolCodeNumber = schoolCode ? parseInt(schoolCode) : undefined;
@@ -55,9 +55,12 @@ export const getStudents = async (req, res) => {
       return res.status(400).json({ error: "Invalid school code: must be a number" });
     }
 
+    const { resolveCalendarYear } = await import("../utils/resolveCalendarYear.js");
+    const yearLabel = await resolveCalendarYear(calendarYear);
+
     const students = await getStudentsByFilters(
-      schoolCodeNumber, className, rollNo, section, studentName, subject,examLevel,
-      Number(page), Number(limit)
+      schoolCodeNumber, className, rollNo, section, studentName, subject, examLevel,
+      Number(page), Number(limit), yearLabel
     );
 
     if (students.data.length === 0) {
@@ -83,8 +86,12 @@ export const getStudents = async (req, res) => {
 
 export const getStudentsWithoutPagination = async (req, res) => {
   try {
-    const { schoolCode, className, rollNo, section, studentName, subject } = req.body;
+    const { schoolCode, className, rollNo, section, studentName, subject, calendarYear } = req.body;
     let query = {};
+
+    const { resolveCalendarYear, applyCalendarYearFilter } = await import("../utils/resolveCalendarYear.js");
+    const yearLabel = await resolveCalendarYear(calendarYear);
+    applyCalendarYearFilter(query, yearLabel);
 
     if (schoolCode) query.schoolCode = Number(schoolCode);
     if (className?.length > 0) query.class = { $in: className };
@@ -103,14 +110,45 @@ export const getStudentsWithoutPagination = async (req, res) => {
   }
 };
 
+/** Fields that must never be overwritten via admin edit form */
+const STUDENT_UPDATE_BLOCKLIST = new Set([
+  "_id",
+  "__v",
+  "result",
+  "createdAt",
+  "updatedAt",
+]);
+
 export const updateStudent = async (req, res) => {
   try {
-    const { rollNo, _id, ...updateFields } = req.body;
+    const { rollNo, _id, ...rawFields } = req.body;
 
-    if (!_id && !rollNo) return res.status(400).json({ message: "Either _id or rollNo is required" });
+    if (!_id && !rollNo) {
+      return res.status(400).json({ message: "Either _id or rollNo is required" });
+    }
+
+    // Strip nested/readonly fields (e.g. result) that the admin form may send
+    const updateFields = {};
+    for (const [key, value] of Object.entries(rawFields)) {
+      if (STUDENT_UPDATE_BLOCKLIST.has(key)) continue;
+      // Skip accidental nested objects from the edit form (result, etc.)
+      if (value !== null && typeof value === "object" && !Array.isArray(value)) continue;
+      updateFields[key] = value;
+    }
 
     if (updateFields.Duplicates !== undefined) {
       updateFields.Duplicates = ["1", "true", true].includes(updateFields.Duplicates);
+    }
+
+    if (updateFields.schoolCode !== undefined) {
+      updateFields.schoolCode = Number(updateFields.schoolCode);
+      if (Number.isNaN(updateFields.schoolCode)) {
+        return res.status(400).json({ message: "schoolCode must be a number" });
+      }
+    }
+
+    if (updateFields.class !== undefined) {
+      updateFields.class = String(updateFields.class).trim();
     }
 
     // Check rollNo uniqueness BEFORE performing the update
@@ -126,9 +164,17 @@ export const updateStudent = async (req, res) => {
 
     let updatedStudent;
     if (_id) {
-      updatedStudent = await STUDENT_LATEST.findByIdAndUpdate(_id, { $set: updateFields }, { new: true, runValidators: true });
+      updatedStudent = await STUDENT_LATEST.findByIdAndUpdate(
+        _id,
+        { $set: updateFields },
+        { new: true, runValidators: true }
+      );
     } else {
-      updatedStudent = await STUDENT_LATEST.findOneAndUpdate({ rollNo }, { $set: updateFields }, { new: true, runValidators: true });
+      updatedStudent = await STUDENT_LATEST.findOneAndUpdate(
+        { rollNo },
+        { $set: updateFields },
+        { new: true, runValidators: true }
+      );
     }
 
     if (!updatedStudent) {
@@ -145,6 +191,44 @@ export const updateStudent = async (req, res) => {
     } else {
       res.status(500).json({ message: "Error updating student", error: error.message || error });
     }
+  }
+};
+
+export const deleteStudent = async (req, res) => {
+  try {
+    const { rollNo, class: studentClass, _id } = req.body || {};
+
+    if (!_id && !rollNo) {
+      return res.status(400).json({ message: "Either _id or rollNo is required" });
+    }
+
+    let deleted;
+    if (_id) {
+      deleted = await STUDENT_LATEST.findByIdAndDelete(_id);
+    } else {
+      const query = { rollNo: String(rollNo).trim() };
+      if (studentClass !== undefined && studentClass !== null && studentClass !== "") {
+        query.class = String(studentClass).trim();
+      }
+      deleted = await STUDENT_LATEST.findOneAndDelete(query);
+    }
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Student deleted successfully",
+      deleted: {
+        rollNo: deleted.rollNo,
+        class: deleted.class,
+        studentName: deleted.studentName,
+      },
+    });
+  } catch (error) {
+    console.error("Error deleting student:", error);
+    res.status(500).json({ message: "Error deleting student", error: error.message || error });
   }
 };
 

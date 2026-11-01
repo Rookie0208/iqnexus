@@ -34,6 +34,7 @@ import PrizeTag from "./pages/PrizeTag";
 import SubjectManagement from "./pages/SubjectManagement";
 import RankingManagement from "./pages/RankingManagement";
 import PrizeOverride from "./pages/PrizeOverride";
+import CertificateManager from "./pages/CertificateManager";
 
 
 const App = () => {
@@ -67,6 +68,7 @@ const App = () => {
             <Route path="/allSchools" element={< AllSchools />} />
             <Route path="/allStudents" element={< AllStudents />} />
             <Route path="/genrate-admit-card" element={< AdmitCard />} />
+            <Route path="/certificates" element={<CertificateManager />} />
             <Route path="/allKindergartenStudents" element={<AllKindergartenStudents />} />
             <Route path="/allkindargartenStudents" element={<AllKindergartenStudents />} />
             <Route path="/kindargartenStudent" element={< KinderGartenStudentForm />} />

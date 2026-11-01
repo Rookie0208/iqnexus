@@ -16,7 +16,8 @@ import {
   Trophy,
   BookOpen,
   BarChart3,
-  Award
+  Award,
+  FileText,
 } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import logo from "../assets/main_logo.png";
@@ -198,6 +199,13 @@ const Sidebar = () => {
                 text="Admit Card"
                 href="/genrate-admit-card"
                 active={location.pathname === "/genrate-admit-card"}
+                onClick={closeSidebar}
+              />
+              <MenuItem
+                icon={<FileText size={20} />}
+                text="Certificates"
+                href="/certificates"
+                active={location.pathname === "/certificates"}
                 onClick={closeSidebar}
               />
               <MenuItem

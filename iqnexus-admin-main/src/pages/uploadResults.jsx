@@ -235,14 +235,22 @@ const Uploadresults = () => {
 
     const handleDownloadTemplate = async () => {
         try {
-            const response = await axios.get(`${BASE_URL}/download-result-template`, {
+            const isKG = examLevel === "KG";
+            const endpoint = isKG
+                ? `${BASE_URL}/download-kg-result-template`
+                : `${BASE_URL}/download-result-template`;
+            const filename = isKG
+                ? "KG_Result_Response_Template.xlsx"
+                : "Result_Upload_Template.xlsx";
+
+            const response = await axios.get(endpoint, {
                 responseType: 'blob',
             });
             
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', 'Result_Upload_Template.xlsx');
+            link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -540,6 +548,20 @@ const Uploadresults = () => {
                         
                         <div className="space-y-3 text-sm text-gray-600">
                             <p className="font-medium text-gray-700">Required Columns:</p>
+                            {examLevel === "KG" ? (
+                              <div className="bg-white rounded-lg p-3 border text-xs space-y-2">
+                                <p className="font-semibold text-blue-600">KG auto-score (Q-response)</p>
+                                <ul className="ml-2 space-y-0.5">
+                                  <li>• ROLL NO, ATTENDANCE, CLASS (NURSERY/LKG/UKG), SECTION</li>
+                                  <li>• p1 … p30 — student answers (A/B). Q1…Q30 also accepted</li>
+                                  <li>• Scores only first 20 (NURSERY), 25 (LKG), or 30 (UKG) answers</li>
+                                  <li>• General = 1 mark; last 5 Achiever Qs = 2 marks → section1 / section5</li>
+                                </ul>
+                                <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                                  Upload the matching answer key (Answer Key page, IQKG1/IQKG2 + class) before this file.
+                                </p>
+                              </div>
+                            ) : (
                             <div className="bg-white rounded-lg p-3 border text-xs">
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
@@ -571,6 +593,7 @@ const Uploadresults = () => {
                                     <span className="ml-2">School_Rank, Class_Rank, Section_Rank, City_Rank, National_Rank, International_Rank</span>
                                 </div>
                             </div>
+                            )}
                             
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                                 <p className="text-yellow-800 text-xs">

@@ -15,6 +15,7 @@ import {
 } from '../controllers/resultConfigController.js';
 import { fetchBLQList } from '../controllers/BLQListController.js';
 import generateResultTemplate from '../utils/generateResultTemplate.js';
+import generateKgResultTemplate from '../utils/generateKgResultTemplate.js';
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ router.post('/uploadResult', upload.single('file'), uploadResult); // Backward c
 // Simple result upload (backward compatible - old format)
 router.post('/upload-result-simple', upload.single('file'), uploadResultSimple);
 
-// Download result template (Classes 1-12)
+// Download result template (Classes 1-12 pre-scored)
 router.get('/download-result-template', (req, res) => {
   try {
     const workbook = generateResultTemplate();
@@ -37,6 +38,27 @@ router.get('/download-result-template', (req, res) => {
   } catch (error) {
     console.error('Error generating template:', error);
     res.status(500).json({ error: 'Failed to generate template' });
+  }
+});
+
+// Download KG Q-response template (p1…p30 auto-score)
+router.get('/download-kg-result-template', (req, res) => {
+  try {
+    const workbook = generateKgResultTemplate();
+    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=KG_Result_Response_Template.xlsx'
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error generating KG template:', error);
+    res.status(500).json({ error: 'Failed to generate KG result template' });
   }
 });
 
