@@ -27,78 +27,39 @@ const booleanFields = [
     "Duplicates",
 ];
 
-// Helper to get all qualified subjects for a student
-const getQualifiedSubjects = (student, selectedExamLevel, selectedExam, examListPlainArray) => {
-    // Map exam code to student field
-    const examFieldMap = {
-        IQEOL1: "IENGOL1",
-        IQEOL2: "IENGOL2",
-        IQROL1: "IAOL1",
-        IQROL2: "IAOL2",
-        IQSOL1: "ITSTL1",
-        IQSOL2: "ITSTL2",
-        IQMOL1: "IMOL1",
-        IQMOL2: "IMOL2",
-        IQGKOL1: "IGKOL1",
-        IQGKOL2: "IGKOL2",
-    };
-
-    // Exams to check
-    const examsToCheck =
-        selectedExamLevel === "L1"
-            ? ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"]
-            : selectedExamLevel === "L2"
-            ? ["IQEOL2", "IQROL2", "IQSOL2", "IQMOL2"]
-            : ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"];
-
-    // If selectedExam is used, filter further
-    const filteredExams =
-        selectedExam.length === 0
-            ? examsToCheck
-            : examsToCheck.filter((exam) => examListPlainArray.includes(exam));
-
-    // Get qualified subjects
-    return filteredExams
-        .filter((exam) => student[examFieldMap[exam]] === "1")
-        .map((exam) => exam.replace("L1", "").replace("L2", ""))
-        .join(", ");
-};
-
-// Helper to get all participated subjects for a student
-const getParticipatedSubjects = (student, selectedExamLevel, selectedExam, examListPlainArray) => {
-    // Map exam code to student field
-    const examFieldMap = {
-        IQEOL1: "IENGOL1",
-        IQEOL2: "IENGOL2",
-        IQROL1: "IAOL1",
-        IQROL2: "IAOL2",
-        IQSOL1: "ITSTL1",
-        IQSOL2: "ITSTL2",
-        IQMOL1: "IMOL1",
-        IQMOL2: "IMOL2",
-        IQGKOL1: "IGKOL1",
-        IQGKOL2: "IGKOL2",
-    };
-
-    // Exams to check
-    const examsToCheck =
-        selectedExamLevel === "L1"
-            ? ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"]
-            : selectedExamLevel === "L2"
-            ? ["IQEOL2", "IQROL2", "IQSOL2", "IQMOL2"]
-            : ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"];
-
-    // If selectedExam is used, filter further
-    const filteredExams =
-        selectedExam.length === 0
-            ? examsToCheck
-            : examsToCheck.filter((exam) => examListPlainArray.includes(exam));
-
-    // Get participated subjects (if field exists, regardless of value)
-    return filteredExams
-        .filter((exam) => student[examFieldMap[exam]] !== undefined)
-        .map((exam) => exam.replace("L1", "").replace("L2", ""))
-        .join(", ");
+/** Display subject for a qualification row from /fetchBLQList */
+const getRowSubjectLabel = (student) => {
+  if (student?.subject) return student.subject;
+  const fields = [
+    "IENGOL1",
+    "IENGOL2",
+    "IAOL1",
+    "IAOL2",
+    "ITSTL1",
+    "ITSTL2",
+    "IMOL1",
+    "IMOL2",
+    "IGKOL1",
+    "IGKOL2",
+  ];
+  const map = {
+    IENGOL1: "IQEOL1",
+    IENGOL2: "IQEOL2",
+    IAOL1: "IQROL1",
+    IAOL2: "IQROL2",
+    ITSTL1: "IQSOL1",
+    ITSTL2: "IQSOL2",
+    IMOL1: "IQMOL1",
+    IMOL2: "IQMOL2",
+    IGKOL1: "IQGKOL1",
+    IGKOL2: "IQGKOL2",
+  };
+  for (const f of fields) {
+    if (student?.[f] !== undefined || student?.subjectField === f) {
+      return map[f] || f;
+    }
+  }
+  return student?.subjectField || "—";
 };
 
 // Map exam codes to full names
@@ -253,10 +214,19 @@ const QualifiedList = () => {
 
     try {
       setIsFetching(true);
-      const res = await axios.get(
-        `${BASE_URL}/fetchBLQList?examLevel=${selectedExamLevel}&schoolCode=${selectedSchoolCode}&subject=${encodeURIComponent(JSON.stringify( selectedExam))}  `,
-      );
-      console.log("Fetched students:", res.data);
+      const params = new URLSearchParams({
+        examLevel: selectedExamLevel,
+        schoolCode: String(selectedSchoolCode),
+        subject: JSON.stringify(selectedExam || []),
+      });
+      if (filters.classes?.length) {
+        params.set("classes", JSON.stringify(filters.classes));
+      }
+      if (filters.sections?.length) {
+        params.set("sections", JSON.stringify(filters.sections));
+      }
+
+      const res = await axios.get(`${BASE_URL}/fetchBLQList?${params.toString()}`);
       if (res.data.studentData) {
         setStudentsData(res.data.studentData);
         setSchool(res.data.school || {});
@@ -264,13 +234,16 @@ const QualifiedList = () => {
       } else {
         setStudentsData([]);
         setIsFetched(true);
-        // alert("Error fetching student data.");
       }
     } catch (error) {
-      console.error("Error fetching student data:", error);
+      console.error("Error fetching qualification list:", error);
       setStudentsData([]);
       setIsFetched(true);
-      alert("Error fetching student data.");
+      alert(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Error fetching qualified students."
+      );
     } finally {
       setIsFetching(false);
     }
@@ -748,11 +721,15 @@ const QualifiedList = () => {
 
   return (
     <div className="min-h-screen p-6 bg-gray-50 flex items-center justify-end">
-      {/* Participationlist */}
+      {/* Qualification list */}
       <div>
         <div className="fixed inset-0 flex  justify-end mr-[130px]">
           <div className="relative z-10 bg-white rounded-lg shadow-lg p-6 w-[80%] max-h-[95vh] overflow-y-auto">
-            <h2 className="text-3xl font-bold mb-6">Basic Participation List</h2>
+            <h2 className="text-3xl font-bold mb-6">Qualification List</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Shows students who <strong>passed</strong> (qualified) — not all enrolled participants.
+              Use Participation List pages for enrollment-only lists.
+            </p>
 
             {/* Filters Form */}
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -877,11 +854,11 @@ const QualifiedList = () => {
               <div className="text-center mb-6">
                 <img src={logo} alt="IQ Nexus" className="mx-auto h-12 mb-2" />
                 <h1 className="text-lg font-semibold uppercase">
-                  Participation List Basic
+                  Qualification List
                 </h1>
                 <h2 className="font-bold uppercase underline mt-2">
                   {selectedExamLevel
-                    ? `${selectedExamLevel === "L1" ? "Basic" : "Advance"}`
+                    ? `${selectedExamLevel === "L1" ? "Basic (Level 1)" : "Advance (Level 2)"} — Qualified`
                     : "Exam Level Not Selected"}
                 </h2>
               </div>
@@ -921,13 +898,14 @@ const QualifiedList = () => {
                     <th className="border px-2 py-1">Class</th>
                     <th className="border px-2 py-1">Sec</th>
                     <th className="border px-2 py-1">Subject</th>
-                    <th className="border px-2 py-1">Participation</th>
+                    <th className="border px-2 py-1">Score %</th>
+                    <th className="border px-2 py-1">Qualified</th>
                   </tr>
                 </thead>
                 <tbody>
                   {studentsData.length > 0 ? (
                     studentsData.map((student, index) => (
-                      <tr key={student._id || index}>
+                      <tr key={`${student.rollNo}-${student.subjectField || index}`}>
                         <td className="border px-2 py-1">{index + 1}</td>
                         <td className="border px-2 py-1">{student.rollNo}</td>
                         <td className="border px-2 py-1">
@@ -941,71 +919,23 @@ const QualifiedList = () => {
                         </td>
                         <td className="border px-2 py-1">{student.class}</td>
                         <td className="border px-2 py-1">{student.section}</td>
-                        {/* Subjects Passed */}
                         <td className="border px-2 py-1">
-                          {/* {
-                            getQualifiedSubjects(
-                              student,
-                              selectedExamLevel,
-                              selectedExam,
-                              examListPlainArray
-                            )
-                          } */}
-                          {}
-
-                          {
-                              
-
-                          }
+                          {getRowSubjectLabel(student)}
                         </td>
-                        {/* Participation */}
-            <td className="border px-2 py-1">
-              {
-
-              }
-              
-                {/* {
-                    // Show "Yes" if student participated in any selected exam, else "No"
-                    (() => {
-                        // Map exam code to student field
-                        const examFieldMap = {
-                            IQEOL1: "IENGOL1",
-                            IQEOL2: "IENGOL2",
-                            IQROL1: "IAOL1",
-                            IQROL2: "IAOL2",
-                            IQSOL1: "ITSTL1",
-                            IQSOL2: "ITSTL2",
-                            IQMOL1: "IMOL1",
-                            IQMOL2: "IMOL2",
-                            IQGKOL1: "IGKOL1",
-                            IQGKOL2: "IGKOL2",
-                        };
-                        // Exams to check
-                        const examsToCheck =
-                            selectedExamLevel === "L1"
-                                ? ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"]
-                                : selectedExamLevel === "L2"
-                                ? ["IQEOL2", "IQROL2", "IQSOL2", "IQMOL2"]
-                                : ["IQEOL1", "IQROL1", "IQSOL1", "IQMOL1", "IQGKOL1"];
-                        // If selectedExam is used, filter further
-                        const filteredExams =
-                            selectedExam.length === 0
-                                ? examsToCheck
-                                : examsToCheck.filter((exam) => examListPlainArray.includes(exam));
-                        // If any exam field exists (not undefined), mark as Yes
-                        const participated = filteredExams.some(
-                            (exam) => student[examFieldMap[exam]] !== undefined
-                        );
-                        return participated ? "Yes" : "No";
-                    })()
-                } */}
-            </td>
-          </tr>
+                        <td className="border px-2 py-1">
+                          {student.percentage != null ? student.percentage : "—"}
+                        </td>
+                        <td className="border px-2 py-1">
+                          {student.passOrFail === "PASS" || student.qualified
+                            ? "Yes"
+                            : "No"}
+                        </td>
+                      </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={9} className="border px-2 py-1 text-center">
-                        No students found.
+                      <td colSpan={10} className="border px-2 py-1 text-center">
+                        No qualified students found.
                       </td>
                     </tr>
                   )}
