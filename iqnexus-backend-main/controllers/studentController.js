@@ -47,7 +47,7 @@ export const getStudentByMobile = async (req, res) => {
 
 export const getStudents = async (req, res) => {
   try {
-    const { schoolCode, className, rollNo, section, studentName, subject,examLevel } = req.body;
+    const { schoolCode, className, rollNo, section, studentName, subject, examLevel, calendarYear } = req.body;
     const { page = 1, limit = 10 } = req.query;
 
     const schoolCodeNumber = schoolCode ? parseInt(schoolCode) : undefined;
@@ -55,9 +55,12 @@ export const getStudents = async (req, res) => {
       return res.status(400).json({ error: "Invalid school code: must be a number" });
     }
 
+    const { resolveCalendarYear } = await import("../utils/resolveCalendarYear.js");
+    const yearLabel = await resolveCalendarYear(calendarYear);
+
     const students = await getStudentsByFilters(
-      schoolCodeNumber, className, rollNo, section, studentName, subject,examLevel,
-      Number(page), Number(limit)
+      schoolCodeNumber, className, rollNo, section, studentName, subject, examLevel,
+      Number(page), Number(limit), yearLabel
     );
 
     if (students.data.length === 0) {
@@ -83,8 +86,12 @@ export const getStudents = async (req, res) => {
 
 export const getStudentsWithoutPagination = async (req, res) => {
   try {
-    const { schoolCode, className, rollNo, section, studentName, subject } = req.body;
+    const { schoolCode, className, rollNo, section, studentName, subject, calendarYear } = req.body;
     let query = {};
+
+    const { resolveCalendarYear, applyCalendarYearFilter } = await import("../utils/resolveCalendarYear.js");
+    const yearLabel = await resolveCalendarYear(calendarYear);
+    applyCalendarYearFilter(query, yearLabel);
 
     if (schoolCode) query.schoolCode = Number(schoolCode);
     if (className?.length > 0) query.class = { $in: className };

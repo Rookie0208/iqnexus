@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { BASE_URL } from "../Api";
+import CalendarYearSelect from "../components/CalendarYearSelect";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
@@ -97,6 +98,7 @@ const Classwiselist = () => {
   const [selectedSchoolCode, setSelectedSchoolCode] = useState("");
   const [selectedClasses, setSelectedClasses] = useState([]);
   const [selectedSections, setSelectedSections] = useState([]);
+  const [calendarYear, setCalendarYear] = useState("");
   const [studentsData, setStudentsData] = useState([]);
   const [school, setSchool] = useState({});
   const [isDownloading, setIsDownloading] = useState(false);
@@ -211,6 +213,7 @@ const Classwiselist = () => {
           selectedSections.length > 0
             ? selectedSections.map((opt) => opt.value)
             : undefined,
+        calendarYear: calendarYear || undefined,
       };
 
       try {
@@ -805,6 +808,7 @@ const Classwiselist = () => {
                   placeholder="Enter School Code"
                 />
               </div>
+              <CalendarYearSelect value={calendarYear} onChange={setCalendarYear} />
               <div>
                 <label className="block text-sm font-medium">
                   Select Classes

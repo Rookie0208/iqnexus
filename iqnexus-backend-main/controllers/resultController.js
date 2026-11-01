@@ -21,6 +21,10 @@ import {
   normalizeAnswerKeyMap,
   scoreKgRow,
 } from "../utils/scoreKgResponses.js";
+import {
+  resolveCalendarYear,
+  applyCalendarYearFilter,
+} from "../utils/resolveCalendarYear.js";
 
 // Exam code mapping from display codes to internal field names
 const examFieldMap = {
@@ -671,6 +675,7 @@ export const getAllResults = async (req, res) => {
       section, 
       subject, 
       rollNo,
+      calendarYear,
       sortBy = 'total.score',
       sortOrder = 'desc',
       page = 1,
@@ -704,6 +709,8 @@ export const getAllResults = async (req, res) => {
 
     // Build query
     const query = {};
+    const yearLabel = await resolveCalendarYear(calendarYear);
+    applyCalendarYearFilter(query, yearLabel);
     
     if (schoolCode && schoolCode !== 'all') {
       query.schoolCode = Number(schoolCode);
@@ -960,12 +967,15 @@ export const exportResultsToExcel = async (req, res) => {
       section, 
       subject, 
       rollNo,
+      calendarYear,
       sortBy = 'total.score',
       sortOrder = 'desc'
     } = req.query;
 
     // Build query (same as getAllResults)
     const query = {};
+    const yearLabel = await resolveCalendarYear(calendarYear);
+    applyCalendarYearFilter(query, yearLabel);
     
     if (schoolCode && schoolCode !== 'all') {
       query.schoolCode = Number(schoolCode);

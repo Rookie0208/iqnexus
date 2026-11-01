@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { BASE_URL } from "../Api";
+import CalendarYearSelect from "../components/CalendarYearSelect";
 import html2pdf from "html2pdf.js";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -146,6 +147,7 @@ const QualifiedList = () => {
   const [selectedSchoolCode, setSelectedSchoolCode] = useState("");
   const [selectedClasses, setSelectedClasses] = useState([]);
   const [selectedSections, setSelectedSections] = useState([]);
+  const [calendarYear, setCalendarYear] = useState("");
   const [studentsData, setStudentsData] = useState([]);
   const [school, setSchool] = useState({});
   const [isDownloading, setIsDownloading] = useState(false);
@@ -224,6 +226,9 @@ const QualifiedList = () => {
       }
       if (filters.sections?.length) {
         params.set("sections", JSON.stringify(filters.sections));
+      }
+      if (calendarYear) {
+        params.set("calendarYear", calendarYear);
       }
 
       const res = await axios.get(`${BASE_URL}/fetchBLQList?${params.toString()}`);
@@ -784,6 +789,7 @@ const QualifiedList = () => {
                         placeholder="Enter School Code"
                     />
                 </div>
+                <CalendarYearSelect value={calendarYear} onChange={setCalendarYear} />
                 <div>
                     <label className="block text-sm font-medium">Select Classes</label>
                     <Select

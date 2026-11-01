@@ -1,5 +1,9 @@
 import { STUDENT_LATEST } from "../models/newStudentModel.model.js";
 import { School } from "../models/schoolModel.js";
+import {
+  resolveCalendarYear,
+  applyCalendarYearFilter,
+} from "../utils/resolveCalendarYear.js";
 
 /** Internal result/enrollment field → display exam code */
 const FIELD_TO_EXAM = {
@@ -62,9 +66,12 @@ export const fetchBLQList = async (req, res) => {
       }
     }
 
+    const yearLabel = await resolveCalendarYear(req.query.calendarYear);
+
     const query = {
       schoolCode: Number(schoolCode),
     };
+    applyCalendarYearFilter(query, yearLabel);
 
     // Class filter (single or multi)
     let classes = [];

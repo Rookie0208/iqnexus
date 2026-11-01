@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Select from "react-select";
 import { BASE_URL } from "../Api";
+import CalendarYearSelect from "../components/CalendarYearSelect";
 import * as XLSX from "xlsx";
 import { 
   Search, Download, Filter, RefreshCw, ChevronLeft, ChevronRight, Eye, FileText, 
@@ -65,6 +66,7 @@ const ViewResults = () => {
   const [selectedSection, setSelectedSection] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [searchRollNo, setSearchRollNo] = useState("");
+  const [calendarYear, setCalendarYear] = useState("");
   const [sortBy, setSortBy] = useState({ value: 'total.score', label: 'Score' });
   const [sortOrder, setSortOrder] = useState({ value: 'desc', label: 'High to Low' });
 
@@ -295,6 +297,9 @@ const ViewResults = () => {
       if (searchRollNo.trim()) {
         params.append('rollNo', searchRollNo.trim());
       }
+      if (calendarYear) {
+        params.append('calendarYear', calendarYear);
+      }
 
       const res = await axios.get(`${BASE_URL}/view-results?${params.toString()}`);
       
@@ -373,6 +378,9 @@ const ViewResults = () => {
       }
       if (searchRollNo.trim()) {
         params.append('rollNo', searchRollNo.trim());
+      }
+      if (calendarYear) {
+        params.append('calendarYear', calendarYear);
       }
 
       const res = await axios.get(`${BASE_URL}/export-results?${params.toString()}`, {
@@ -568,6 +576,12 @@ const ViewResults = () => {
                   isClearable
                 />
               </div>
+
+              <CalendarYearSelect
+                value={calendarYear}
+                onChange={setCalendarYear}
+                className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
 
               {/* Class Filter */}
               <div>
