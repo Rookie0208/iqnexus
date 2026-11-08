@@ -1,16 +1,17 @@
 /**
- * Match KG student responses (p1…p30 / Q1…Q30) against an answer key
- * and emit the same section1–section5 + total shape used by result upload.
+ * Match KG student responses (p1…pN / Q1…QN) against an answer key
+ * and emit sections[] (1…N) plus legacy section1–section5 dual-write fields.
  */
 
 import {
-  getKgPaperConfig,
-  kgMaxScore,
   KG_MAX_TEMPLATE_QUESTIONS,
+  resolveScoringPattern,
+  patternMaxScore,
 } from "./kgScoringConfig.js";
 import { normalizeKgClass } from "./kgHelpers.js";
+import { sectionsToLegacyFields } from "./resultSections.js";
 
-const emptySection = () => ({
+const emptySectionStats = () => ({
   score: 0,
   percentage: 0,
   correctCount: 0,
@@ -74,58 +75,95 @@ function pct(score, max) {
   return Math.round((score / max) * 10000) / 100;
 }
 
+function findSectionForQuestion(pattern, q) {
+  return pattern.sections.find((s) => q >= s.from && q <= s.to) || null;
+}
+
 /**
  * Score one student response row.
+ * @param {object} opts
+ * @param {object} opts.row - Excel row
+ * @param {object} opts.answerKeyMap - { "1": "A", ... }
+ * @param {string} opts.classValue
+ * @param {string} opts.attendance
+ * @param {object|null} opts.scoringPattern - optional user pattern from answer key
  */
-export function scoreKgRow({ row, answerKeyMap, classValue, attendance }) {
+export function scoreKgRow({
+  row,
+  answerKeyMap,
+  classValue,
+  attendance,
+  scoringPattern = null,
+}) {
   const cls =
     normalizeKgClass(classValue) ||
     normalizeKgClass(row?.CLASS || row?.Class || row?.class) ||
     "UKG";
-  const paper = getKgPaperConfig(cls);
-  const maxTotal = kgMaxScore(cls);
+  const pattern = resolveScoringPattern(scoringPattern, cls);
+  const maxTotal = patternMaxScore(pattern);
   const att = String(attendance || "PRESENT").toUpperCase();
 
-  const section1 = emptySection();
-  const section5 = emptySection();
-  section1.totalCount = paper.general.count;
-  section5.totalCount = paper.achiever.count;
+  const sectionStats = pattern.sections.map((s) => ({
+    index: s.index,
+    label: s.label,
+    isAchiever: Boolean(s.isAchiever),
+    from: s.from,
+    to: s.to,
+    marksPerQuestion: s.marksPerQuestion,
+    maxScore: (s.to - s.from + 1) * s.marksPerQuestion,
+    ...emptySectionStats(),
+    totalCount: s.to - s.from + 1,
+  }));
 
+  const byIndex = new Map(sectionStats.map((s) => [s.index, s]));
   const responses = {};
   let totalCorrect = 0;
   let totalUnattempted = 0;
 
   if (att === "ABSENT" || att === "DISQUALIFIED") {
-    section1.unAttempted = paper.general.count;
-    section5.unAttempted = paper.achiever.count;
+    for (const sec of sectionStats) {
+      sec.unAttempted = sec.totalCount;
+      sec.percentage = 0;
+    }
+    const sections = sectionStats.map((s) => ({
+      index: s.index,
+      label: s.label,
+      isAchiever: s.isAchiever,
+      score: 0,
+      percentage: 0,
+      correctCount: 0,
+      totalCount: s.totalCount,
+      unAttempted: s.totalCount,
+      maxScore: s.maxScore,
+    }));
+    const legacy = sectionsToLegacyFields(sections);
     return {
-      section1,
-      section2: emptySection(),
-      section3: emptySection(),
-      section4: emptySection(),
-      section5,
+      sections,
+      scoringPattern: pattern,
+      ...legacy,
       total: {
         score: 0,
         rank: 0,
         percentage: 0,
         correctCount: 0,
-        totalCount: paper.totalQuestions,
-        unAttempted: paper.totalQuestions,
+        totalCount: pattern.totalQuestions,
+        unAttempted: pattern.totalQuestions,
       },
       responses,
-      meta: { class: cls, paper, maxTotal, mode: "absent" },
+      meta: { class: cls, pattern, maxTotal, mode: "absent" },
     };
   }
 
-  for (let q = 1; q <= paper.totalQuestions; q++) {
+  for (let q = 1; q <= pattern.totalQuestions; q++) {
     const studentAns = readResponse(row, q);
     responses[`p${q}`] = studentAns || "";
+    const def = findSectionForQuestion(pattern, q);
+    if (!def) continue;
+    const sec = byIndex.get(def.index);
+    if (!sec) continue;
+
     const correctAns = answerKeyMap[String(q)];
-    const isGeneral = q <= paper.general.count;
-    const marks = isGeneral
-      ? paper.general.marksPerQuestion
-      : paper.achiever.marksPerQuestion;
-    const sec = isGeneral ? section1 : section5;
+    const marks = def.marksPerQuestion;
 
     if (!studentAns) {
       sec.unAttempted += 1;
@@ -140,27 +178,38 @@ export function scoreKgRow({ row, answerKeyMap, classValue, attendance }) {
     }
   }
 
-  const generalMax = paper.general.count * paper.general.marksPerQuestion;
-  const achieverMax = paper.achiever.count * paper.achiever.marksPerQuestion;
-  section1.percentage = pct(section1.score, generalMax);
-  section5.percentage = pct(section5.score, achieverMax);
+  for (const sec of sectionStats) {
+    sec.percentage = pct(sec.score, sec.maxScore);
+  }
 
-  const totalScore = section1.score + section5.score;
+  const sections = sectionStats.map((s) => ({
+    index: s.index,
+    label: s.label,
+    isAchiever: s.isAchiever,
+    score: s.score,
+    percentage: s.percentage,
+    correctCount: s.correctCount,
+    totalCount: s.totalCount,
+    unAttempted: s.unAttempted,
+    maxScore: s.maxScore,
+  }));
+
+  const totalScore = sections.reduce((sum, s) => sum + s.score, 0);
+  const legacy = sectionsToLegacyFields(sections);
+
   return {
-    section1,
-    section2: emptySection(),
-    section3: emptySection(),
-    section4: emptySection(),
-    section5,
+    sections,
+    scoringPattern: pattern,
+    ...legacy,
     total: {
       score: totalScore,
       rank: 0,
       percentage: pct(totalScore, maxTotal),
       correctCount: totalCorrect,
-      totalCount: paper.totalQuestions,
+      totalCount: pattern.totalQuestions,
       unAttempted: totalUnattempted,
     },
     responses,
-    meta: { class: cls, paper, maxTotal, mode: "scored" },
+    meta: { class: cls, pattern, maxTotal, mode: "scored" },
   };
 }

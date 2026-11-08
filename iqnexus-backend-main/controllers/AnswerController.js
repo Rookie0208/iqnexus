@@ -9,11 +9,14 @@ import {
   isKgExamSubject,
   normalizeKgExamSubject,
   getKgQuestionCount,
+  normalizeScoringPattern,
+  defaultScoringPattern,
 } from "../utils/kgScoringConfig.js";
 
 export const uploadAnswers = async (req, res) => {
   try {
-    const { examLevel, subject, class: className, questions } = req.body;
+    const { examLevel, subject, class: className, questions, scoringPattern } =
+      req.body;
 
     if (!examLevel || !subject || !className || !questions) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -30,17 +33,36 @@ export const uploadAnswers = async (req, res) => {
       });
     }
 
+    let patternToSave = undefined;
+    if (isKgExamSubject(subject)) {
+      if (scoringPattern != null) {
+        const validated = normalizeScoringPattern(scoringPattern, {
+          require: true,
+        });
+        if (!validated.ok) {
+          return res.status(400).json({ message: validated.error });
+        }
+        patternToSave = validated.pattern;
+      } else {
+        // Fallback default so auto-score always has a pattern on the key
+        patternToSave = defaultScoringPattern(normalizedClass);
+      }
+    }
+
+    const $set = {
+      examLevel,
+      subject: normalizedSubject,
+      class: normalizedClass,
+      questions,
+    };
+    if (patternToSave) {
+      $set.scoringPattern = patternToSave;
+    }
+
     // Upsert so re-uploads replace the previous key for same exam+class
     const saved = await answersModel.findOneAndUpdate(
       { subject: normalizedSubject, class: normalizedClass, examLevel },
-      {
-        $set: {
-          examLevel,
-          subject: normalizedSubject,
-          class: normalizedClass,
-          questions,
-        },
-      },
+      { $set },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -49,8 +71,9 @@ export const uploadAnswers = async (req, res) => {
       subject: saved.subject,
       class: saved.class,
       questionCount: Object.keys(questions || {}).length,
+      scoringPattern: saved.scoringPattern || null,
       expectedQuestions: isKgExamSubject(subject)
-        ? getKgQuestionCount(normalizedClass)
+        ? patternToSave?.totalQuestions || getKgQuestionCount(normalizedClass)
         : undefined,
     });
   } catch (error) {

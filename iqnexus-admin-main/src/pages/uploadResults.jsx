@@ -555,7 +555,7 @@ const Uploadresults = () => {
                                   <li>• ROLL NO, ATTENDANCE, CLASS (NURSERY/LKG/UKG), SECTION</li>
                                   <li>• p1 … p30 — student answers (A/B). Q1…Q30 also accepted</li>
                                   <li>• Scores only first 20 (NURSERY), 25 (LKG), or 30 (UKG) answers</li>
-                                  <li>• General = 1 mark; last 5 Achiever Qs = 2 marks → section1 / section5</li>
+                                  <li>• Section count & marks come from the answer-key scoring pattern (1…N sections)</li>
                                 </ul>
                                 <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
                                   Upload the matching answer key (Answer Key page, IQKG1/IQKG2 + class) before this file.
