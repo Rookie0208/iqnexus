@@ -15,12 +15,14 @@ import {
 import {
   isKgExamSubject,
   normalizeKgExamSubject,
+  resolveScoringPattern,
 } from "../utils/kgScoringConfig.js";
 import {
   isKgResponseRow,
   normalizeAnswerKeyMap,
   scoreKgRow,
 } from "../utils/scoreKgResponses.js";
+import { getResultSections } from "../utils/resultSections.js";
 import {
   resolveCalendarYear,
   applyCalendarYearFilter,
@@ -249,7 +251,10 @@ export const uploadResult = async (req, res) => {
         if (!cls || answerKeyByClass[cls]) continue; // keep newest per class
         const map = normalizeAnswerKeyMap(doc.questions);
         if (Object.keys(map).length > 0) {
-          answerKeyByClass[cls] = map;
+          answerKeyByClass[cls] = {
+            map,
+            scoringPattern: resolveScoringPattern(doc.scoringPattern, cls),
+          };
         }
       }
 
@@ -278,17 +283,20 @@ export const uploadResult = async (req, res) => {
         }
 
         let section1, section2, section3, section4, section5, total;
+        let scoredSections = null;
+        let scoredPattern = null;
 
         if (responseMode) {
           const rowClass =
             normalizeKgClass(row["CLASS"] || row["Class"] || row["class"]) ||
             normalizeKgClass(studentClass);
-          const answerKeyMap =
+          const keyBundle =
             (rowClass && answerKeyByClass[rowClass]) ||
-            (normalizeKgClass(studentClass) && answerKeyByClass[normalizeKgClass(studentClass)]) ||
+            (normalizeKgClass(studentClass) &&
+              answerKeyByClass[normalizeKgClass(studentClass)]) ||
             Object.values(answerKeyByClass)[0];
 
-          if (!answerKeyMap) {
+          if (!keyBundle?.map) {
             errorCount++;
             errors.push({
               rollNo,
@@ -299,9 +307,10 @@ export const uploadResult = async (req, res) => {
 
           const scored = scoreKgRow({
             row,
-            answerKeyMap,
+            answerKeyMap: keyBundle.map,
             classValue: rowClass || studentClass,
             attendance,
+            scoringPattern: keyBundle.scoringPattern,
           });
           section1 = scored.section1;
           section2 = scored.section2;
@@ -309,6 +318,8 @@ export const uploadResult = async (req, res) => {
           section4 = scored.section4;
           section5 = scored.section5;
           total = scored.total;
+          scoredSections = scored.sections;
+          scoredPattern = scored.scoringPattern;
         } else {
           // Helper to read a column with fallback names (handles both "CorrectQCount" and "CorrectCount" variants)
           const readCol = (r, ...keys) => {
@@ -393,6 +404,23 @@ export const uploadResult = async (req, res) => {
         // Update student record
         let updateResult = null;
 
+        const resultSet = {
+          [`result.${effectiveResultKey}.attendance`]: attendance,
+          [`result.${effectiveResultKey}.section1`]: section1,
+          [`result.${effectiveResultKey}.section2`]: section2,
+          [`result.${effectiveResultKey}.section3`]: section3,
+          [`result.${effectiveResultKey}.section4`]: section4,
+          [`result.${effectiveResultKey}.section5`]: section5,
+          [`result.${effectiveResultKey}.total`]: total,
+          [`result.${effectiveResultKey}.passOrFail`]: passOrFail,
+        };
+        if (scoredSections) {
+          resultSet[`result.${effectiveResultKey}.sections`] = scoredSections;
+        }
+        if (scoredPattern) {
+          resultSet[`result.${effectiveResultKey}.scoringPattern`] = scoredPattern;
+        }
+
         if (hasClassAndSchool) {
           // Original mode: use form-provided class & schoolCode
           const isKG = isKgClass(studentClass) || isKGExam(subject);
@@ -403,18 +431,7 @@ export const uploadResult = async (req, res) => {
           
           updateResult = await StudentModel.findOneAndUpdate(
             findQuery,
-            {
-              $set: {
-                [`result.${effectiveResultKey}.attendance`]: attendance,
-                [`result.${effectiveResultKey}.section1`]: section1,
-                [`result.${effectiveResultKey}.section2`]: section2,
-                [`result.${effectiveResultKey}.section3`]: section3,
-                [`result.${effectiveResultKey}.section4`]: section4,
-                [`result.${effectiveResultKey}.section5`]: section5,
-                [`result.${effectiveResultKey}.total`]: total,
-                [`result.${effectiveResultKey}.passOrFail`]: passOrFail,
-              },
-            },
+            { $set: resultSet },
             { new: true }
           );
         } else {
@@ -439,18 +456,7 @@ export const uploadResult = async (req, res) => {
           if (student) {
             updateResult = await model.findOneAndUpdate(
               { rollNo },
-              {
-                $set: {
-                  [`result.${effectiveResultKey}.attendance`]: attendance,
-                  [`result.${effectiveResultKey}.section1`]: section1,
-                  [`result.${effectiveResultKey}.section2`]: section2,
-                  [`result.${effectiveResultKey}.section3`]: section3,
-                  [`result.${effectiveResultKey}.section4`]: section4,
-                  [`result.${effectiveResultKey}.section5`]: section5,
-                  [`result.${effectiveResultKey}.total`]: total,
-                  [`result.${effectiveResultKey}.passOrFail`]: passOrFail,
-                },
-              },
+              { $set: resultSet },
               { new: true }
             );
           }
@@ -906,12 +912,14 @@ export const getAllResults = async (req, res) => {
         sectionRank: sectionRank,
         passOrFail: resultData?.passOrFail || 'N/A',
         prize: resultData?.prize || '',
-        // Section-wise data
+        // Section-wise data (legacy keys + dynamic sections[])
         section1: resultData?.section1 || null,
         section2: resultData?.section2 || null,
         section3: resultData?.section3 || null,
         section4: resultData?.section4 || null,
         section5: resultData?.section5 || null,
+        sections: getResultSections(resultData),
+        scoringPattern: resultData?.scoringPattern || null,
       };
     }));
 

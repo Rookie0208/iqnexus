@@ -145,10 +145,25 @@ const KindergartenStudentSchema = new Schema(
             trim: true,
             default: "",
         },
-        // Section-wise result schema for KG exams
+        // Section-wise result schema for KG exams.
+        // Prefer result.*.sections[] (1…N). section1–section5 kept for legacy dual-write.
         result: {
             IQKD1: {
                 attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
+                scoringPattern: { type: mongoose.Schema.Types.Mixed },
+                sections: [
+                    {
+                        index: Number,
+                        label: String,
+                        isAchiever: Boolean,
+                        score: Number,
+                        percentage: Number,
+                        correctCount: Number,
+                        totalCount: Number,
+                        unAttempted: Number,
+                        maxScore: Number,
+                    },
+                ],
                 section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
                 section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
                 section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
@@ -159,6 +174,20 @@ const KindergartenStudentSchema = new Schema(
             },
             IQKD2: {
                 attendance: { type: String, enum: ['PRESENT', 'ABSENT', 'DISQUALIFIED'] },
+                scoringPattern: { type: mongoose.Schema.Types.Mixed },
+                sections: [
+                    {
+                        index: Number,
+                        label: String,
+                        isAchiever: Boolean,
+                        score: Number,
+                        percentage: Number,
+                        correctCount: Number,
+                        totalCount: Number,
+                        unAttempted: Number,
+                        maxScore: Number,
+                    },
+                ],
                 section1: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
                 section2: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },
                 section3: { score: Number, percentage: Number, correctCount: Number, totalCount: Number, unAttempted: Number },

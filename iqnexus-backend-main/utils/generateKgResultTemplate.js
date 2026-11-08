@@ -1,8 +1,12 @@
 import xlsx from "xlsx";
-import { KG_MAX_TEMPLATE_QUESTIONS, KG_PAPER_BY_CLASS } from "./kgScoringConfig.js";
+import { KG_PAPER_BY_CLASS } from "./kgScoringConfig.js";
+
+/** Columns in the downloadable sample sheet (scoring pattern may use fewer/more) */
+const TEMPLATE_RESPONSE_COLUMNS = 30;
 
 /**
  * KG result response template: ROLL NO, ATTENDANCE, CLASS, SECTION, p1…p30
+ * Actual scored questions / section marks come from the answer-key scoringPattern.
  */
 export function generateKgResultTemplate() {
   const headers = [
@@ -10,12 +14,12 @@ export function generateKgResultTemplate() {
     "ATTENDANCE",
     "CLASS",
     "SECTION",
-    ...Array.from({ length: KG_MAX_TEMPLATE_QUESTIONS }, (_, i) => `p${i + 1}`),
+    ...Array.from({ length: TEMPLATE_RESPONSE_COLUMNS }, (_, i) => `p${i + 1}`),
   ];
 
   const makeResponses = (count, pattern) => {
     const row = {};
-    for (let i = 1; i <= KG_MAX_TEMPLATE_QUESTIONS; i++) {
+    for (let i = 1; i <= TEMPLATE_RESPONSE_COLUMNS; i++) {
       row[`p${i}`] = i <= count ? pattern[(i - 1) % pattern.length] : "";
     }
     return row;
@@ -67,19 +71,15 @@ export function generateKgResultTemplate() {
     { Instructions: "ATTENDANCE - PRESENT | ABSENT | DISQUALIFIED (required)" },
     { Instructions: "CLASS - NURSERY | LKG | UKG (PG → NURSERY)" },
     { Instructions: "SECTION - School section A/B/C…" },
-    { Instructions: "p1 … p30 - Student answers (A or B). Q1…Q30 also accepted." },
+    { Instructions: "p1 … pN - Student answers (A or B). Q1…QN also accepted. Sample sheet has p1…p30." },
     { Instructions: "" },
-    { Instructions: "QUESTION COUNTS (extra columns ignored):" },
-    { Instructions: "NURSERY (PG) - first 20 questions scored" },
-    { Instructions: "LKG - first 25 questions scored" },
-    { Instructions: "UKG - all 30 questions scored" },
-    { Instructions: "" },
-    { Instructions: "MARKS:" },
-    { Instructions: "General section (earlier questions) - 1 mark each → stored as section1" },
-    { Instructions: "Achiever section (last 5 questions) - 2 marks each → stored as section5" },
+    { Instructions: "SCORING PATTERN (configured on Answer Key upload, not here):" },
+    { Instructions: "Admin defines 1…N sections with From Q / To Q / Marks per question." },
+    { Instructions: "Only questions covered by that pattern are scored; extra p-columns are ignored." },
+    { Instructions: "Default fallback if no pattern on key: NURSERY 20 / LKG 25 / UKG 30 with General+Achiever." },
     { Instructions: "" },
     { Instructions: "PREREQUISITE:" },
-    { Instructions: "Upload the matching answer key (IQKD1/IQKD2 + class) before uploading responses." },
+    { Instructions: "Upload the matching answer key (IQKD1/IQKD2 + class) WITH scoring pattern before responses." },
     { Instructions: "Delete sample rows before uploading real data." },
   ];
   const instructionSheet = xlsx.utils.json_to_sheet(instructionsData);

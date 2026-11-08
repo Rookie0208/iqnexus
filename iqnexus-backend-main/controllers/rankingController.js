@@ -3,6 +3,10 @@ import { KINDERGARTEN_STUDENT } from "../models/kindergarten.model.js";
 import { School } from "../models/schoolModel.js";
 import { ResultConfig } from "../models/resultConfigModel.js";
 import { Subject } from "../models/subjectModel.js";
+import {
+  getAchieverSection,
+  sumOtherSectionScores,
+} from "../utils/resultSections.js";
 
 /**
  * Get exam field map dynamically from the Subject collection.
@@ -203,6 +207,10 @@ export const DEFAULT_TIE_BREAK_ORDER = [
 
 const sumOtherSections = (student, resultKey, achieverIdx) => {
   const result = student.result?.[resultKey] || {};
+  // Prefer dynamic sections[] when present
+  if (Array.isArray(result.sections) && result.sections.length > 0) {
+    return sumOtherSectionScores(result, achieverIdx);
+  }
   let sum = 0;
   for (let i = 1; i <= 5; i++) {
     if (i === achieverIdx) continue;
@@ -271,15 +279,24 @@ const compareStudents = (a, b, tieBreakOrder, resultKey, subjectConfig) => {
         break;
       }
       case "achieversSection": {
-        const secKey = `section${achieverIdx}`;
-        const achieverA = a.result?.[resultKey]?.[secKey]?.score ?? 0;
-        const achieverB = b.result?.[resultKey]?.[secKey]?.score ?? 0;
+        const achieverA =
+          getAchieverSection(a.result?.[resultKey], achieverIdx)?.score ??
+          a.result?.[resultKey]?.[`section${achieverIdx}`]?.score ??
+          0;
+        const achieverB =
+          getAchieverSection(b.result?.[resultKey], achieverIdx)?.score ??
+          b.result?.[resultKey]?.[`section${achieverIdx}`]?.score ??
+          0;
         diff = achieverB - achieverA;
         break;
       }
       case "otherSectionsCombined": {
-        const otherA = sumOtherSections(a, resultKey, achieverIdx);
-        const otherB = sumOtherSections(b, resultKey, achieverIdx);
+        const achA = getAchieverSection(a.result?.[resultKey], achieverIdx);
+        const achB = getAchieverSection(b.result?.[resultKey], achieverIdx);
+        const idxA = achA?.index ?? achieverIdx;
+        const idxB = achB?.index ?? achieverIdx;
+        const otherA = sumOtherSections(a, resultKey, idxA);
+        const otherB = sumOtherSections(b, resultKey, idxB);
         diff = otherB - otherA;
         break;
       }
@@ -526,7 +543,7 @@ export const editStudentMarks = async (req, res) => {
   try {
     const { 
       rollNo, subject, 
-      section1, section2, section3, section4, section5, total,
+      section1, section2, section3, section4, section5, sections, total,
       attendance, passOrFail,
       adminId = "admin", reason = ""
     } = req.body;
@@ -561,6 +578,7 @@ export const editStudentMarks = async (req, res) => {
     if (section3) updateFields[`result.${resultKey}.section3`] = section3;
     if (section4) updateFields[`result.${resultKey}.section4`] = section4;
     if (section5) updateFields[`result.${resultKey}.section5`] = section5;
+    if (Array.isArray(sections)) updateFields[`result.${resultKey}.sections`] = sections;
     if (total) updateFields[`result.${resultKey}.total`] = total;
     if (attendance) updateFields[`result.${resultKey}.attendance`] = attendance;
     if (passOrFail) updateFields[`result.${resultKey}.passOrFail`] = passOrFail;
